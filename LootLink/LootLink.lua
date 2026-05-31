@@ -327,9 +327,6 @@ local function EnsureFull(npcID)
 	LoadPartition("Misc")
 	if LootLinkFull and LootLinkFull[npcID] then return true end
 	for _, p in ipairs(PARTITIONS) do LoadPartition(p) end
-	if not LootLinkFull then
-		print("|cff66ccffLootLink|r: full data not loaded — enable the |cffffd100LootLink_*|r data addons in your AddOns list.")
-	end
 	return LootLinkFull and LootLinkFull[npcID] ~= nil
 end
 
@@ -533,19 +530,9 @@ end
 ----------------------------------------------------------------------
 local function LinkUnit(unit)
 	unit = unit or "target"
-	if not UnitExists(unit) then
-		print("|cff66ccffLootLink|r: No target. Target a mob and try again.")
-		return
-	end
-	local npcID, kind = GetNpcID(unit)
-	if not npcID then
-		if kind == "Player" then
-			print("|cff66ccffLootLink|r: That's a player — no loot table to look up.")
-		else
-			print("|cff66ccffLootLink|r: Couldn't read an NPC ID from that unit.")
-		end
-		return
-	end
+	if not UnitExists(unit) then return end
+	local npcID = GetNpcID(unit)
+	if not npcID then return end
 	EnsureFull(npcID)
 	ShowNPC(npcID, UnitName(unit))
 end
@@ -601,8 +588,6 @@ SlashCmdList.LOOTLINK = function(msg)
 	msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
 	if msg == "auto" then
 		LootLinkDB.auto = not LootLinkDB.auto
-		print("|cff66ccffLootLink|r: auto-show on target is now " ..
-			(LootLinkDB.auto and "|cff00ff00ON|r" or "|cffff0000OFF|r") .. ".")
 	elseif msg == "config" or msg == "options" then
 		if LootLink_OpenSettings then LootLink_OpenSettings() end
 	elseif msg:match("^browse") then

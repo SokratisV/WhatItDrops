@@ -106,10 +106,7 @@ AddCheck("Show generic world-drop / common loot",
 
 AddCheck("Flat / ElvUI skin" .. (LootLink_Skin and LootLink_Skin.HasElv() and "  (ElvUI detected)" or "") .. "  — requires /reload",
 	function() return db().theme == "elvui" end,
-	function(v)
-		db().theme = v and "elvui" or "blizzard"
-		print("|cff66ccffLootLink|r: theme set to " .. db().theme .. " — type |cffffd100/reload|r to apply.")
-	end,
+	function(v) db().theme = v and "elvui" or "blizzard" end,
 	18, -148)
 
 local kb = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
