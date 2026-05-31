@@ -591,8 +591,17 @@ end
 ----------------------------------------------------------------------
 -- Core action
 ----------------------------------------------------------------------
+-- The unit to look up: when the option is on, a valid mouseover creature wins
+-- over the current target; otherwise just the target.
+local function ResolveUnit()
+	if LootLinkDB and LootLinkDB.useMouseover and UnitExists("mouseover") and GetNpcID("mouseover") then
+		return "mouseover"
+	end
+	return "target"
+end
+
 local function LinkUnit(unit)
-	unit = unit or "target"
+	unit = unit or ResolveUnit()
 	if not UnitExists(unit) then return end
 	local npcID = GetNpcID(unit)
 	if not npcID then return end
@@ -613,6 +622,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		if LootLinkDB.showWorldDrops == nil then LootLinkDB.showWorldDrops = true end
 		if LootLinkDB.theme == nil then LootLinkDB.theme = "blizzard" end
 		if LootLinkDB.clearSearchOnOpen == nil then LootLinkDB.clearSearchOnOpen = true end
+		if LootLinkDB.useMouseover == nil then LootLinkDB.useMouseover = false end
 		self:UnregisterEvent("ADDON_LOADED")
 		self:RegisterEvent("PLAYER_LOGIN")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -665,22 +675,23 @@ SlashCmdList.LOOTLINK = function(msg)
 		print("  Ctrl+C shows the Wowhead link; press again to copy & close.")
 		print("  Ctrl-click an item to preview it; Shift-click to link it in chat.")
 	else
-		LinkUnit("target")
+		LinkUnit()
 	end
 end
 
 -- /fullloot kept as an alias for muscle memory (single mode now).
 SLASH_LOOTLINKFULL1 = "/fullloot"
-SlashCmdList.LOOTLINKFULL = function() LinkUnit("target") end
+SlashCmdList.LOOTLINKFULL = function() LinkUnit() end
 
 -- Binding entry points (invoked from Bindings.xml) + Key Bindings UI labels.
 BINDING_HEADER_LOOTLINK = "LootLink"
 BINDING_NAME_LOOTLINK_FULLLOOKUP = "Show loot for target"
 BINDING_NAME_LOOTLINK_LOOKUP = "Open item browser"
 function LootLink_DoBinding()
-	-- With a valid creature target, show its loot; otherwise open the browser.
-	if UnitExists("target") and not UnitIsPlayer("target") and GetNpcID("target") then
-		LinkUnit("target")
+	-- Mouseover (if enabled) or target; show its loot, otherwise open the browser.
+	local unit = ResolveUnit()
+	if UnitExists(unit) and not UnitIsPlayer(unit) and GetNpcID(unit) then
+		LinkUnit(unit)
 	else
 		LootLink_OpenBrowser()
 	end

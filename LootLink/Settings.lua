@@ -128,25 +128,29 @@ AddCheck("Reset the search box each time the browser opens",
 	function(v) db().clearSearchOnOpen = v end,
 	18, -148)
 
+AddCheck("Use mouseover unit (takes priority over your target)",
+	function() return db().useMouseover end,
+	function(v) db().useMouseover = v end,
+	18, -178)
+
 AddCheck("Flat / ElvUI skin" .. (LootLink_Skin and LootLink_Skin.HasElv() and "  (ElvUI detected)" or "") .. "  — requires /reload",
 	function() return db().theme == "elvui" end,
 	function(v) db().theme = v and "elvui" or "blizzard" end,
-	18, -178)
+	18, -208)
 
 local kb = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-kb:SetPoint("TOPLEFT", 16, -218)
+kb:SetPoint("TOPLEFT", 16, -248)
 kb:SetText("Keybinds")
 
-AddBindRow("LOOTLINK_FULLLOOKUP", "Loot for target", 18, -242)
-AddBindRow("LOOTLINK_LOOKUP", "Item browser", 215, -242)
+AddBindRow("LOOTLINK_FULLLOOKUP", "Loot for target", 18, -272)
+AddBindRow("LOOTLINK_LOOKUP", "Item browser", 215, -272)
 
 local note = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-note:SetPoint("TOPLEFT", 18, -296)
+note:SetPoint("TOPLEFT", 18, -326)
 note:SetText("Bind: left-click a slot then press a key. Right-click a slot to clear.")
 local note2 = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-note2:SetPoint("TOPLEFT", 18, -310)
+note2:SetPoint("TOPLEFT", 18, -340)
 note2:SetText("These also appear under Esc > Key Bindings > LootLink.")
-note:SetText("These also appear under Esc > Key Bindings > LootLink.")
 
 ----------------------------------------------------------------------
 -- Register + open helper (supports both the new and legacy options APIs)
