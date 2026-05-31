@@ -72,6 +72,7 @@ local function GetWindow()
 	f:SetScript("OnDragStart", f.StartMoving)
 	f:SetScript("OnDragStop", f.StopMovingOrSizing)
 	f:SetClampedToScreen(true)
+	tinsert(UISpecialFrames, "LootLinkFrame") -- closes on Escape
 	f:SetBackdrop({
 		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
 		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
@@ -93,11 +94,11 @@ local function GetWindow()
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
 	close:SetPoint("TOPRIGHT", 2, 2)
 
-	-- Header icon buttons: open Settings / open Item Browser.
-	local function HeaderButton(texture, tip, onClick, anchorTo, dx)
+	-- Header icon buttons (Settings, Item browser), to the left of the close X.
+	local function HeaderButton(texture, tip, onClick, x)
 		local b = CreateFrame("Button", nil, f)
 		b:SetSize(16, 16)
-		b:SetPoint("RIGHT", anchorTo, "LEFT", dx, 0)
+		b:SetPoint("TOPRIGHT", f, "TOPRIGHT", x, -9)
 		b:SetNormalTexture(texture)
 		b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
 		b:SetScript("OnClick", onClick)
@@ -105,10 +106,10 @@ local function GetWindow()
 		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 		return b
 	end
-	local cfgBtn = HeaderButton("Interface\\Buttons\\UI-OptionsButton", "Settings",
-		function() if LootLink_OpenSettings then LootLink_OpenSettings() end end, close, -1)
+	HeaderButton("Interface\\Buttons\\UI-OptionsButton", "Settings",
+		function() if LootLink_OpenSettings then LootLink_OpenSettings() end end, -34)
 	HeaderButton("Interface\\Common\\UI-Searchbox-Icon", "Item browser",
-		function() if LootLink_OpenBrowser then LootLink_OpenBrowser() end end, cfgBtn, -4)
+		function() if LootLink_OpenBrowser then LootLink_OpenBrowser() end end, -56)
 
 	-- Scrollable item list
 	local scroll = CreateFrame("ScrollFrame", "LootLinkScroll", f, "UIPanelScrollFrameTemplate")
@@ -472,6 +473,7 @@ local function GetBrowser()
 	f:SetSize(360, 440); f:SetPoint("CENTER", 90, 0); f:SetFrameStrata("DIALOG")
 	f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing); f:SetClampedToScreen(true)
+	tinsert(UISpecialFrames, "LootLinkBrowserFrame") -- closes on Escape
 	f:SetBackdrop({
 		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
 		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
@@ -506,6 +508,19 @@ end
 function LootLink_OpenBrowser(text)
 	local f = GetBrowser()
 	bState, bSelItem = "items", nil
+	-- Always dock next to the loot window (to its right, flipping left if it
+	-- would run off-screen); fall back to centre when no loot window exists.
+	f:ClearAllPoints()
+	if win and win:IsShown() then
+		local side = (win:GetRight() or 0) + f:GetWidth() + 8 > UIParent:GetWidth() and "left" or "right"
+		if side == "left" then
+			f:SetPoint("TOPRIGHT", win, "TOPLEFT", -8, 0)
+		else
+			f:SetPoint("TOPLEFT", win, "TOPRIGHT", 8, 0)
+		end
+	else
+		f:SetPoint("CENTER", 90, 0)
+	end
 	f:Show()
 	if text and text ~= "" then f.search:SetText(text); DoBrowserSearch(text) else RenderBrowser() end
 	f.search:SetFocus()
@@ -611,5 +626,10 @@ BINDING_HEADER_LOOTLINK = "LootLink"
 BINDING_NAME_LOOTLINK_FULLLOOKUP = "Show loot for target"
 BINDING_NAME_LOOTLINK_LOOKUP = "Open item browser"
 function LootLink_DoBinding()
-	LinkUnit("target")
+	-- With a valid creature target, show its loot; otherwise open the browser.
+	if UnitExists("target") and not UnitIsPlayer("target") and GetNpcID("target") then
+		LinkUnit("target")
+	else
+		LootLink_OpenBrowser()
+	end
 end
