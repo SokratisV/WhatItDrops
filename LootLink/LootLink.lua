@@ -22,6 +22,11 @@ local function BuildURL(npcID)
 	return ("https://www.wowhead.com/%snpc=%d#drops"):format(branch, npcID)
 end
 
+local function BuildItemURL(itemID)
+	local branch = WOWHEAD_BRANCH ~= "" and (WOWHEAD_BRANCH .. "/") or ""
+	return ("https://www.wowhead.com/%sitem=%d"):format(branch, itemID)
+end
+
 -- Pull the NPC ID out of a unit GUID.
 -- Creature/Vehicle/Pet GUIDs look like: "Creature-0-1234-5-6789-NPCID-SPAWN"
 local function GetNpcID(unit)
@@ -496,6 +501,7 @@ RenderBrowser = function()
 	local f = bWin
 	if not f or not f:IsShown() then return end
 	f.back:SetShown(bState == "npcs")
+	f.hint:Hide(); f.url:Hide()
 	local list = {}
 	if bState == "items" then
 		f.title:SetText("LootLink — Browser")
@@ -509,6 +515,16 @@ RenderBrowser = function()
 		table.sort(list, function(a, b) return a.pct > b.pct end)
 		f.status:SetText(#list .. " npc" .. (#list == 1 and "" or "s"))
 		while #list > 300 do list[#list] = nil end
+		-- No mob drops it in our data — point to Wowhead instead.
+		if #list == 0 then
+			for _, r in ipairs(bRows) do r:Hide() end
+			f.hint:SetText("Not a mob drop in our data (crafted, quest, vendor, or event). Open on Wowhead — Ctrl+C to copy:")
+			f.hint:Show()
+			local u = BuildItemURL(bSelItem)
+			f.url.expected = u; f.url:SetText(u); f.url:Show(); f.url:SetFocus(); f.url:HighlightText()
+			f.content:SetHeight(1)
+			return
+		end
 	end
 	local shown = 0
 	for i, e in ipairs(list) do
@@ -606,6 +622,19 @@ local function GetBrowser()
 	local content = CreateFrame("Frame", nil, scroll); content:SetSize(318, 1); scroll:SetScrollChild(content)
 	f.scroll, f.content = scroll, content
 	LootLink_Skin.Scroll(scroll)
+
+	-- Hint + copyable Wowhead link, shown when an item has no mob source in our data.
+	local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	hint:SetPoint("TOPLEFT", 16, -90); hint:SetPoint("TOPRIGHT", -16, -90)
+	hint:SetJustifyH("LEFT"); hint:Hide(); f.hint = hint
+	local url = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
+	url:SetPoint("TOPLEFT", 18, -140); url:SetPoint("TOPRIGHT", -18, -140); url:SetHeight(20)
+	url:SetAutoFocus(false); url:SetFontObject(ChatFontNormal)
+	url:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	url:SetScript("OnTextChanged", function(self)
+		if self.expected and self:GetText() ~= self.expected then self:SetText(self.expected); self:HighlightText() end
+	end)
+	url:Hide(); LootLink_Skin.EditBox(url); f.url = url
 
 	bWin = f
 	return f
