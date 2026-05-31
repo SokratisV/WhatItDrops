@@ -1,11 +1,12 @@
 ## Interface: 20505
 ## Title: LootLink |cff66ccffWowhead|r
-## Notes: Target any mob and get a copyable Wowhead link to its loot table.
+## Notes: Loot tables for any mob: /loot, /fullloot, /loot browse. Inline names + item search.
 ## Author: Sokratis
 ## Version: 1.0
 ## SavedVariables: LootLinkDB
 
 Data\LootLinkWowhead.lua
+Data\LootLinkItems.lua
 LootLink.lua
 Settings.lua
 Bindings.xml

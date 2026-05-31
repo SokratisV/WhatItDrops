@@ -13,9 +13,12 @@ Target any enemy in World of Warcraft (TBC Classic / Anniversary) and see its lo
 
 - `/loot` — notable / quest-relevant drops for your target (Wowhead %).
 - `/fullloot` — complete loot table for your target (CMaNGOS %, with Wowhead % shown alongside when known).
+- `/loot browse [text]` — **item browser**: search items by name, then see which NPCs drop them (click an NPC to open its full table).
 - `/loot auto` — toggle auto-show on target.
 - `/loot config` — settings & keybinds.
 - Default keybind **CTRL-L** = full loot for target.
+
+Item and NPC **names + quality are baked in** (`Data/LootLinkItems.lua`, ~655 KB, from CMaNGOS `item_template`/`creature_template`), so names show instantly with no `GetItemInfo` flicker, work offline, and power the search. `GetItemInfo` is still used only for icons and chat links.
 
 In the window: tick **Hide common loot** to drop greys/whites; tick **Show world drops** to include the generic world-drop pool. Press **Ctrl+C** to reveal the Wowhead link, again to copy & close.
 

@@ -37,6 +37,20 @@ end
 local QUALITY_COLORS = _G.ITEM_QUALITY_COLORS
 local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 
+-- Names/quality are baked (LootLinkItems.lua); fall back to GetItemInfo when an
+-- item/npc isn't in our tables (e.g. items not present in the CMaNGOS DB).
+local function ItemName(id)
+	return (LootLinkItemName and LootLinkItemName[id]) or GetItemInfo(id) or ("item:" .. id)
+end
+local function ItemQuality(id)
+	local q = LootLinkItemQuality and LootLinkItemQuality[id]
+	if q ~= nil then return q end
+	return select(3, GetItemInfo(id))
+end
+local function NpcName(id)
+	return (LootLinkNpcName and LootLinkNpcName[id]) or ("NPC " .. id)
+end
+
 ----------------------------------------------------------------------
 -- Window
 ----------------------------------------------------------------------
@@ -238,9 +252,12 @@ function LootLink_Render()
 	local shown, waiting = 0, false
 	for _, entry in ipairs(items) do
 		local itemID, rate = entry.id, entry.pct
-		local name, link, quality, _, _, _, _, _, _, icon = GetItemInfo(itemID)
-		if not name then waiting = true end
-		-- Only filter once we actually know the quality.
+		-- Names/quality come from our baked tables (instant, offline). GetItemInfo
+		-- is only needed for the chat link + icon, which may arrive asynchronously.
+		local name = ItemName(itemID)
+		local quality = ItemQuality(itemID)
+		local _, link, _, _, _, _, _, _, _, icon = GetItemInfo(itemID)
+		if not link then waiting = true end
 		local hidden = hideJunk and quality and quality < 2
 		if not hidden then
 			shown = shown + 1
@@ -249,8 +266,7 @@ function LootLink_Render()
 			r.itemID, r.link = itemID, link
 			r.icon:SetTexture(icon or GetItemIcon(itemID) or FALLBACK_ICON)
 			local color = quality and QUALITY_COLORS[quality]
-			local label = name or ("item:" .. itemID .. " (loading)")
-			r.name:SetText(color and (color.hex .. label .. "|r") or ("|cffffffff" .. label .. "|r"))
+			r.name:SetText(color and (color.hex .. name .. "|r") or ("|cffffffff" .. name .. "|r"))
 			local txt = pctStr(rate)
 			if current.full and entry.wh then
 				txt = txt .. "  |cff66ccff(WH " .. pctStr(entry.wh) .. ")|r"
@@ -348,6 +364,158 @@ local function ShowNPC(npcID, npcName, full)
 end
 
 ----------------------------------------------------------------------
+-- Item browser: search items by name, see which NPCs drop them
+----------------------------------------------------------------------
+local bWin, bRows = nil, {}
+local bState, bSelItem, bResults = "items", nil, nil
+local reverseIndex                  -- itemID -> { {npc=, pct=}, ... }, built lazily
+local RenderBrowser, DoBrowserSearch
+
+-- Reverse index needs every region's data, so building it loads all partitions.
+-- Only triggered when you click an item in the browser, then cached.
+local function BuildReverse()
+	if reverseIndex then return end
+	for _, p in ipairs(PARTITIONS) do LoadPartition(p) end
+	reverseIndex = {}
+	local seen = {}
+	for npc, arr in pairs(LootLinkFull or {}) do
+		local total = (#arr - 1) / 2
+		for k = 0, total - 1 do
+			local id = arr[2 + 2 * k]
+			local t = reverseIndex[id]; if not t then t = {}; reverseIndex[id] = t end
+			t[#t + 1] = { npc = npc, pct = arr[3 + 2 * k] }
+			seen[id * 1000000 + npc] = true
+		end
+	end
+	for npc, items in pairs(LootLinkWowhead or {}) do
+		for id, pct in pairs(items) do
+			if not seen[id * 1000000 + npc] then
+				local t = reverseIndex[id]; if not t then t = {}; reverseIndex[id] = t end
+				t[#t + 1] = { npc = npc, pct = pct }
+			end
+		end
+	end
+end
+
+local function GetBRow(i)
+	if bRows[i] then return bRows[i] end
+	local r = CreateFrame("Button", nil, bWin.content)
+	r:SetSize(318, ROW_H)
+	r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(16, 16); r.icon:SetPoint("LEFT", 0, 0); r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+	r.name = r:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetJustifyH("LEFT")
+	r.right = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); r.right:SetPoint("RIGHT", 0, 0)
+	r.name:SetPoint("RIGHT", r.right, "LEFT", -6, 0)
+	local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.12)
+	r:SetScript("OnClick", function(self) if self.onClick then self.onClick() end end)
+	r:SetScript("OnEnter", function(self) if self.itemID then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetItemByID(self.itemID); GameTooltip:Show() end end)
+	r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	bRows[i] = r
+	return r
+end
+
+RenderBrowser = function()
+	local f = bWin
+	if not f or not f:IsShown() then return end
+	f.back:SetShown(bState == "npcs")
+	local list = {}
+	if bState == "items" then
+		f.title:SetText("LootLink — Item Browser")
+		local res = bResults or {}
+		f.status:SetText(#res .. " match" .. (#res == 1 and "" or "es"))
+		for i = 1, math.min(#res, 300) do list[i] = res[i] end
+	else
+		f.title:SetText("Dropped by: " .. ItemName(bSelItem))
+		local src = (reverseIndex and reverseIndex[bSelItem]) or {}
+		for i = 1, #src do list[i] = src[i] end
+		table.sort(list, function(a, b) return a.pct > b.pct end)
+		f.status:SetText(#list .. " npc" .. (#list == 1 and "" or "s"))
+		while #list > 300 do list[#list] = nil end
+	end
+	local shown = 0
+	for i, e in ipairs(list) do
+		shown = i
+		local r = GetBRow(i)
+		r:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
+		if bState == "items" then
+			r.itemID = e.id
+			local q = ItemQuality(e.id); local c = q and QUALITY_COLORS[q]
+			r.icon:SetTexture(GetItemIcon(e.id) or FALLBACK_ICON)
+			r.name:SetText((c and c.hex or "|cffffffff") .. e.name .. "|r")
+			r.right:SetText("")
+			r.onClick = function() bSelItem = e.id; bState = "npcs"; BuildReverse(); RenderBrowser() end
+		else
+			r.itemID = nil
+			r.icon:SetTexture(FALLBACK_ICON)
+			r.name:SetText(NpcName(e.npc) .. "  |cff888888(" .. e.npc .. ")|r")
+			r.right:SetText((e.pct >= 1 and "%.1f%%" or "%.2f%%"):format(e.pct))
+			r.onClick = function() ShowNPC(e.npc, NpcName(e.npc), true) end
+		end
+		r:Show()
+	end
+	for i = shown + 1, #bRows do bRows[i]:Hide() end
+	f.content:SetHeight(math.max(shown * ROW_H, 1))
+end
+
+DoBrowserSearch = function(query)
+	bState, bSelItem = "items", nil
+	local q = (query or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+	local res = {}
+	if #q >= 2 and LootLinkItemName then
+		for id, nm in pairs(LootLinkItemName) do
+			if nm:lower():find(q, 1, true) then res[#res + 1] = { id = id, name = nm } end
+		end
+		table.sort(res, function(a, b) return a.name < b.name end)
+	end
+	bResults = res
+	RenderBrowser()
+end
+
+local function GetBrowser()
+	if bWin then return bWin end
+	local f = CreateFrame("Frame", "LootLinkBrowserFrame", UIParent, "BackdropTemplate")
+	f:SetSize(360, 440); f:SetPoint("CENTER", 90, 0); f:SetFrameStrata("DIALOG")
+	f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
+	f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing); f:SetClampedToScreen(true)
+	f:SetBackdrop({
+		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+		tile = true, tileSize = 32, edgeSize = 32, insets = { left = 8, right = 8, top = 8, bottom = 8 },
+	})
+	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal"); title:SetPoint("TOP", 0, -12); f.title = title
+	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", 2, 2)
+
+	local sb = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
+	sb:SetSize(228, 22); sb:SetPoint("TOPLEFT", 16, -34); sb:SetAutoFocus(false); sb:SetFontObject(ChatFontNormal)
+	sb:SetScript("OnEnterPressed", function(self) DoBrowserSearch(self:GetText()); self:ClearFocus() end)
+	sb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	f.search = sb
+	local go = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+	go:SetSize(62, 22); go:SetPoint("LEFT", sb, "RIGHT", 6, 0); go:SetText("Search")
+	go:SetScript("OnClick", function() DoBrowserSearch(sb:GetText()) end)
+
+	local back = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+	back:SetSize(54, 20); back:SetPoint("TOPLEFT", 14, -60); back:SetText("< Back")
+	back:SetScript("OnClick", function() bState = "items"; RenderBrowser() end); back:Hide(); f.back = back
+	local status = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"); status:SetPoint("TOPRIGHT", -16, -64); f.status = status
+
+	local scroll = CreateFrame("ScrollFrame", "LootLinkBrowserScroll", f, "UIPanelScrollFrameTemplate")
+	scroll:SetPoint("TOPLEFT", 12, -84); scroll:SetPoint("BOTTOMRIGHT", -30, 14)
+	local content = CreateFrame("Frame", nil, scroll); content:SetSize(318, 1); scroll:SetScrollChild(content)
+	f.scroll, f.content = scroll, content
+
+	bWin = f
+	return f
+end
+
+function LootLink_OpenBrowser(text)
+	local f = GetBrowser()
+	bState, bSelItem = "items", nil
+	f:Show()
+	if text and text ~= "" then f.search:SetText(text); DoBrowserSearch(text) else RenderBrowser() end
+	f.search:SetFocus()
+end
+
+----------------------------------------------------------------------
 -- Core action
 ----------------------------------------------------------------------
 local function LinkUnit(unit, full)
@@ -423,10 +591,13 @@ SlashCmdList.LOOTLINK = function(msg)
 			(LootLinkDB.auto and "|cff00ff00ON|r" or "|cffff0000OFF|r") .. ".")
 	elseif msg == "config" or msg == "options" then
 		if LootLink_OpenSettings then LootLink_OpenSettings() end
+	elseif msg:match("^browse") then
+		LootLink_OpenBrowser(msg:match("^browse%s+(.+)$") or "")
 	elseif msg == "help" then
 		print("|cff66ccffLootLink|r commands:")
 		print("  |cffffd100/loot|r — notable/quest-relevant drops for your target (Questie data)")
 		print("  |cffffd100/fullloot|r — complete loot table for your target (CMaNGOS data)")
+		print("  |cffffd100/loot browse [text]|r — search items by name and see who drops them")
 		print("  |cffffd100/loot auto|r — toggle auto-showing on target")
 		print("  |cffffd100/loot config|r — open settings & keybinds")
 		print("  Ctrl+C shows the Wowhead link; press again to copy & close.")
