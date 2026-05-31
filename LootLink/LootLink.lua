@@ -76,6 +76,19 @@ local function RestorePos(frame, key)
 	return true
 end
 
+-- A small 16px icon button anchored to a frame's top-right (left of the close X).
+local function HeaderIcon(parent, texture, tip, onClick, x)
+	local b = CreateFrame("Button", nil, parent)
+	b:SetSize(16, 16)
+	b:SetPoint("TOPRIGHT", parent, "TOPRIGHT", x, -9)
+	b:SetNormalTexture(texture)
+	b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+	b:SetScript("OnClick", onClick)
+	b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(tip); GameTooltip:Show() end)
+	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	return b
+end
+
 local function GetWindow()
 	if win then return win end
 
@@ -109,20 +122,9 @@ local function GetWindow()
 	LootLink_Skin.Close(close)
 
 	-- Header icon buttons (Settings, Item browser), to the left of the close X.
-	local function HeaderButton(texture, tip, onClick, x)
-		local b = CreateFrame("Button", nil, f)
-		b:SetSize(16, 16)
-		b:SetPoint("TOPRIGHT", f, "TOPRIGHT", x, -9)
-		b:SetNormalTexture(texture)
-		b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
-		b:SetScript("OnClick", onClick)
-		b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(tip); GameTooltip:Show() end)
-		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
-		return b
-	end
-	HeaderButton("Interface\\Buttons\\UI-OptionsButton", "Settings",
+	HeaderIcon(f, "Interface\\Buttons\\UI-OptionsButton", "Settings",
 		function() if LootLink_OpenSettings then LootLink_OpenSettings() end end, -34)
-	HeaderButton("Interface\\Common\\UI-Searchbox-Icon", "Item browser",
+	HeaderIcon(f, "Interface\\Common\\UI-Searchbox-Icon", "Item browser",
 		function() if LootLink_OpenBrowser then LootLink_OpenBrowser() end end, -56)
 
 	-- Scrollable item list
@@ -527,6 +529,8 @@ local function GetBrowser()
 	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal"); title:SetPoint("TOP", 0, -12); f.title = title
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", 2, 2)
 	LootLink_Skin.Close(close)
+	HeaderIcon(f, "Interface\\Buttons\\UI-OptionsButton", "Settings",
+		function() if LootLink_OpenSettings then LootLink_OpenSettings() end end, -34)
 
 	local sb = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
 	sb:SetSize(228, 22); sb:SetPoint("TOPLEFT", 16, -34); sb:SetAutoFocus(false); sb:SetFontObject(ChatFontNormal)
@@ -574,7 +578,13 @@ function LootLink_OpenBrowser(text)
 		end
 	end
 	f:Show()
-	if text and text ~= "" then f.search:SetText(text); DoBrowserSearch(text) else RenderBrowser() end
+	if text and text ~= "" then
+		f.search:SetText(text); DoBrowserSearch(text)
+	elseif LootLinkDB and LootLinkDB.clearSearchOnOpen then
+		f.search:SetText(""); bResults = nil; RenderBrowser()   -- start fresh each open
+	else
+		RenderBrowser()
+	end
 	f.search:SetFocus()
 end
 
@@ -602,6 +612,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		if LootLinkDB.hideJunk == nil then LootLinkDB.hideJunk = false end
 		if LootLinkDB.showWorldDrops == nil then LootLinkDB.showWorldDrops = true end
 		if LootLinkDB.theme == nil then LootLinkDB.theme = "blizzard" end
+		if LootLinkDB.clearSearchOnOpen == nil then LootLinkDB.clearSearchOnOpen = true end
 		self:UnregisterEvent("ADDON_LOADED")
 		self:RegisterEvent("PLAYER_LOGIN")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")

@@ -39,11 +39,28 @@ local function AddBindRow(bindingName, label, x, y)
 		btn:SetText(k and ("|cff00ff00" .. k .. "|r") or "Click to set key")
 	end
 
+	local function clear()
+		local o1, o2 = GetBindingKey(bindingName)
+		if o1 then SetBinding(o1) end
+		if o2 then SetBinding(o2) end
+		SaveBindings(GetCurrentBindingSet())
+		btn.listening = false; btn:EnableKeyboard(false)
+		refresh()
+	end
+
 	btn:SetScript("OnShow", refresh)
 	btn:SetScript("OnHide", function(self)
 		self.listening = false; self:EnableKeyboard(false)
 	end)
-	btn:SetScript("OnClick", function(self)
+	btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	btn:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText("Left-click: set key\nRight-click: clear", nil, nil, nil, nil, true)
+		GameTooltip:Show()
+	end)
+	btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	btn:SetScript("OnClick", function(self, button)
+		if button == "RightButton" then clear(); return end
 		self.listening = true
 		self:SetText("Press a key… (Esc cancels)")
 		self:EnableKeyboard(true)
@@ -106,20 +123,29 @@ AddCheck("Show generic world-drop / common loot",
 	function(v) db().showWorldDrops = v; if LootLink_Refresh then LootLink_Refresh() end end,
 	18, -118)
 
+AddCheck("Reset the search box each time the browser opens",
+	function() return db().clearSearchOnOpen end,
+	function(v) db().clearSearchOnOpen = v end,
+	18, -148)
+
 AddCheck("Flat / ElvUI skin" .. (LootLink_Skin and LootLink_Skin.HasElv() and "  (ElvUI detected)" or "") .. "  — requires /reload",
 	function() return db().theme == "elvui" end,
 	function(v) db().theme = v and "elvui" or "blizzard" end,
-	18, -148)
+	18, -178)
 
 local kb = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-kb:SetPoint("TOPLEFT", 16, -188)
+kb:SetPoint("TOPLEFT", 16, -218)
 kb:SetText("Keybinds")
 
-AddBindRow("LOOTLINK_FULLLOOKUP", "Loot for target", 18, -212)
-AddBindRow("LOOTLINK_LOOKUP", "Item browser", 215, -212)
+AddBindRow("LOOTLINK_FULLLOOKUP", "Loot for target", 18, -242)
+AddBindRow("LOOTLINK_LOOKUP", "Item browser", 215, -242)
 
 local note = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-note:SetPoint("TOPLEFT", 18, -266)
+note:SetPoint("TOPLEFT", 18, -296)
+note:SetText("Bind: left-click a slot then press a key. Right-click a slot to clear.")
+local note2 = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+note2:SetPoint("TOPLEFT", 18, -310)
+note2:SetText("These also appear under Esc > Key Bindings > LootLink.")
 note:SetText("These also appear under Esc > Key Bindings > LootLink.")
 
 ----------------------------------------------------------------------
