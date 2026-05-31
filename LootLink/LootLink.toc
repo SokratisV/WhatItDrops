@@ -5,7 +5,6 @@
 ## Version: 1.0
 ## SavedVariables: LootLinkDB
 
-Data\LootLinkWowhead.lua
 Data\LootLinkItems.lua
 LootLink.lua
 Settings.lua

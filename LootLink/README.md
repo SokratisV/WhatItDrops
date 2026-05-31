@@ -1,41 +1,53 @@
 # LootLink
 
-Target any enemy in World of Warcraft (TBC Classic / Anniversary) and see its loot.
+Target any enemy in World of Warcraft (TBC Classic / Anniversary) and see its loot table.
 
 ## Addons in this repo
 
 | Addon | Loads | Purpose |
 |-------|-------|---------|
-| **LootLink** | always (~280 KB) | UI, slash commands, keybinds, the loader, and the whole-game **Wowhead** drop table (via Questie). Powers `/loot`. |
-| **LootLink_EasternKingdoms / _Kalimdor / _Outland / _Instances / _Misc** | LoadOnDemand (~1.4–2.1 MB each) | Per-continent / per-instance CMaNGOS data, loaded only for the region you're in. Powers `/fullloot`. |
+| **LootLink** | always (~930 KB) | UI, slash commands, keybinds, item browser, the region loader, and baked item/NPC names + quality. |
+| **LootLink_EasternKingdoms / _Kalimdor / _Outland / _Instances / _Misc** | LoadOnDemand (~0.3–1.5 MB each) | Per-continent / per-instance loot data, loaded only for the region you're in. |
 
 ## Commands
 
-- `/loot` — notable / quest-relevant drops for your target (Wowhead %).
-- `/fullloot` — complete loot table for your target (CMaNGOS %, with Wowhead % shown alongside when known).
-- `/loot browse [text]` — **item browser**: search items by name, then see which NPCs drop them (click an NPC to open its full table).
+- `/loot` (or `/fullloot`) — loot table for your current target.
+- `/loot browse [text]` — **item browser**: search items by name, then see which NPCs drop them (click an NPC to open its table).
 - `/loot auto` — toggle auto-show on target.
 - `/loot config` — settings & keybinds.
-- Default keybind **CTRL-L** = full loot for target.
 
-Item and NPC **names + quality are baked in** (`Data/LootLinkItems.lua`, ~655 KB, from CMaNGOS `item_template`/`creature_template`), so names show instantly with no `GetItemInfo` flicker, work offline, and power the search. `GetItemInfo` is still used only for icons and chat links.
+In the window: **Hide common loot** drops greys/whites; **Show world drops** includes the generic world/common-drop pool. **Ctrl+C** reveals the Wowhead link, again copies & closes. Shift-click an item to link it in chat.
 
-In the window: tick **Hide common loot** to drop greys/whites; tick **Show world drops** to include the generic world-drop pool. Press **Ctrl+C** to reveal the Wowhead link, again to copy & close.
+**Keybinds** (default **CTRL-L** = loot for target; second bindable action = open item browser).
 
-## Data sources
+## Data
 
-- **Wowhead %** — baked from Questie's bundled `wowheadData` (quest-relevant items). No Questie runtime dependency.
-- **Full tables** — CMaNGOS-TBC world DB (`creature_loot_template` + `reference_loot_template`), with effective per-kill % computed from mangos group/equal-chance rules. Approximate, not Wowhead-exact.
+Loot **rates, items, world-drop flags, names, and quality** come from the
+[**LootCodex**](https://github.com/) addon's Wowhead-cache-derived database
+(by Coldnova, **GPL v3** — itself derived from `cmangos/tbc-db`). Rates are
+**Wowhead-measured** (crowd-sourced from live TBC Classic), so they're accurate
+and complete, not emulator approximations.
+
+NPCs are bucketed into per-continent / per-instance partitions using the
+`cmangos/tbc-db` `creature` spawn table, so the client only parses the region
+you're in. Names/quality are baked inline (no `GetItemInfo` flicker, offline,
+and they power the search).
+
+### License / credit
+
+This project incorporates data generated from **LootCodex** (GPL v3) and
+**cmangos/tbc-db** (GPL v3). As a derivative it is distributed under **GPL v3**;
+see those projects for their licenses. Credit to **Coldnova** (LootCodex) and
+the **CMaNGOS** project.
 
 ## Regenerating data (dev)
 
-From `LootLink/tools/` (PowerShell):
+From `LootLink/tools/` (PowerShell), with LootCodex installed and the CMaNGOS
+world DB available (auto-downloaded/decompressed under `tools/cmangos/`):
 
 ```powershell
-# Wowhead overlay (needs Questie installed):
-./generate-wowhead.ps1
-# Full CMaNGOS tables (auto-downloads + decompresses the world DB):
-./generate-full.ps1
+./generate-from-lootcodex.ps1
 ```
 
-Generated data files are committed; the multi-MB SQL build inputs under `tools/cmangos/` are git-ignored and re-downloaded on demand.
+This rebuilds the partition addons and `Data/LootLinkItems.lua`. The multi-MB
+SQL build input under `tools/cmangos/` is git-ignored.

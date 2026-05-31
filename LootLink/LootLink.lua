@@ -245,8 +245,7 @@ function LootLink_Render()
 		win:SetHeight(HEADER_H + 30 + FOOTER_H)
 		return
 	end
-	win.empty:Hide(); win.scroll:Show(); win.check:Show()
-	win.worldCheck:SetShown(current.full and true or false)
+	win.empty:Hide(); win.scroll:Show(); win.check:Show(); win.worldCheck:Show()
 
 	local function pctStr(p) return (p >= 1 and "%.1f%%" or "%.2f%%"):format(p) end
 	local shown, waiting = 0, false
@@ -267,11 +266,7 @@ function LootLink_Render()
 			r.icon:SetTexture(icon or GetItemIcon(itemID) or FALLBACK_ICON)
 			local color = quality and QUALITY_COLORS[quality]
 			r.name:SetText(color and (color.hex .. name .. "|r") or ("|cffffffff" .. name .. "|r"))
-			local txt = pctStr(rate)
-			if current.full and entry.wh then
-				txt = txt .. "  |cff66ccff(WH " .. pctStr(entry.wh) .. ")|r"
-			end
-			r.rate:SetText(txt)
+			r.rate:SetText(pctStr(rate))
 			r:Show()
 		end
 	end
@@ -319,41 +314,28 @@ local function EnsureFull(npcID)
 	return LootLinkFull and LootLinkFull[npcID] ~= nil
 end
 
--- Build a normalized item list: { {id=, pct=, wh=}, ... }.
---  * notable mode -> Wowhead data only (pct == Wowhead %).
---  * full mode    -> flat CMaNGOS data { specificCount, id,pct, ... }; world-drop
---    pool items (after the first specificCount pairs) are shown only when toggled.
-local function BuildList(npcID, full)
-	local W = LootLinkWowhead and LootLinkWowhead[npcID]
+-- Build the item list from the flat data: { {id=, pct=}, ... }, rate-sorted.
+-- Flat layout: arr = { specificCount, id,pct, id,pct, ... } with mob-specific
+-- drops first and the generic world-drop pool after; world drops are included
+-- only when the toggle is on.
+local function BuildList(npcID)
+	local arr = LootLinkFull and LootLinkFull[npcID]
+	if not arr then return nil end
+	local total = (#arr - 1) / 2
+	local maxPairs = (LootLinkDB and LootLinkDB.showWorldDrops) and total or arr[1]
 	local list = {}
-	if full then
-		local arr = LootLinkFull and LootLinkFull[npcID]
-		if arr then
-			local total = (#arr - 1) / 2
-			local maxPairs = (LootLinkDB and LootLinkDB.showWorldDrops) and total or arr[1]
-			for k = 0, maxPairs - 1 do
-				local id = arr[2 + 2 * k]
-				list[#list + 1] = { id = id, pct = arr[3 + 2 * k], wh = W and W[id] }
-			end
-		end
-	elseif W then
-		for id, pct in pairs(W) do
-			list[#list + 1] = { id = id, pct = pct }
-		end
-		table.sort(list, function(a, b) return a.pct > b.pct end)
+	for k = 0, maxPairs - 1 do
+		list[#list + 1] = { id = arr[2 + 2 * k], pct = arr[3 + 2 * k] }
 	end
+	table.sort(list, function(a, b) return a.pct > b.pct end)
 	return (#list > 0) and list or nil
 end
 
-local function ShowNPC(npcID, npcName, full)
+local function ShowNPC(npcID, npcName)
 	local f = GetWindow()
-	current.id, current.name, current.full = npcID, npcName, full
-	current.items = BuildList(npcID, full)
-	if full then
-		f.source:SetText("Full loot: CMaNGOS-TBC %   |cff66ccff(WH)|r = Wowhead %")
-	else
-		f.source:SetText("Notable drops: Wowhead % (via Questie)")
-	end
+	current.id, current.name = npcID, npcName
+	current.items = BuildList(npcID)
+	f.source:SetText("Loot: Wowhead %  (data via LootCodex)")
 	f.title:SetText((npcName or "NPC") .. "  |cff888888(" .. npcID .. ")|r")
 	f.check:SetChecked(LootLinkDB and LootLinkDB.hideJunk or false)
 	f.worldCheck:SetChecked(LootLinkDB and LootLinkDB.showWorldDrops or false)
@@ -377,22 +359,12 @@ local function BuildReverse()
 	if reverseIndex then return end
 	for _, p in ipairs(PARTITIONS) do LoadPartition(p) end
 	reverseIndex = {}
-	local seen = {}
 	for npc, arr in pairs(LootLinkFull or {}) do
 		local total = (#arr - 1) / 2
 		for k = 0, total - 1 do
 			local id = arr[2 + 2 * k]
 			local t = reverseIndex[id]; if not t then t = {}; reverseIndex[id] = t end
 			t[#t + 1] = { npc = npc, pct = arr[3 + 2 * k] }
-			seen[id * 1000000 + npc] = true
-		end
-	end
-	for npc, items in pairs(LootLinkWowhead or {}) do
-		for id, pct in pairs(items) do
-			if not seen[id * 1000000 + npc] then
-				local t = reverseIndex[id]; if not t then t = {}; reverseIndex[id] = t end
-				t[#t + 1] = { npc = npc, pct = pct }
-			end
 		end
 	end
 end
@@ -448,7 +420,7 @@ RenderBrowser = function()
 			r.icon:SetTexture(FALLBACK_ICON)
 			r.name:SetText(NpcName(e.npc) .. "  |cff888888(" .. e.npc .. ")|r")
 			r.right:SetText((e.pct >= 1 and "%.1f%%" or "%.2f%%"):format(e.pct))
-			r.onClick = function() ShowNPC(e.npc, NpcName(e.npc), true) end
+			r.onClick = function() ShowNPC(e.npc, NpcName(e.npc)) end
 		end
 		r:Show()
 	end
@@ -518,7 +490,7 @@ end
 ----------------------------------------------------------------------
 -- Core action
 ----------------------------------------------------------------------
-local function LinkUnit(unit, full)
+local function LinkUnit(unit)
 	unit = unit or "target"
 	if not UnitExists(unit) then
 		print("|cff66ccffLootLink|r: No target. Target a mob and try again.")
@@ -533,8 +505,8 @@ local function LinkUnit(unit, full)
 		end
 		return
 	end
-	if full then EnsureFull(npcID) end
-	ShowNPC(npcID, UnitName(unit), full)
+	EnsureFull(npcID)
+	ShowNPC(npcID, UnitName(unit))
 end
 
 ----------------------------------------------------------------------
@@ -547,7 +519,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		LootLinkDB = LootLinkDB or {}
 		if LootLinkDB.auto == nil then LootLinkDB.auto = false end
 		if LootLinkDB.hideJunk == nil then LootLinkDB.hideJunk = false end
-		if LootLinkDB.showWorldDrops == nil then LootLinkDB.showWorldDrops = false end
+		if LootLinkDB.showWorldDrops == nil then LootLinkDB.showWorldDrops = true end
 		self:UnregisterEvent("ADDON_LOADED")
 		self:RegisterEvent("PLAYER_LOGIN")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -569,7 +541,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "PLAYER_TARGET_CHANGED" then
 		if LootLinkDB.auto and UnitExists("target") and UnitCanAttack("player", "target") and not UnitIsPlayer("target") then
 			local npcID = GetNpcID("target")
-			if npcID then ShowNPC(npcID, UnitName("target")) end
+			if npcID then EnsureFull(npcID); ShowNPC(npcID, UnitName("target")) end
 		end
 	elseif event == "GET_ITEM_INFO_RECEIVED" then
 		if win and win:IsShown() and current.waiting then
@@ -595,8 +567,7 @@ SlashCmdList.LOOTLINK = function(msg)
 		LootLink_OpenBrowser(msg:match("^browse%s+(.+)$") or "")
 	elseif msg == "help" then
 		print("|cff66ccffLootLink|r commands:")
-		print("  |cffffd100/loot|r — notable/quest-relevant drops for your target (Questie data)")
-		print("  |cffffd100/fullloot|r — complete loot table for your target (CMaNGOS data)")
+		print("  |cffffd100/loot|r — loot table for your current target (Wowhead %, via LootCodex data)")
 		print("  |cffffd100/loot browse [text]|r — search items by name and see who drops them")
 		print("  |cffffd100/loot auto|r — toggle auto-showing on target")
 		print("  |cffffd100/loot config|r — open settings & keybinds")
@@ -607,16 +578,14 @@ SlashCmdList.LOOTLINK = function(msg)
 	end
 end
 
--- Complete loot table (loads the heavy CMaNGOS dataset on demand).
+-- /fullloot kept as an alias for muscle memory (single mode now).
 SLASH_LOOTLINKFULL1 = "/fullloot"
-SlashCmdList.LOOTLINKFULL = function()
-	LinkUnit("target", true)
-end
+SlashCmdList.LOOTLINKFULL = function() LinkUnit("target") end
 
--- Binding entry point (invoked from Bindings.xml) + Key Bindings UI labels.
+-- Binding entry points (invoked from Bindings.xml) + Key Bindings UI labels.
 BINDING_HEADER_LOOTLINK = "LootLink"
-BINDING_NAME_LOOTLINK_LOOKUP = "Notable loot for target"
-BINDING_NAME_LOOTLINK_FULLLOOKUP = "Full loot for target"
-function LootLink_DoBinding(mode)
-	LinkUnit("target", mode == "full")
+BINDING_NAME_LOOTLINK_FULLLOOKUP = "Show loot for target"
+BINDING_NAME_LOOTLINK_LOOKUP = "Open item browser"
+function LootLink_DoBinding()
+	LinkUnit("target")
 end
