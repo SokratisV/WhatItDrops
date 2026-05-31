@@ -113,7 +113,7 @@ AddBindRow("LOOTLINK_LOOKUP", "Item browser", 215, -180)
 
 local note = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
 note:SetPoint("TOPLEFT", 18, -234)
-note:SetText("These also appear under Esc \226\134\146 Key Bindings \226\134\146 LootLink.")
+note:SetText("These also appear under Esc > Key Bindings > LootLink.")
 
 ----------------------------------------------------------------------
 -- Register + open helper (supports both the new and legacy options APIs)

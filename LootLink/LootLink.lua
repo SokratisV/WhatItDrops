@@ -81,7 +81,7 @@ local function GetWindow()
 
 	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	title:SetPoint("TOPLEFT", 14, -12)
-	title:SetPoint("TOPRIGHT", -30, -12)
+	title:SetPoint("TOPRIGHT", -76, -12)
 	title:SetJustifyH("LEFT")
 	f.title = title
 
@@ -92,6 +92,23 @@ local function GetWindow()
 
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
 	close:SetPoint("TOPRIGHT", 2, 2)
+
+	-- Header icon buttons: open Settings / open Item Browser.
+	local function HeaderButton(texture, tip, onClick, anchorTo, dx)
+		local b = CreateFrame("Button", nil, f)
+		b:SetSize(16, 16)
+		b:SetPoint("RIGHT", anchorTo, "LEFT", dx, 0)
+		b:SetNormalTexture(texture)
+		b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+		b:SetScript("OnClick", onClick)
+		b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(tip); GameTooltip:Show() end)
+		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		return b
+	end
+	local cfgBtn = HeaderButton("Interface\\Buttons\\UI-OptionsButton", "Settings",
+		function() if LootLink_OpenSettings then LootLink_OpenSettings() end end, close, -1)
+	HeaderButton("Interface\\Common\\UI-Searchbox-Icon", "Item browser",
+		function() if LootLink_OpenBrowser then LootLink_OpenBrowser() end end, cfgBtn, -4)
 
 	-- Scrollable item list
 	local scroll = CreateFrame("ScrollFrame", "LootLinkScroll", f, "UIPanelScrollFrameTemplate")
