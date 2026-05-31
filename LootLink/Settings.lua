@@ -96,12 +96,12 @@ AddCheck("Auto-show the loot window when you target an enemy",
 
 AddCheck("Hide common (grey/white) loot by default",
 	function() return db().hideJunk end,
-	function(v) db().hideJunk = v; if LootLink_Render then LootLink_Render() end end,
+	function(v) db().hideJunk = v; if LootLink_Refresh then LootLink_Refresh() end end,
 	18, -88)
 
 AddCheck("Show generic world-drop / common loot",
 	function() return db().showWorldDrops end,
-	function(v) db().showWorldDrops = v; if LootLink_Render then LootLink_Render() end end,
+	function(v) db().showWorldDrops = v; if LootLink_Refresh then LootLink_Refresh() end end,
 	18, -118)
 
 local kb = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")

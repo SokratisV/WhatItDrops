@@ -121,7 +121,7 @@ local function GetWindow()
 	checkLabel:SetText("Hide common loot")
 	check:SetScript("OnClick", function(self)
 		LootLinkDB.hideJunk = self:GetChecked() and true or false
-		LootLink_Render()
+		LootLink_Refresh()
 	end)
 	f.check = check
 
@@ -130,10 +130,10 @@ local function GetWindow()
 	worldCheck:SetPoint("BOTTOMLEFT", 10, 30)
 	local worldLabel = worldCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	worldLabel:SetPoint("LEFT", worldCheck, "RIGHT", 2, 0)
-	worldLabel:SetText("Show world drops |cff888888(full)|r")
+	worldLabel:SetText("Show world drops")
 	worldCheck:SetScript("OnClick", function(self)
 		LootLinkDB.showWorldDrops = self:GetChecked() and true or false
-		LootLink_Render()
+		LootLink_Refresh()
 	end)
 	f.worldCheck = worldCheck
 
@@ -329,6 +329,13 @@ local function BuildList(npcID)
 	end
 	table.sort(list, function(a, b) return a.pct > b.pct end)
 	return (#list > 0) and list or nil
+end
+
+-- Rebuild the current NPC's list (needed when a toggle changes *which* items are
+-- included, e.g. world drops) and redraw. Global so the toggles/Settings can call it.
+function LootLink_Refresh()
+	if current.id then current.items = BuildList(current.id) end
+	LootLink_Render()
 end
 
 local function ShowNPC(npcID, npcName)
