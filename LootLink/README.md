@@ -6,9 +6,8 @@ Target any enemy in World of Warcraft (TBC Classic / Anniversary) and see its lo
 
 | Addon | Loads | Purpose |
 |-------|-------|---------|
-| **LootLink** | always (~280 KB) | UI, slash commands, keybinds, and the whole-game **Wowhead** drop table (via Questie). Powers `/loot`. |
-| **LootLink_Full** | engine, LoadOnDemand | Loader + shared logic for the complete **CMaNGOS-TBC** loot tables. |
-| **LootLink_EasternKingdoms / _Kalimdor / _Outland / _Instances / _Misc** | LoadOnDemand | Per-continent / per-instance CMaNGOS data, loaded only for where you are. |
+| **LootLink** | always (~280 KB) | UI, slash commands, keybinds, the loader, and the whole-game **Wowhead** drop table (via Questie). Powers `/loot`. |
+| **LootLink_EasternKingdoms / _Kalimdor / _Outland / _Instances / _Misc** | LoadOnDemand (~1.4–2.1 MB each) | Per-continent / per-instance CMaNGOS data, loaded only for the region you're in. Powers `/fullloot`. |
 
 ## Commands
 

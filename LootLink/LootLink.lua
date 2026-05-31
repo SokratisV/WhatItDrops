@@ -41,7 +41,7 @@ local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 -- Window
 ----------------------------------------------------------------------
 local ROW_H, MAX_VIEW = 18, 216
-local HEADER_H, FOOTER_H = 40, 54
+local HEADER_H, FOOTER_H = 40, 78
 local win, rows
 local current = { id = nil, name = nil, items = nil }
 
@@ -98,10 +98,10 @@ local function GetWindow()
 	empty:Hide()
 	f.empty = empty
 
-	-- Footer: hide-junk toggle + copyable Wowhead URL
+	-- Footer: two toggles (hide-junk, world-drops) + copyable Wowhead URL
 	local check = CreateFrame("CheckButton", "LootLinkHideJunk", f, "UICheckButtonTemplate")
 	check:SetSize(22, 22)
-	check:SetPoint("BOTTOMLEFT", 10, 10)
+	check:SetPoint("BOTTOMLEFT", 10, 8)
 	local checkLabel = check:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	checkLabel:SetPoint("LEFT", check, "RIGHT", 2, 0)
 	checkLabel:SetText("Hide common loot")
@@ -111,9 +111,21 @@ local function GetWindow()
 	end)
 	f.check = check
 
+	local worldCheck = CreateFrame("CheckButton", "LootLinkWorldDrops", f, "UICheckButtonTemplate")
+	worldCheck:SetSize(22, 22)
+	worldCheck:SetPoint("BOTTOMLEFT", 10, 30)
+	local worldLabel = worldCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	worldLabel:SetPoint("LEFT", worldCheck, "RIGHT", 2, 0)
+	worldLabel:SetText("Show world drops |cff888888(full)|r")
+	worldCheck:SetScript("OnClick", function(self)
+		LootLinkDB.showWorldDrops = self:GetChecked() and true or false
+		LootLink_Render()
+	end)
+	f.worldCheck = worldCheck
+
 	local urlBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	urlBtn:SetSize(80, 20)
-	urlBtn:SetPoint("BOTTOMRIGHT", -10, 10)
+	urlBtn:SetPoint("BOTTOMRIGHT", -10, 8)
 	urlBtn:SetText("Wowhead")
 	urlBtn:SetScript("OnClick", function()
 		if f.url:IsShown() then
@@ -124,8 +136,8 @@ local function GetWindow()
 	end)
 
 	local url = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
-	url:SetPoint("BOTTOMLEFT", check, "TOPLEFT", 4, 6)
-	url:SetPoint("BOTTOMRIGHT", urlBtn, "TOPRIGHT", -4, 6)
+	url:SetPoint("BOTTOMLEFT", 12, 54)
+	url:SetPoint("BOTTOMRIGHT", -12, 54)
 	url:SetHeight(20)
 	url:SetAutoFocus(false)
 	url:SetFontObject(ChatFontNormal)
@@ -214,12 +226,13 @@ function LootLink_Render()
 
 	if not items then
 		for _, r in ipairs(rows) do r:Hide() end
-		win.scroll:Hide(); win.check:Hide(); win.empty:Show()
+		win.scroll:Hide(); win.check:Hide(); win.worldCheck:Hide(); win.empty:Show()
 		win.content:SetHeight(1)
 		win:SetHeight(HEADER_H + 30 + FOOTER_H)
 		return
 	end
 	win.empty:Hide(); win.scroll:Show(); win.check:Show()
+	win.worldCheck:SetShown(current.full and true or false)
 
 	local function pctStr(p) return (p >= 1 and "%.1f%%" or "%.2f%%"):format(p) end
 	local shown, waiting = 0, false
@@ -258,32 +271,53 @@ function LootLink_Render()
 	current.waiting = waiting
 end
 
--- Lazily pull in the big CMaNGOS dataset (a separate LoadOnDemand addon),
--- so it costs nothing at login and only loads the first time /fullloot is used.
-local function EnsureFull()
-	if LootLinkFull then return true end
+-- Continent / instance data is split into per-region LoadOnDemand addons that
+-- all populate the global LootLinkFull. We load only the region you're in, the
+-- first time you /fullloot there — so memory tracks where you actually play.
+local PARTITIONS = { "EasternKingdoms", "Kalimdor", "Outland", "Instances", "Misc" }
+local CONTINENT  = { [0] = "EasternKingdoms", [1] = "Kalimdor", [530] = "Outland" }
+local loadedPart = {}
+
+local function LoadPartition(name)
+	if loadedPart[name] then return end
+	loadedPart[name] = true
 	local load = (C_AddOns and C_AddOns.LoadAddOn) or LoadAddOn
-	local _, reason = load and load("LootLink_Full")
+	if load then load("LootLink_" .. name) end
+end
+
+local function CurrentPartition()
+	local mapID = select(8, GetInstanceInfo())
+	return CONTINENT[mapID] or "Instances"
+end
+
+-- Ensure the target's data is loaded: try the current region (+ Misc) first,
+-- and only fall back to loading every partition if the NPC isn't found there.
+local function EnsureFull(npcID)
+	LoadPartition(CurrentPartition())
+	LoadPartition("Misc")
+	if LootLinkFull and LootLinkFull[npcID] then return true end
+	for _, p in ipairs(PARTITIONS) do LoadPartition(p) end
 	if not LootLinkFull then
-		print("|cff66ccffLootLink|r: full loot data unavailable" ..
-			(reason and (" (" .. tostring(reason) .. ")") or "") ..
-			". Enable the |cffffd100LootLink Full Data|r addon in your AddOns list.")
-		return false
+		print("|cff66ccffLootLink|r: full data not loaded — enable the |cffffd100LootLink_*|r data addons in your AddOns list.")
 	end
-	return true
+	return LootLinkFull and LootLinkFull[npcID] ~= nil
 end
 
 -- Build a normalized item list: { {id=, pct=, wh=}, ... }.
 --  * notable mode -> Wowhead data only (pct == Wowhead %).
---  * full mode    -> CMaNGOS pct, with the Wowhead % attached when we have one.
+--  * full mode    -> flat CMaNGOS data { specificCount, id,pct, ... }; world-drop
+--    pool items (after the first specificCount pairs) are shown only when toggled.
 local function BuildList(npcID, full)
 	local W = LootLinkWowhead and LootLinkWowhead[npcID]
 	local list = {}
 	if full then
 		local arr = LootLinkFull and LootLinkFull[npcID]
 		if arr then
-			for _, p in ipairs(arr) do
-				list[#list + 1] = { id = p[1], pct = p[2], wh = W and W[p[1]] }
+			local total = (#arr - 1) / 2
+			local maxPairs = (LootLinkDB and LootLinkDB.showWorldDrops) and total or arr[1]
+			for k = 0, maxPairs - 1 do
+				local id = arr[2 + 2 * k]
+				list[#list + 1] = { id = id, pct = arr[3 + 2 * k], wh = W and W[id] }
 			end
 		end
 	elseif W then
@@ -306,6 +340,7 @@ local function ShowNPC(npcID, npcName, full)
 	end
 	f.title:SetText((npcName or "NPC") .. "  |cff888888(" .. npcID .. ")|r")
 	f.check:SetChecked(LootLinkDB and LootLinkDB.hideJunk or false)
+	f.worldCheck:SetChecked(LootLinkDB and LootLinkDB.showWorldDrops or false)
 	f.url:SetText(BuildURL(npcID))
 	f.url:Hide()
 	f:Show()
@@ -330,7 +365,7 @@ local function LinkUnit(unit, full)
 		end
 		return
 	end
-	if full then EnsureFull() end
+	if full then EnsureFull(npcID) end
 	ShowNPC(npcID, UnitName(unit), full)
 end
 
@@ -344,6 +379,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		LootLinkDB = LootLinkDB or {}
 		if LootLinkDB.auto == nil then LootLinkDB.auto = false end
 		if LootLinkDB.hideJunk == nil then LootLinkDB.hideJunk = false end
+		if LootLinkDB.showWorldDrops == nil then LootLinkDB.showWorldDrops = false end
 		self:UnregisterEvent("ADDON_LOADED")
 		self:RegisterEvent("PLAYER_LOGIN")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")

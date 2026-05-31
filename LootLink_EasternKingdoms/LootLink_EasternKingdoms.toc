@@ -1,0 +1,7 @@
+## Interface: 20505
+## Title: LootLink |cff66ccffEasternKingdoms Data|r
+## Notes: CMaNGOS loot for EasternKingdoms. Loaded on demand by LootLink.
+## Version: 1.0
+## LoadOnDemand: 1
+
+LootLink_EasternKingdoms.lua

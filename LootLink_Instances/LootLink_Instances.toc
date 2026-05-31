@@ -1,0 +1,7 @@
+## Interface: 20505
+## Title: LootLink |cff66ccffInstances Data|r
+## Notes: CMaNGOS loot for Instances. Loaded on demand by LootLink.
+## Version: 1.0
+## LoadOnDemand: 1
+
+LootLink_Instances.lua

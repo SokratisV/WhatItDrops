@@ -99,15 +99,20 @@ AddCheck("Hide common (grey/white) loot by default",
 	function(v) db().hideJunk = v; if LootLink_Render then LootLink_Render() end end,
 	18, -88)
 
+AddCheck("Show generic world-drop pool in /fullloot",
+	function() return db().showWorldDrops end,
+	function(v) db().showWorldDrops = v; if LootLink_Render then LootLink_Render() end end,
+	18, -118)
+
 local kb = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-kb:SetPoint("TOPLEFT", 16, -128)
+kb:SetPoint("TOPLEFT", 16, -156)
 kb:SetText("Keybinds")
 
-AddBindRow("LOOTLINK_LOOKUP", "Notable loot for target", 18, -152)
-AddBindRow("LOOTLINK_FULLLOOKUP", "Full loot for target", 215, -152)
+AddBindRow("LOOTLINK_LOOKUP", "Notable loot for target", 18, -180)
+AddBindRow("LOOTLINK_FULLLOOKUP", "Full loot for target", 215, -180)
 
 local note = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-note:SetPoint("TOPLEFT", 18, -206)
+note:SetPoint("TOPLEFT", 18, -234)
 note:SetText("These also appear under Esc \226\134\146 Key Bindings \226\134\146 LootLink.")
 
 ----------------------------------------------------------------------
