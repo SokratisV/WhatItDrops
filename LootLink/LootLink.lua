@@ -186,6 +186,7 @@ local function GetWindow()
 		end
 	end)
 	LootLink_Skin.Button(urlBtn)
+	f.urlBtn = urlBtn
 
 	local url = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
 	url:SetPoint("BOTTOMLEFT", 12, 54)
@@ -281,26 +282,30 @@ function LootLink_Render()
 	local items = current.items
 	local hideJunk = LootLinkDB and LootLinkDB.hideJunk
 
+	local isPlayer = current.player
 	if not items then
 		for _, r in ipairs(rows) do r:Hide() end
-		win.scroll:Hide(); win.check:Hide(); win.worldCheck:Hide(); win.empty:Show()
+		win.scroll:Hide(); win.check:Hide(); win.worldCheck:Hide(); win.urlBtn:Hide(); win.empty:Show()
 		win.content:SetHeight(1)
 		win:SetHeight(HEADER_H + 30 + FOOTER_H)
 		return
 	end
-	win.empty:Hide(); win.scroll:Show(); win.check:Show(); win.worldCheck:Show()
+	win.empty:Hide(); win.scroll:Show()
+	win.check:SetShown(not isPlayer)
+	win.worldCheck:SetShown(not isPlayer)
+	win.urlBtn:SetShown(not isPlayer)
 
 	local function pctStr(p) return (p >= 1 and "%.1f%%" or "%.2f%%"):format(p) end
 	local shown, waiting = 0, false
 	for _, entry in ipairs(items) do
-		local itemID, rate = entry.id, entry.pct
-		-- Names/quality come from our baked tables (instant, offline). GetItemInfo
-		-- is only needed for the chat link + icon, which may arrive asynchronously.
-		local name = ItemName(itemID)
-		local quality = ItemQuality(itemID)
-		local _, link, _, _, _, _, _, _, _, icon = GetItemInfo(itemID)
+		local itemID = entry.id
+		-- Names/quality from baked tables, or from the entry itself (player gear).
+		local name = entry.name or ItemName(itemID)
+		local quality = entry.quality or ItemQuality(itemID)
+		local _, giLink, _, _, _, _, _, _, _, icon = GetItemInfo(itemID)
+		local link = entry.link or giLink
 		if not link then waiting = true end
-		local hidden = hideJunk and quality and quality < 2
+		local hidden = (not isPlayer) and hideJunk and quality and quality < 2
 		if not hidden then
 			shown = shown + 1
 			local r = GetRow(shown)
@@ -308,8 +313,9 @@ function LootLink_Render()
 			r.itemID, r.link = itemID, link
 			r.icon:SetTexture(icon or GetItemIcon(itemID) or FALLBACK_ICON)
 			local color = quality and QUALITY_COLORS[quality]
-			r.name:SetText(color and (color.hex .. name .. "|r") or ("|cffffffff" .. name .. "|r"))
-			r.rate:SetText(pctStr(rate))
+			local lbl = name or ("item:" .. tostring(itemID))
+			r.name:SetText(color and (color.hex .. lbl .. "|r") or ("|cffffffff" .. lbl .. "|r"))
+			r.rate:SetText(entry.rightText or (entry.pct and pctStr(entry.pct)) or "")
 			r:Show()
 		end
 	end
@@ -381,15 +387,59 @@ end
 local function ShowNPC(npcID, npcName)
 	local f = GetWindow()
 	current.id, current.name = npcID, npcName
+	current.player, current.unit, current.inspectGUID = false, nil, nil
 	current.items = BuildList(npcID)
 	f.source:SetText("Loot: Wowhead %  (data via LootCodex)")
 	f.title:SetText((npcName or "NPC") .. "  |cff888888(" .. npcID .. ")|r")
+	f.empty:SetText("No bundled loot for this NPC. Use the Wowhead link below.")
 	f.check:SetChecked(LootLinkDB and LootLinkDB.hideJunk or false)
 	f.worldCheck:SetChecked(LootLinkDB and LootLinkDB.showWorldDrops or false)
 	f.url:SetText(BuildURL(npcID))
 	f.url:Hide()
 	f:Show()
 	LootLink_Render()
+end
+
+-- Equipped-gear slots (id, label), in a sensible visual order.
+local GEAR_SLOTS = {
+	{ 1, "Head" }, { 2, "Neck" }, { 3, "Shoulder" }, { 15, "Back" }, { 5, "Chest" },
+	{ 9, "Wrist" }, { 10, "Hands" }, { 6, "Waist" }, { 7, "Legs" }, { 8, "Feet" },
+	{ 11, "Finger" }, { 12, "Finger" }, { 13, "Trinket" }, { 14, "Trinket" },
+	{ 16, "Main Hand" }, { 17, "Off Hand" }, { 18, "Ranged" },
+}
+
+local function CollectGear(unit)
+	local list = {}
+	for _, slot in ipairs(GEAR_SLOTS) do
+		local link = GetInventoryItemLink(unit, slot[1])
+		if link then
+			local itemID = tonumber(link:match("item:(%d+)"))
+			local name, _, quality = GetItemInfo(link)
+			list[#list + 1] = {
+				id = itemID, link = link, rightText = slot[2],
+				name = name or link:match("%[(.-)%]"), quality = quality,
+			}
+		end
+	end
+	return (#list > 0) and list or nil
+end
+
+-- Open the window populated with a player's equipped gear. For other players we
+-- request an inspect and refresh when the data arrives (INSPECT_READY).
+local function ShowPlayer(unit)
+	local f = GetWindow()
+	current.id, current.name = nil, UnitName(unit)
+	current.player, current.unit, current.inspectGUID = true, unit, UnitGUID(unit)
+	current.items = CollectGear(unit)
+	f.source:SetText("Equipped gear  (Ctrl-click to preview)")
+	f.title:SetText((current.name or "Player") .. "  |cff888888(gear)|r")
+	f.empty:SetText("No visible gear yet — get within inspect range, then reopen.")
+	f.url:Hide()
+	f:Show()
+	LootLink_Render()
+	if not UnitIsUnit(unit, "player") and CanInspect and CanInspect(unit) and NotifyInspect then
+		NotifyInspect(unit)
+	end
 end
 
 ----------------------------------------------------------------------
@@ -594,7 +644,8 @@ end
 -- The unit to look up: when the option is on, a valid mouseover creature wins
 -- over the current target; otherwise just the target.
 local function ResolveUnit()
-	if LootLinkDB and LootLinkDB.useMouseover and UnitExists("mouseover") and GetNpcID("mouseover") then
+	if LootLinkDB and LootLinkDB.useMouseover and UnitExists("mouseover")
+		and (UnitIsPlayer("mouseover") or GetNpcID("mouseover")) then
 		return "mouseover"
 	end
 	return "target"
@@ -603,6 +654,7 @@ end
 local function LinkUnit(unit)
 	unit = unit or ResolveUnit()
 	if not UnitExists(unit) then return end
+	if UnitIsPlayer(unit) then ShowPlayer(unit); return end  -- show their gear
 	local npcID = GetNpcID(unit)
 	if not npcID then return end
 	EnsureFull(npcID)
@@ -627,6 +679,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		self:RegisterEvent("PLAYER_LOGIN")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")
 		self:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+		self:RegisterEvent("INSPECT_READY")
 	elseif event == "PLAYER_LOGIN" then
 		self:UnregisterEvent("PLAYER_LOGIN")
 		-- Apply the default keybind (CTRL-L) once, and only if the action is
@@ -648,6 +701,14 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		end
 	elseif event == "GET_ITEM_INFO_RECEIVED" then
 		if win and win:IsShown() and current.waiting then
+			LootLink_Render()
+		end
+	elseif event == "INSPECT_READY" then
+		-- Inspect data arrived: refill the gear list if it's the unit we're showing.
+		if current.player and current.inspectGUID and arg1 == current.inspectGUID
+			and current.unit and UnitGUID(current.unit) == current.inspectGUID
+			and win and win:IsShown() then
+			current.items = CollectGear(current.unit)
 			LootLink_Render()
 		end
 	end
@@ -688,9 +749,10 @@ BINDING_HEADER_LOOTLINK = "LootLink"
 BINDING_NAME_LOOTLINK_FULLLOOKUP = "Show loot for target"
 BINDING_NAME_LOOTLINK_LOOKUP = "Open item browser"
 function LootLink_DoBinding()
-	-- Mouseover (if enabled) or target; show its loot, otherwise open the browser.
+	-- Mouseover (if enabled) or target: a player shows gear, a creature shows
+	-- loot; anything else opens the browser.
 	local unit = ResolveUnit()
-	if UnitExists(unit) and not UnitIsPlayer(unit) and GetNpcID(unit) then
+	if UnitExists(unit) and (UnitIsPlayer(unit) or GetNpcID(unit)) then
 		LinkUnit(unit)
 	else
 		LootLink_OpenBrowser()
