@@ -262,12 +262,14 @@ local function GetRow(i)
 	end)
 	r:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	r:SetScript("OnClick", function(self)
-		local link = self.link or (self.itemID and select(2, GetItemInfo(self.itemID)))
-		if not link then return end
+		if not self.itemID then return end
+		local link = self.link or select(2, GetItemInfo(self.itemID))
 		if IsModifiedClick("DRESSUP") then
-			DressUpItemLink(link)            -- Ctrl-click: preview in the dressing room
+			if link then DressUpItemLink(link) end       -- Ctrl-click: dressing-room preview
 		elseif IsModifiedClick("CHATLINK") then
-			ChatEdit_InsertLink(link)        -- Shift-click: link in chat
+			if link then ChatEdit_InsertLink(link) end   -- Shift-click: link in chat
+		elseif LootLink_ShowItemSources then
+			LootLink_ShowItemSources(self.itemID)        -- plain click: who drops this?
 		end
 	end)
 
@@ -431,7 +433,7 @@ local function ShowPlayer(unit)
 	current.id, current.name = nil, UnitName(unit)
 	current.player, current.unit, current.inspectGUID = true, unit, UnitGUID(unit)
 	current.items = CollectGear(unit)
-	f.source:SetText("Equipped gear  (Ctrl-click to preview)")
+	f.source:SetText("Equipped gear  |cff888888(click = source, Ctrl-click = preview)|r")
 	f.title:SetText((current.name or "Player") .. "  |cff888888(gear)|r")
 	f.empty:SetText("No visible gear yet — get within inspect range, then reopen.")
 	f.url:Hide()
@@ -638,6 +640,16 @@ function LootLink_OpenBrowser(text)
 	f.search:SetFocus()
 end
 
+-- Open the browser straight to "who drops this item" (used by clicking a row).
+function LootLink_ShowItemSources(itemID)
+	if not itemID then return end
+	LootLink_OpenBrowser()       -- position + show the browser
+	bSelItem, bState = itemID, "npcs"
+	BuildReverse()
+	RenderBrowser()
+	if bWin then bWin.search:ClearFocus() end
+end
+
 ----------------------------------------------------------------------
 -- Core action
 ----------------------------------------------------------------------
@@ -734,7 +746,7 @@ SlashCmdList.LOOTLINK = function(msg)
 		print("  |cffffd100/loot auto|r — toggle auto-showing on target")
 		print("  |cffffd100/loot config|r — open settings & keybinds")
 		print("  Ctrl+C shows the Wowhead link; press again to copy & close.")
-		print("  Ctrl-click an item to preview it; Shift-click to link it in chat.")
+		print("  Click an item to see what drops it; Ctrl-click previews; Shift-click links it.")
 	else
 		LinkUnit()
 	end
