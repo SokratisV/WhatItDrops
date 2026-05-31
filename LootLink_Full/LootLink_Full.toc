@@ -1,0 +1,8 @@
+## Interface: 20505
+## Title: LootLink |cff66ccffFull Data|r
+## Notes: Complete CMaNGOS-TBC loot tables. Loaded on demand by LootLink's /fullloot.
+## Author: Sokratis
+## Version: 1.0
+## LoadOnDemand: 1
+
+LootLinkFull.lua

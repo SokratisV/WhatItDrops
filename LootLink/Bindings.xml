@@ -1,0 +1,8 @@
+<Bindings>
+	<Binding name="LOOTLINK_LOOKUP" header="LOOTLINK">
+		LootLink_DoBinding("notable")
+	</Binding>
+	<Binding name="LOOTLINK_FULLLOOKUP">
+		LootLink_DoBinding("full")
+	</Binding>
+</Bindings>

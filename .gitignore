@@ -1,0 +1,15 @@
+# This repo tracks only the LootLink addons living in this shared AddOns folder.
+# Ignore everything at the top level, then re-include our addons.
+/*
+!/.gitignore
+!/LootLink*/
+
+# Heavy, regenerable build inputs — never shipped, never loaded by the game.
+LootLink/tools/cmangos/*.sql
+LootLink/tools/cmangos/*.sql.gz
+
+# OS / editor noise
+*.bak
+*.tmp
+Thumbs.db
+.DS_Store

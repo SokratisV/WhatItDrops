@@ -1,0 +1,11 @@
+## Interface: 20505
+## Title: LootLink |cff66ccffWowhead|r
+## Notes: Target any mob and get a copyable Wowhead link to its loot table.
+## Author: Sokratis
+## Version: 1.0
+## SavedVariables: LootLinkDB
+
+Data\LootLinkWowhead.lua
+LootLink.lua
+Settings.lua
+Bindings.xml
