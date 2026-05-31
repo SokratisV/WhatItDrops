@@ -59,18 +59,36 @@ local HEADER_H, FOOTER_H = 40, 78
 local win, rows
 local current = { id = nil, name = nil, items = nil }
 
+-- Persist/restore window positions (absolute, UIParent-relative — survives drags
+-- against any anchor and across sessions via SavedVariables).
+local function SavePos(frame, key)
+	local left, bottom = frame:GetLeft(), frame:GetBottom()
+	if not left then return end
+	LootLinkDB = LootLinkDB or {}
+	LootLinkDB.pos = LootLinkDB.pos or {}
+	LootLinkDB.pos[key] = { left, bottom }
+end
+local function RestorePos(frame, key)
+	local s = LootLinkDB and LootLinkDB.pos and LootLinkDB.pos[key]
+	if not s then return false end
+	frame:ClearAllPoints()
+	frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", s[1], s[2])
+	return true
+end
+
 local function GetWindow()
 	if win then return win end
 
 	local f = CreateFrame("Frame", "LootLinkFrame", UIParent, "BackdropTemplate")
 	f:SetSize(340, 200)
-	f:SetPoint("CENTER")
+	if not RestorePos(f, "loot") then f:SetPoint("CENTER") end
 	f:SetFrameStrata("DIALOG")
 	f:SetMovable(true)
 	f:EnableMouse(true)
 	f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving)
-	f:SetScript("OnDragStop", f.StopMovingOrSizing)
+	f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); SavePos(self, "loot") end)
+	f:SetScript("OnHide", function(self) SavePos(self, "loot") end)
 	f:SetClampedToScreen(true)
 	tinsert(UISpecialFrames, "LootLinkFrame") -- closes on Escape
 	LootLink_Skin.Frame(f)
@@ -500,7 +518,10 @@ local function GetBrowser()
 	local f = CreateFrame("Frame", "LootLinkBrowserFrame", UIParent, "BackdropTemplate")
 	f:SetSize(360, 440); f:SetPoint("CENTER", 90, 0); f:SetFrameStrata("DIALOG")
 	f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
-	f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing); f:SetClampedToScreen(true)
+	f:SetScript("OnDragStart", f.StartMoving)
+	f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); SavePos(self, "browser") end)
+	f:SetScript("OnHide", function(self) SavePos(self, "browser") end)
+	f:SetClampedToScreen(true)
 	tinsert(UISpecialFrames, "LootLinkBrowserFrame") -- closes on Escape
 	LootLink_Skin.Frame(f)
 	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal"); title:SetPoint("TOP", 0, -12); f.title = title
@@ -537,18 +558,20 @@ end
 function LootLink_OpenBrowser(text)
 	local f = GetBrowser()
 	bState, bSelItem = "items", nil
-	-- Always dock next to the loot window (to its right, flipping left if it
-	-- would run off-screen); fall back to centre when no loot window exists.
-	f:ClearAllPoints()
-	if win and win:IsShown() then
-		local side = (win:GetRight() or 0) + f:GetWidth() + 8 > UIParent:GetWidth() and "left" or "right"
-		if side == "left" then
-			f:SetPoint("TOPRIGHT", win, "TOPLEFT", -8, 0)
+	-- Use the remembered position if the user has placed it before; otherwise
+	-- dock next to the loot window (flipping left near the screen edge), or centre.
+	if not RestorePos(f, "browser") then
+		f:ClearAllPoints()
+		if win and win:IsShown() then
+			local side = (win:GetRight() or 0) + f:GetWidth() + 8 > UIParent:GetWidth() and "left" or "right"
+			if side == "left" then
+				f:SetPoint("TOPRIGHT", win, "TOPLEFT", -8, 0)
+			else
+				f:SetPoint("TOPLEFT", win, "TOPRIGHT", 8, 0)
+			end
 		else
-			f:SetPoint("TOPLEFT", win, "TOPRIGHT", 8, 0)
+			f:SetPoint("CENTER", 90, 0)
 		end
-	else
-		f:SetPoint("CENTER", 90, 0)
 	end
 	f:Show()
 	if text and text ~= "" then f.search:SetText(text); DoBrowserSearch(text) else RenderBrowser() end

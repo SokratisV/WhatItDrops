@@ -59,10 +59,12 @@ local function AddBindRow(bindingName, label, x, y)
 			or key == "LALT" or key == "RALT" or key == "UNKNOWN" then
 			return
 		end
+		-- WoW's canonical modifier order is ALT-CTRL-SHIFT; wrong order silently
+		-- fails to register for multi-modifier combos.
 		local combo = ""
-		if IsShiftKeyDown() then combo = combo .. "SHIFT-" end
-		if IsControlKeyDown() then combo = combo .. "CTRL-" end
 		if IsAltKeyDown() then combo = combo .. "ALT-" end
+		if IsControlKeyDown() then combo = combo .. "CTRL-" end
+		if IsShiftKeyDown() then combo = combo .. "SHIFT-" end
 		combo = combo .. key
 		-- Replace any existing keys bound to this action, then bind the new one.
 		local o1, o2 = GetBindingKey(bindingName)
