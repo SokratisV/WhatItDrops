@@ -7,6 +7,7 @@
 # Heavy, regenerable build inputs — never shipped, never loaded by the game.
 LootLink/tools/cmangos/*.sql
 LootLink/tools/cmangos/*.sql.gz
+LootLink/tools/lootcodex/*.lua
 
 # OS / editor noise
 *.bak

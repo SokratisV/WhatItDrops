@@ -87,7 +87,7 @@ title:SetText("LootLink")
 
 local sub = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
-sub:SetText("Loot tables for your target.  /loot = notable drops,  /fullloot = complete table.")
+sub:SetText("Loot tables for your target.  /loot, /loot browse, /loot config.")
 
 AddCheck("Auto-show the loot window when you target an enemy",
 	function() return db().auto end,
@@ -104,15 +104,23 @@ AddCheck("Show generic world-drop / common loot",
 	function(v) db().showWorldDrops = v; if LootLink_Refresh then LootLink_Refresh() end end,
 	18, -118)
 
+AddCheck("Flat / ElvUI skin" .. (LootLink_Skin and LootLink_Skin.HasElv() and "  (ElvUI detected)" or "") .. "  — requires /reload",
+	function() return db().theme == "elvui" end,
+	function(v)
+		db().theme = v and "elvui" or "blizzard"
+		print("|cff66ccffLootLink|r: theme set to " .. db().theme .. " — type |cffffd100/reload|r to apply.")
+	end,
+	18, -148)
+
 local kb = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-kb:SetPoint("TOPLEFT", 16, -156)
+kb:SetPoint("TOPLEFT", 16, -188)
 kb:SetText("Keybinds")
 
-AddBindRow("LOOTLINK_FULLLOOKUP", "Loot for target", 18, -180)
-AddBindRow("LOOTLINK_LOOKUP", "Item browser", 215, -180)
+AddBindRow("LOOTLINK_FULLLOOKUP", "Loot for target", 18, -212)
+AddBindRow("LOOTLINK_LOOKUP", "Item browser", 215, -212)
 
 local note = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-note:SetPoint("TOPLEFT", 18, -234)
+note:SetPoint("TOPLEFT", 18, -266)
 note:SetText("These also appear under Esc > Key Bindings > LootLink.")
 
 ----------------------------------------------------------------------

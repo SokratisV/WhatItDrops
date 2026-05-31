@@ -73,12 +73,7 @@ local function GetWindow()
 	f:SetScript("OnDragStop", f.StopMovingOrSizing)
 	f:SetClampedToScreen(true)
 	tinsert(UISpecialFrames, "LootLinkFrame") -- closes on Escape
-	f:SetBackdrop({
-		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-		tile = true, tileSize = 32, edgeSize = 32,
-		insets = { left = 8, right = 8, top = 8, bottom = 8 },
-	})
+	LootLink_Skin.Frame(f)
 
 	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	title:SetPoint("TOPLEFT", 14, -12)
@@ -93,6 +88,7 @@ local function GetWindow()
 
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
 	close:SetPoint("TOPRIGHT", 2, 2)
+	LootLink_Skin.Close(close)
 
 	-- Header icon buttons (Settings, Item browser), to the left of the close X.
 	local function HeaderButton(texture, tip, onClick, x)
@@ -120,6 +116,7 @@ local function GetWindow()
 	content:SetSize(296, 1)
 	scroll:SetScrollChild(content)
 	f.scroll, f.content = scroll, content
+	LootLink_Skin.Scroll(scroll)
 
 	-- "No data" message (shown when the NPC isn't in our DB)
 	local empty = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -142,6 +139,7 @@ local function GetWindow()
 		LootLink_Refresh()
 	end)
 	f.check = check
+	LootLink_Skin.CheckBox(check)
 
 	local worldCheck = CreateFrame("CheckButton", "LootLinkWorldDrops", f, "UICheckButtonTemplate")
 	worldCheck:SetSize(22, 22)
@@ -154,6 +152,7 @@ local function GetWindow()
 		LootLink_Refresh()
 	end)
 	f.worldCheck = worldCheck
+	LootLink_Skin.CheckBox(worldCheck)
 
 	local urlBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	urlBtn:SetSize(80, 20)
@@ -166,6 +165,7 @@ local function GetWindow()
 			f.url:Show(); f.url:SetFocus(); f.url:HighlightText()
 		end
 	end)
+	LootLink_Skin.Button(urlBtn)
 
 	local url = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
 	url:SetPoint("BOTTOMLEFT", 12, 54)
@@ -181,6 +181,7 @@ local function GetWindow()
 	end)
 	url:Hide()
 	f.url = url
+	LootLink_Skin.EditBox(url)
 
 	-- Ctrl+C shortcut:
 	--   1st press -> reveal & select the Wowhead URL (same as the button).
@@ -474,32 +475,33 @@ local function GetBrowser()
 	f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing); f:SetClampedToScreen(true)
 	tinsert(UISpecialFrames, "LootLinkBrowserFrame") -- closes on Escape
-	f:SetBackdrop({
-		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-		tile = true, tileSize = 32, edgeSize = 32, insets = { left = 8, right = 8, top = 8, bottom = 8 },
-	})
+	LootLink_Skin.Frame(f)
 	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal"); title:SetPoint("TOP", 0, -12); f.title = title
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", 2, 2)
+	LootLink_Skin.Close(close)
 
 	local sb = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
 	sb:SetSize(228, 22); sb:SetPoint("TOPLEFT", 16, -34); sb:SetAutoFocus(false); sb:SetFontObject(ChatFontNormal)
 	sb:SetScript("OnEnterPressed", function(self) DoBrowserSearch(self:GetText()); self:ClearFocus() end)
 	sb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 	f.search = sb
+	LootLink_Skin.EditBox(sb)
 	local go = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	go:SetSize(62, 22); go:SetPoint("LEFT", sb, "RIGHT", 6, 0); go:SetText("Search")
 	go:SetScript("OnClick", function() DoBrowserSearch(sb:GetText()) end)
+	LootLink_Skin.Button(go)
 
 	local back = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	back:SetSize(54, 20); back:SetPoint("TOPLEFT", 14, -60); back:SetText("< Back")
 	back:SetScript("OnClick", function() bState = "items"; RenderBrowser() end); back:Hide(); f.back = back
+	LootLink_Skin.Button(back)
 	local status = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"); status:SetPoint("TOPRIGHT", -16, -64); f.status = status
 
 	local scroll = CreateFrame("ScrollFrame", "LootLinkBrowserScroll", f, "UIPanelScrollFrameTemplate")
 	scroll:SetPoint("TOPLEFT", 12, -84); scroll:SetPoint("BOTTOMRIGHT", -30, 14)
 	local content = CreateFrame("Frame", nil, scroll); content:SetSize(318, 1); scroll:SetScrollChild(content)
 	f.scroll, f.content = scroll, content
+	LootLink_Skin.Scroll(scroll)
 
 	bWin = f
 	return f
@@ -559,6 +561,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		if LootLinkDB.auto == nil then LootLinkDB.auto = false end
 		if LootLinkDB.hideJunk == nil then LootLinkDB.hideJunk = false end
 		if LootLinkDB.showWorldDrops == nil then LootLinkDB.showWorldDrops = true end
+		if LootLinkDB.theme == nil then LootLinkDB.theme = "blizzard" end
 		self:UnregisterEvent("ADDON_LOADED")
 		self:RegisterEvent("PLAYER_LOGIN")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")

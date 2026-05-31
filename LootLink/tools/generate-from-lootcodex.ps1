@@ -10,12 +10,17 @@
 #     (specific drops first, then generic world-drop pool; rates are Wowhead %).
 #   * Data/LootLinkItems.lua : inline item names+quality and npc names.
 param(
-    [string] $CodexDB  = "E:\World of Warcraft\_anniversary_\Interface\AddOns\LootCodex\LootCodexDB.lua",
+    # Prefer the stashed build-input copy (so the LootCodex addon can be uninstalled);
+    # fall back to the live addon if the stash is absent.
+    [string] $CodexDB  = "E:\World of Warcraft\_anniversary_\Interface\AddOns\LootLink\tools\lootcodex\LootCodexDB.lua",
     [string] $Sql      = "E:\World of Warcraft\_anniversary_\Interface\AddOns\LootLink\tools\cmangos\tbcdb.sql",
     [string] $AddonsDir= "E:\World of Warcraft\_anniversary_\Interface\AddOns",
     [string] $ItemsOut = "E:\World of Warcraft\_anniversary_\Interface\AddOns\LootLink\Data\LootLinkItems.lua"
 )
-if (-not (Test-Path $CodexDB)) { throw "LootCodexDB not found: $CodexDB" }
+if (-not (Test-Path $CodexDB)) {
+    $live = "E:\World of Warcraft\_anniversary_\Interface\AddOns\LootCodex\LootCodexDB.lua"
+    if (Test-Path $live) { $CodexDB = $live } else { throw "LootCodexDB not found (stash or live addon): $CodexDB" }
+}
 if (-not (Test-Path $Sql) -and (Test-Path "$Sql.gz")) {
     $in = [System.IO.File]::OpenRead("$Sql.gz")
     $gz = New-Object System.IO.Compression.GzipStream($in, [System.IO.Compression.CompressionMode]::Decompress)
