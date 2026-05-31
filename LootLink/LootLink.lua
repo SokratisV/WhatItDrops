@@ -241,8 +241,12 @@ local function GetRow(i)
 	end)
 	r:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	r:SetScript("OnClick", function(self)
-		if self.link and IsModifiedClick("CHATLINK") then
-			ChatEdit_InsertLink(self.link)
+		local link = self.link or (self.itemID and select(2, GetItemInfo(self.itemID)))
+		if not link then return end
+		if IsModifiedClick("DRESSUP") then
+			DressUpItemLink(link)            -- Ctrl-click: preview in the dressing room
+		elseif IsModifiedClick("CHATLINK") then
+			ChatEdit_InsertLink(link)        -- Shift-click: link in chat
 		end
 	end)
 
@@ -401,7 +405,15 @@ local function GetBRow(i)
 	r.right = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); r.right:SetPoint("RIGHT", 0, 0)
 	r.name:SetPoint("RIGHT", r.right, "LEFT", -6, 0)
 	local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.12)
-	r:SetScript("OnClick", function(self) if self.onClick then self.onClick() end end)
+	r:SetScript("OnClick", function(self)
+		if self.itemID and (IsModifiedClick("DRESSUP") or IsModifiedClick("CHATLINK")) then
+			local link = select(2, GetItemInfo(self.itemID))
+			if link and IsModifiedClick("DRESSUP") then DressUpItemLink(link)
+			elseif link then ChatEdit_InsertLink(link) end
+		elseif self.onClick then
+			self.onClick()
+		end
+	end)
 	r:SetScript("OnEnter", function(self) if self.itemID then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetItemByID(self.itemID); GameTooltip:Show() end end)
 	r:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	bRows[i] = r
@@ -414,9 +426,9 @@ RenderBrowser = function()
 	f.back:SetShown(bState == "npcs")
 	local list = {}
 	if bState == "items" then
-		f.title:SetText("LootLink — Item Browser")
+		f.title:SetText("LootLink — Browser")
 		local res = bResults or {}
-		f.status:SetText(#res .. " match" .. (#res == 1 and "" or "es"))
+		f.status:SetText(#res .. " result" .. (#res == 1 and "" or "s"))
 		for i = 1, math.min(#res, 300) do list[i] = res[i] end
 	else
 		f.title:SetText("Dropped by: " .. ItemName(bSelItem))
@@ -431,7 +443,13 @@ RenderBrowser = function()
 		shown = i
 		local r = GetBRow(i)
 		r:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
-		if bState == "items" then
+		if bState == "items" and e.kind == "npc" then
+			r.itemID = nil
+			r.icon:SetTexture(FALLBACK_ICON)
+			r.name:SetText("|cffffd100" .. e.name .. "|r  |cff888888(" .. e.id .. ")|r")
+			r.right:SetText("|cff888888target|r")
+			r.onClick = function() EnsureFull(e.id); ShowNPC(e.id, e.name) end
+		elseif bState == "items" then
 			r.itemID = e.id
 			local q = ItemQuality(e.id); local c = q and QUALITY_COLORS[q]
 			r.icon:SetTexture(GetItemIcon(e.id) or FALLBACK_ICON)
@@ -455,11 +473,23 @@ DoBrowserSearch = function(query)
 	bState, bSelItem = "items", nil
 	local q = (query or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
 	local res = {}
-	if #q >= 2 and LootLinkItemName then
-		for id, nm in pairs(LootLinkItemName) do
-			if nm:lower():find(q, 1, true) then res[#res + 1] = { id = id, name = nm } end
+	if #q >= 2 then
+		-- Targets (NPCs) first, then item drops; each sorted by name.
+		local npcs, items = {}, {}
+		if LootLinkNpcName then
+			for id, nm in pairs(LootLinkNpcName) do
+				if nm:lower():find(q, 1, true) then npcs[#npcs + 1] = { kind = "npc", id = id, name = nm } end
+			end
+			table.sort(npcs, function(a, b) return a.name < b.name end)
 		end
-		table.sort(res, function(a, b) return a.name < b.name end)
+		if LootLinkItemName then
+			for id, nm in pairs(LootLinkItemName) do
+				if nm:lower():find(q, 1, true) then items[#items + 1] = { kind = "item", id = id, name = nm } end
+			end
+			table.sort(items, function(a, b) return a.name < b.name end)
+		end
+		for i = 1, math.min(#npcs, 150) do res[#res + 1] = npcs[i] end
+		for i = 1, math.min(#items, 150) do res[#res + 1] = items[i] end
 	end
 	bResults = res
 	RenderBrowser()
@@ -595,11 +625,11 @@ SlashCmdList.LOOTLINK = function(msg)
 	elseif msg == "help" then
 		print("|cff66ccffLootLink|r commands:")
 		print("  |cffffd100/loot|r — loot table for your current target (Wowhead %, via LootCodex data)")
-		print("  |cffffd100/loot browse [text]|r — search items by name and see who drops them")
+		print("  |cffffd100/loot browse [text]|r — search items or NPCs by name")
 		print("  |cffffd100/loot auto|r — toggle auto-showing on target")
 		print("  |cffffd100/loot config|r — open settings & keybinds")
 		print("  Ctrl+C shows the Wowhead link; press again to copy & close.")
-		print("  Shift-click an item to link it in chat; hover for its tooltip.")
+		print("  Ctrl-click an item to preview it; Shift-click to link it in chat.")
 	else
 		LinkUnit("target")
 	end

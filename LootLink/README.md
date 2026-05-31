@@ -12,11 +12,11 @@ Target any enemy in World of Warcraft (TBC Classic / Anniversary) and see its lo
 ## Commands
 
 - `/loot` (or `/fullloot`) — loot table for your current target.
-- `/loot browse [text]` — **item browser**: search items by name, then see which NPCs drop them (click an NPC to open its table).
+- `/loot browse [text]` — **browser**: search **items _or_ NPCs** by name. Click an item to see which NPCs drop it; click an NPC (or an NPC result) to open its loot table.
 - `/loot auto` — toggle auto-show on target.
 - `/loot config` — settings & keybinds.
 
-In the window: **Hide common loot** drops greys/whites; **Show world drops** includes the generic world/common-drop pool. **Ctrl+C** reveals the Wowhead link, again copies & closes. Shift-click an item to link it in chat.
+In the window: **Hide common loot** drops greys/whites; **Show world drops** includes the generic world/common-drop pool. **Ctrl+C** reveals the Wowhead link, again copies & closes. **Ctrl-click** an item to preview it in the dressing room; **Shift-click** to link it in chat.
 
 **Keybinds** (default **CTRL-L** = loot for target; second bindable action = open item browser).
 
