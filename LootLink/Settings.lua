@@ -61,13 +61,19 @@ local function AddBindRow(bindingName, label, x, y)
 	btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	btn:SetScript("OnClick", function(self, button)
 		if button == "RightButton" then clear(); return end
+		-- SetPropagateKeyboardInput is protected and blocked in combat lockdown;
+		-- don't start key capture there (it would throw ADDON_ACTION_BLOCKED).
+		if InCombatLockdown() then return end
 		self.listening = true
 		self:SetText("Press a key… (Esc cancels)")
 		self:EnableKeyboard(true)
 		self:SetPropagateKeyboardInput(false)
 	end)
 	btn:SetScript("OnKeyDown", function(self, key)
-		if not self.listening then self:SetPropagateKeyboardInput(true); return end
+		if not self.listening then
+			if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
+			return
+		end
 		if key == "ESCAPE" then
 			self.listening = false; self:EnableKeyboard(false); refresh(); return
 		end

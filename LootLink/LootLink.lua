@@ -214,15 +214,42 @@ local function GetWindow()
 	--   2nd press -> the focused box copies it natively, then we close.
 	-- The popup keeps keyboard input propagating so movement/keybinds still work;
 	-- it only consumes the specific Ctrl+C that triggers the reveal.
-	f:EnableKeyboard(true)
-	f:SetPropagateKeyboardInput(true)
+	-- SetPropagateKeyboardInput is protected, so enabling keyboard capture is only
+	-- safe out of combat. If the window is first opened during combat, defer the
+	-- setup to combat-end — until then the frame stays keyboard-disabled, which lets
+	-- ESC fall through to the default UI (UISpecialFrames) and still close it.
+	local function EnableKeyCapture()
+		if InCombatLockdown() then return false end
+		f:EnableKeyboard(true)
+		f:SetPropagateKeyboardInput(true)
+		return true
+	end
+	if not EnableKeyCapture() then
+		f:RegisterEvent("PLAYER_REGEN_ENABLED")
+		f:HookScript("OnEvent", function(self, e)
+			if e == "PLAYER_REGEN_ENABLED" then
+				self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+				EnableKeyCapture()
+			end
+		end)
+	end
 	f:SetScript("OnKeyDown", function(self, key)
+		-- SetPropagateKeyboardInput is a protected function: calling it while in
+		-- combat lockdown throws ADDON_ACTION_BLOCKED and strands keyboard input,
+		-- so ESC stops reaching the default UI and the window won't close. In combat
+		-- we leave propagation untouched (it defaults to true) and let keys through.
+		if InCombatLockdown() then return end
 		if key == "C" and IsControlKeyDown() and (not url:IsShown() or not url:HasFocus()) then
 			self:SetPropagateKeyboardInput(false) -- consume this Ctrl+C
 			url:Show(); url:SetFocus(); url:HighlightText()
 		else
 			self:SetPropagateKeyboardInput(true)  -- let every other key through
 		end
+	end)
+	-- Whenever the URL box closes (Escape or after a copy), restore pass-through so
+	-- a leftover "consume" state can never carry into combat and swallow ESC.
+	url:HookScript("OnHide", function()
+		if not InCombatLockdown() then f:SetPropagateKeyboardInput(true) end
 	end)
 	url:SetScript("OnKeyDown", function(_, key)
 		if key == "C" and IsControlKeyDown() then
@@ -289,7 +316,9 @@ function LootLink_Render()
 	local items = current.items
 	local hideJunk = LootLinkDB and LootLinkDB.hideJunk
 
-	local isPlayer = current.player
+	-- The junk/world-drop toggles and the Wowhead link only make sense for an NPC
+	-- loot table; hide them for player-gear and quest-item views.
+	local isNpc = current.id ~= nil
 	if not items then
 		for _, r in ipairs(rows) do r:Hide() end
 		win.scroll:Hide(); win.check:Hide(); win.worldCheck:Hide(); win.urlBtn:Hide(); win.empty:Show()
@@ -298,9 +327,9 @@ function LootLink_Render()
 		return
 	end
 	win.empty:Hide(); win.scroll:Show()
-	win.check:SetShown(not isPlayer)
-	win.worldCheck:SetShown(not isPlayer)
-	win.urlBtn:SetShown(not isPlayer)
+	win.check:SetShown(isNpc)
+	win.worldCheck:SetShown(isNpc)
+	win.urlBtn:SetShown(isNpc)
 
 	local function pctStr(p) return (p >= 1 and "%.1f%%" or "%.2f%%"):format(p) end
 	local shown, waiting = 0, false
@@ -309,10 +338,13 @@ function LootLink_Render()
 		-- Names/quality from baked tables, or from the entry itself (player gear).
 		local name = entry.name or ItemName(itemID)
 		local quality = entry.quality or ItemQuality(itemID)
-		local _, giLink, _, _, _, _, _, _, _, icon = GetItemInfo(itemID)
+		local giLink, icon
+		if itemID then _, giLink, _, _, _, _, _, _, _, icon = GetItemInfo(itemID) end
 		local link = entry.link or giLink
-		if not link then waiting = true end
-		local hidden = (not isPlayer) and hideJunk and quality and quality < 2
+		-- Only wait on the async item cache for rows that actually have an ID to
+		-- look up (quest items unresolved to an ID never resolve — don't churn).
+		if itemID and not link then waiting = true end
+		local hidden = isNpc and hideJunk and quality and quality < 2
 		if not hidden then
 			shown = shown + 1
 			local r = GetRow(shown)
@@ -447,6 +479,105 @@ local function ShowPlayer(unit)
 	if not UnitIsUnit(unit, "player") and CanInspect and CanInspect(unit) and NotifyInspect then
 		NotifyInspect(unit)
 	end
+end
+
+----------------------------------------------------------------------
+-- Quest required items
+----------------------------------------------------------------------
+-- The quest-log API only exposes objective *names* ("Wolf Pelt: 3/8"), not item
+-- IDs, so we resolve names back to IDs through the baked item table. That lets a
+-- quest item show its icon/quality and, on click, jump to "who drops this".
+-- (First match wins; quest objective names are essentially always unique.)
+local itemNameIndex
+local function ItemIDByName(name)
+	if not name or name == "" then return nil end
+	if not itemNameIndex then
+		itemNameIndex = {}
+		if LootLinkItemName then
+			for id, nm in pairs(LootLinkItemName) do
+				local key = nm:lower()
+				if not itemNameIndex[key] then itemNameIndex[key] = id end
+			end
+		end
+	end
+	return itemNameIndex[name:lower()]
+end
+
+-- The currently selected quest's title and header flag, via the modern API when
+-- present (Classic Era exposes C_QuestLog) and the legacy call otherwise.
+local function SelectedQuestInfo()
+	local idx = (GetQuestLogSelection and GetQuestLogSelection()) or 0
+	if not idx or idx <= 0 then return nil, nil, nil end
+	if C_QuestLog and C_QuestLog.GetInfo then
+		local info = C_QuestLog.GetInfo(idx)
+		if info then return idx, info.title, info.isHeader end
+	end
+	local title, _, _, isHeader = GetQuestLogTitle(idx)
+	return idx, title, isHeader
+end
+
+-- Read the "collect N of item X" objectives off the selected quest.
+local function CollectQuestItems(questIndex)
+	if SelectQuestLogEntry then SelectQuestLogEntry(questIndex) end
+	local n = (GetNumQuestLeaderBoards and GetNumQuestLeaderBoards()) or 0
+	local list = {}
+	for i = 1, n do
+		local text, objType = GetQuestLogLeaderBoard(i)
+		if objType == "item" and text then
+			-- "Item Name: have/need" -> name, "have/need" (the colon split is locale-safe
+			-- enough for enUS/anniversary; if it doesn't match we keep the whole string).
+			local name, progress = text:match("^(.-):%s*(%d+%s*/%s*%d+)%s*$")
+			name = name or text
+			progress = progress and progress:gsub("%s+", "")
+			list[#list + 1] = { id = ItemIDByName(name), name = name, rightText = progress }
+		end
+	end
+	return (#list > 0) and list or nil
+end
+
+-- Open the loot window populated with the selected quest's required items.
+function LootLink_ShowQuest()
+	local f = GetWindow()
+	local idx, title, isHeader = SelectedQuestInfo()
+	current.id, current.name = nil, title
+	current.player, current.unit, current.inspectGUID = false, nil, nil
+	current.items = (idx and not isHeader) and CollectQuestItems(idx) or nil
+	f.source:SetText("Items this quest needs  |cff888888(click = who drops it)|r")
+	f.title:SetText((title or "Quest") .. "  |cff888888(quest)|r")
+	if not idx or isHeader then
+		f.empty:SetText("Select a quest in the log, then click again.")
+	else
+		f.empty:SetText("This quest needs no gathered items.")
+	end
+	f.url:Hide()
+	f:Show()
+	LootLink_Render()
+end
+
+-- Add a button to Blizzard's quest log that opens the required-items view for the
+-- selected quest. Created once, after login, and only if the quest log exists.
+local function CreateQuestLogButton()
+	if not QuestLogFrame or QuestLogFrame.LootLinkButton then return end
+	local b = CreateFrame("Button", "LootLinkQuestLogButton", QuestLogFrame, "UIPanelButtonTemplate")
+	b:SetSize(110, 22)
+	b:SetText("Loot Needed")
+	-- Sit just to the right of the Abandon button when it's there; fall back to a
+	-- fixed bottom-left spot so the button still appears on altered layouts.
+	local anchor = _G.QuestLogFrameAbandonButton or _G.QuestFrameAbandonButton
+	if anchor then
+		b:SetPoint("LEFT", anchor, "RIGHT", 4, 0)
+	else
+		b:SetPoint("BOTTOMLEFT", QuestLogFrame, "BOTTOMLEFT", 90, 86)
+	end
+	b:SetScript("OnClick", LootLink_ShowQuest)
+	b:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("LootLink: show the items this quest needs\nand where they drop.", nil, nil, nil, nil, true)
+		GameTooltip:Show()
+	end)
+	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	if LootLink_Skin and LootLink_Skin.Button then LootLink_Skin.Button(b) end
+	QuestLogFrame.LootLinkButton = b
 end
 
 ----------------------------------------------------------------------
@@ -723,6 +854,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		self:RegisterEvent("INSPECT_READY")
 	elseif event == "PLAYER_LOGIN" then
 		self:UnregisterEvent("PLAYER_LOGIN")
+		CreateQuestLogButton()
 		-- Apply the default keybind (CTRL-L) once, and only if the action is
 		-- unbound and CTRL-L isn't already taken — never clobber the user.
 		if not LootLinkDB.defaultBindApplied then
@@ -768,10 +900,13 @@ SlashCmdList.LOOTLINK = function(msg)
 		if LootLink_OpenSettings then LootLink_OpenSettings() end
 	elseif msg:match("^browse") then
 		LootLink_OpenBrowser(msg:match("^browse%s+(.+)$") or "")
+	elseif msg == "quest" then
+		LootLink_ShowQuest()
 	elseif msg == "help" then
 		print("|cff66ccffLootLink|r commands:")
 		print("  |cffffd100/loot|r — loot table for your current target (Wowhead %, via LootCodex data)")
 		print("  |cffffd100/loot browse [text]|r — search items or NPCs by name")
+		print("  |cffffd100/loot quest|r — items the selected quest needs, and where they drop")
 		print("  |cffffd100/loot auto|r — toggle auto-showing on target")
 		print("  |cffffd100/loot config|r — open settings & keybinds")
 		print("  Ctrl+C shows the Wowhead link; press again to copy & close.")
