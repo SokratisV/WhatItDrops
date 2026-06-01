@@ -45,9 +45,11 @@ local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 -- Names/quality are baked (LootLinkItems.lua); fall back to GetItemInfo when an
 -- item/npc isn't in our tables (e.g. items not present in the CMaNGOS DB).
 local function ItemName(id)
+	if not id then return nil end
 	return (LootLinkItemName and LootLinkItemName[id]) or GetItemInfo(id) or ("item:" .. id)
 end
 local function ItemQuality(id)
+	if not id then return nil end
 	local q = LootLinkItemQuality and LootLinkItemQuality[id]
 	if q ~= nil then return q end
 	return select(3, GetItemInfo(id))
@@ -797,7 +799,9 @@ function LootLink_OpenBrowser(text)
 	else
 		RenderBrowser()
 	end
-	f.search:SetFocus()
+	-- Deliberately do NOT auto-focus the search box: a focused EditBox swallows all
+	-- keypresses, so it would block action-bar keybinds (you couldn't cast) until you
+	-- clicked away or pressed Escape. The user clicks the box when they want to type.
 end
 
 -- Open the browser straight to "who drops this item" (used by clicking a row).

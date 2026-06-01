@@ -1,7 +1,7 @@
 ## Interface: 20505
 ## Title: LootLink |cff66ccffKalimdor Data|r
 ## Notes: Wowhead loot for Kalimdor (via LootCodex GPLv3). Loaded on demand by LootLink.
-## Version: 1.0
+## Version: 1.2
 ## LoadOnDemand: 1
 
 LootLink_Kalimdor.lua
