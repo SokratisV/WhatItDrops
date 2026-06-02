@@ -587,6 +587,7 @@ end
 ----------------------------------------------------------------------
 local bWin, bRows = nil, {}
 local bState, bSelItem, bResults = "items", nil, nil
+local bContext                      -- when set, a custom title for the items list (e.g. "Bosses — …")
 local reverseIndex                  -- itemID -> { {npc=, pct=}, ... }, built lazily
 local RenderBrowser, DoBrowserSearch
 
@@ -637,9 +638,13 @@ RenderBrowser = function()
 	f.hint:Hide(); f.url:Hide()
 	local list = {}
 	if bState == "items" then
-		f.title:SetText("LootLink — Browser")
 		local res = bResults or {}
-		f.status:SetText(#res .. " result" .. (#res == 1 and "" or "s"))
+		f.title:SetText(bContext or "LootLink — Browser")
+		if bContext then
+			f.status:SetText(#res .. " boss" .. (#res == 1 and "" or "es"))
+		else
+			f.status:SetText(#res .. " result" .. (#res == 1 and "" or "s"))
+		end
 		for i = 1, math.min(#res, 300) do list[i] = res[i] end
 	else
 		f.title:SetText("Dropped by: " .. ItemName(bSelItem))
@@ -691,7 +696,7 @@ RenderBrowser = function()
 end
 
 DoBrowserSearch = function(query)
-	bState, bSelItem = "items", nil
+	bState, bSelItem, bContext = "items", nil, nil
 	local q = (query or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
 	local res = {}
 	if #q >= 2 then
@@ -775,7 +780,7 @@ end
 
 function LootLink_OpenBrowser(text)
 	local f = GetBrowser()
-	bState, bSelItem = "items", nil
+	bState, bSelItem, bContext = "items", nil, nil
 	-- Use the remembered position if the user has placed it before; otherwise
 	-- dock next to the loot window (flipping left near the screen edge), or centre.
 	if not RestorePos(f, "browser") then
@@ -812,6 +817,32 @@ function LootLink_ShowItemSources(itemID)
 	BuildReverse()
 	RenderBrowser()
 	if bWin then bWin.search:ClearFocus() end
+end
+
+-- If the player is inside a 5-man or raid we have boss data for, open the browser
+-- listing that instance's bosses (each click -> that boss's loot). Returns true if
+-- it showed something, so callers can fall back to a normal browser open otherwise.
+function LootLink_ShowInstanceBosses()
+	if not IsInInstance or not GetInstanceInfo then return false end
+	local inside = IsInInstance()
+	if not inside then return false end
+	local instName, instType, _, _, _, _, _, mapID = GetInstanceInfo()
+	-- Only dungeons/raids have a boss roster; skip battlegrounds/arenas.
+	if instType ~= "party" and instType ~= "raid" then return false end
+	local ids = mapID and LootLinkInstanceBoss and LootLinkInstanceBoss[mapID]
+	if not ids or #ids == 0 then return false end
+
+	LootLink_OpenBrowser()       -- position + show the browser (clears bContext)
+	local res = {}
+	for _, id in ipairs(ids) do
+		res[#res + 1] = { kind = "npc", id = id, name = NpcName(id) }
+	end
+	table.sort(res, function(a, b) return a.name < b.name end)
+	bState, bSelItem, bResults = "items", nil, res
+	bContext = "Bosses — " .. (instName or "Instance")
+	RenderBrowser()
+	if bWin then bWin.search:ClearFocus() end
+	return true
 end
 
 ----------------------------------------------------------------------
@@ -906,10 +937,15 @@ SlashCmdList.LOOTLINK = function(msg)
 		LootLink_OpenBrowser(msg:match("^browse%s+(.+)$") or "")
 	elseif msg == "quest" then
 		LootLink_ShowQuest()
+	elseif msg == "bosses" then
+		if not LootLink_ShowInstanceBosses() then
+			print("|cff66ccffLootLink|r: no boss list — you're not in a dungeon/raid we have data for.")
+		end
 	elseif msg == "help" then
 		print("|cff66ccffLootLink|r commands:")
 		print("  |cffffd100/loot|r — loot table for your current target (Wowhead %, via LootCodex data)")
 		print("  |cffffd100/loot browse [text]|r — search items or NPCs by name")
+		print("  |cffffd100/loot bosses|r — list the bosses of the instance you're in")
 		print("  |cffffd100/loot quest|r — items the selected quest needs, and where they drop")
 		print("  |cffffd100/loot auto|r — toggle auto-showing on target")
 		print("  |cffffd100/loot config|r — open settings & keybinds")
@@ -934,7 +970,8 @@ function LootLink_DoBinding()
 	local unit = ResolveUnit()
 	if UnitExists(unit) and (UnitIsPlayer(unit) or GetNpcID(unit)) then
 		LinkUnit(unit)
-	else
+	elseif not LootLink_ShowInstanceBosses() then
+		-- No target and not in a known instance: fall back to the plain browser.
 		LootLink_OpenBrowser()
 	end
 end

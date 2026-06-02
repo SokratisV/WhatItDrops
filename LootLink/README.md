@@ -13,12 +13,16 @@ Target any enemy in World of Warcraft (TBC Classic / Anniversary) and see its lo
 
 - `/loot` (or `/fullloot`) — loot table for your current target.
 - `/loot browse [text]` — **browser**: search **items _or_ NPCs** by name. Click an item to see which NPCs drop it; click an NPC (or an NPC result) to open its loot table.
+- `/loot bosses` — list the **bosses of the instance you're in** (each one clickable to its loot table). This is also what the loot keybind does when you have no target while inside a dungeon/raid.
+- `/loot quest` — items the **selected quest** needs, and where they drop. Also available as a **"Loot Needed"** button in the quest log.
 - `/loot auto` — toggle auto-show on target.
 - `/loot config` — settings & keybinds.
 
 In the window: **Hide common loot** drops greys/whites; **Show world drops** includes the generic world/common-drop pool. **Ctrl+C** reveals the Wowhead link, again copies & closes. **Ctrl-click** an item to preview it in the dressing room; **Shift-click** to link it in chat.
 
-**Keybinds** (default **CTRL-L** = loot for target; second bindable action = open item browser).
+**Keybinds** (default **CTRL-L**): looks up your target; with no target inside a dungeon/raid it lists that instance's bosses; otherwise it opens the item browser.
+
+> **Boss list note:** the Classic/Anniversary client has no Encounter Journal API, so bosses are derived from the world DB (a single-spawn rare+ dropper, or a Rank-3 elite). This nails 5-man rosters; the gap is script-**summoned** raid bosses (Ragnaros, Majordomo, Nefarian), which have no spawn point to map to an instance.
 
 ## Data
 
@@ -51,3 +55,10 @@ world DB available (auto-downloaded/decompressed under `tools/cmangos/`):
 
 This rebuilds the partition addons and `Data/LootLinkItems.lua`. The multi-MB
 SQL build input under `tools/cmangos/` is git-ignored.
+
+```powershell
+./generate-bosses.ps1
+```
+
+This rebuilds `Data/LootLinkBosses.lua` (instance map id → boss NPC ids) from the
+same CMaNGOS `creature` / `creature_template` tables plus LootCodex item quality.

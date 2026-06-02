@@ -6,6 +6,7 @@
 ## SavedVariables: LootLinkDB
 
 Data\LootLinkItems.lua
+Data\LootLinkBosses.lua
 Theme.lua
 LootLink.lua
 Settings.lua
