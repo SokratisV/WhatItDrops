@@ -2,7 +2,7 @@
 ## Title: LootLink |cff66ccffWowhead|r
 ## Notes: Loot tables for any mob: /loot, /fullloot, /loot browse. Inline names + item search.
 ## Author: Sokratis
-## Version: 1.2
+## Version: 1.3
 ## SavedVariables: LootLinkDB
 
 Data\LootLinkItems.lua
