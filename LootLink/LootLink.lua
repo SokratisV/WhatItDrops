@@ -223,27 +223,37 @@ local function GetWindow()
 	local function EnableKeyCapture()
 		if InCombatLockdown() then return false end
 		f:EnableKeyboard(true)
-		f:SetPropagateKeyboardInput(true)
+		f:SetPropagateKeyboardInput(true)   -- default: every key passes through
 		return true
 	end
-	if not EnableKeyCapture() then
-		f:RegisterEvent("PLAYER_REGEN_ENABLED")
-		f:HookScript("OnEvent", function(self, e)
-			if e == "PLAYER_REGEN_ENABLED" then
-				self:UnregisterEvent("PLAYER_REGEN_ENABLED")
-				EnableKeyCapture()
-			end
-		end)
-	end
+	EnableKeyCapture()
+	-- Re-assert pass-through whenever combat ends. This completes the deferred
+	-- setup if the window first opened in combat AND heals any stranded "consume"
+	-- state left by a Ctrl+C whose restore was blocked by combat -- so ESC and
+	-- movement keys can never stay swallowed. Kept registered as a safety net.
+	f:RegisterEvent("PLAYER_REGEN_ENABLED")
+	f:HookScript("OnEvent", function(self, e)
+		if e == "PLAYER_REGEN_ENABLED" then
+			self:EnableKeyboard(true)
+			self:SetPropagateKeyboardInput(true)
+		end
+	end)
+	-- And re-assert each time the window is shown.
+	f:HookScript("OnShow", function(self)
+		if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
+	end)
 	f:SetScript("OnKeyDown", function(self, key)
-		-- SetPropagateKeyboardInput is a protected function: calling it while in
-		-- combat lockdown throws ADDON_ACTION_BLOCKED and strands keyboard input,
-		-- so ESC stops reaching the default UI and the window won't close. In combat
-		-- we leave propagation untouched (it defaults to true) and let keys through.
+		-- SetPropagateKeyboardInput is protected (blocked in combat); never touch it
+		-- in combat -- propagation is left as-is and keys pass through.
 		if InCombatLockdown() then return end
 		if key == "C" and IsControlKeyDown() and (not url:IsShown() or not url:HasFocus()) then
-			self:SetPropagateKeyboardInput(false) -- consume this Ctrl+C
+			self:SetPropagateKeyboardInput(false) -- consume just this Ctrl+C
 			url:Show(); url:SetFocus(); url:HighlightText()
+			-- restore pass-through on the very next frame, so the "consume" state is
+			-- sub-frame and can never be caught by combat (which would strand ESC).
+			C_Timer.After(0, function()
+				if not InCombatLockdown() then f:SetPropagateKeyboardInput(true) end
+			end)
 		else
 			self:SetPropagateKeyboardInput(true)  -- let every other key through
 		end
