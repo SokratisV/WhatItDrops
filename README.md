@@ -2,9 +2,8 @@
 
 **Target any enemy in World of Warcraft (TBC Classic / Anniversary) and instantly see its loot table.**
 
-[![License: GPL v3](https://img.shields.io/github/license/SokratisV/LootLink?color=blue)](LICENSE)
-[![Version](https://img.shields.io/github/v/tag/SokratisV/LootLink?label=version&sort=semver&color=brightgreen)](https://github.com/SokratisV/LootLink/releases)
-[![Last commit](https://img.shields.io/github/last-commit/SokratisV/LootLink)](https://github.com/SokratisV/LootLink/commits/master)
+[![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
+![Version](https://img.shields.io/badge/version-1.4-brightgreen)
 ![WoW](https://img.shields.io/badge/WoW-TBC%20Classic%20%2F%20Anniversary-f8b700)
 ![Interface](https://img.shields.io/badge/interface-20505-555)
 
@@ -25,14 +24,14 @@ Screenshots: drop images into docs/ and reference them here, e.g.
 
 ## Features
 
-- 🎯 **Loot table for your target** — `/loot`, a keybind, or auto‑show on target.
+- 🎯 **Loot table for your target** — via `/loot`, a keybind, or auto‑show on target.
 - 🔎 **Item & NPC browser** — search by name; click an item to see every NPC that
   drops it, or click an NPC to open its loot table.
-- 🐉 **Instance boss list** — `/loot bosses` (or the keybind with no target inside a
-  dungeon/raid) lists that instance's bosses, each clickable to its loot.
-- 📜 **Quest loot** — `/loot quest` (and a **"Loot Needed"** button in the quest log)
-  shows the items the selected quest needs and where they drop. Quest‑class drops are
-  flagged with a yellow **!** in the loot window.
+- 🐉 **Instance boss list** — the keybind, used with no target inside a dungeon/raid,
+  lists that instance's bosses, each clickable to its loot.
+- 📜 **Quest loot** — a **"Loot Needed"** button in the quest log shows the items the
+  selected quest needs and where they drop. Quest‑class drops are flagged with a
+  yellow **!** in the loot window.
 - 🗺️ **Minimap button** — left‑click reloads the UI, right‑click does a loot lookup,
   drag to reposition. Toggle it in `/loot config`.
 - 🎨 **Theming** — Blizzard default or a flat / ElvUI skin.
@@ -40,37 +39,14 @@ Screenshots: drop images into docs/ and reference them here, e.g.
   `GetItemInfo` flicker), and per‑region data is **loaded on demand** so memory tracks
   where you actually play.
 
-## Installation
-
-1. Download the latest [release](https://github.com/SokratisV/LootLink/releases) (or the
-   repository ZIP).
-2. Extract it so the **`LootLink*` folders sit directly inside** your
-   `World of Warcraft/_classic_/Interface/AddOns/` directory:
-   ```
-   Interface/AddOns/
-     LootLink/
-     LootLink_EasternKingdoms/
-     LootLink_Instances/
-     LootLink_Kalimdor/
-     LootLink_Misc/
-     LootLink_Outland/
-   ```
-3. Restart the game (a full restart, not just `/reload`, so the new `.toc` files are
-   read) and enable **LootLink** in the AddOns list.
-
 ## Usage
 
 | Command | What it does |
 |---|---|
-| `/loot` (or `/fullloot`) | Loot table for your current target. |
-| `/loot browse [text]` | Open the browser; search items **or** NPCs by name. |
-| `/loot bosses` | List the bosses of the instance you're in. |
-| `/loot quest` | Items the selected quest needs, and where they drop. |
-| `/loot auto` | Toggle auto‑showing the window on target. |
+| `/loot` | Loot table for your current target. |
 | `/loot config` | Open settings & keybinds. |
 
-**Keybind** (default **CTRL‑L**): looks up your target; with no target inside a
-dungeon/raid it lists that instance's bosses; otherwise it opens the item browser.
+**Keybind** (default **CTRL‑L**): looks up your current target.
 
 In the loot window: **Hide common loot** drops greys/whites, **Show world drops**
 includes the generic world‑drop pool, **Ctrl‑click** an item previews it in the
