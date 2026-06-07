@@ -1,4 +1,4 @@
-# LootLink
+# WhatItDrops
 
 Target any enemy in World of Warcraft (TBC Classic / Anniversary) and see its loot table.
 
@@ -6,8 +6,8 @@ Target any enemy in World of Warcraft (TBC Classic / Anniversary) and see its lo
 
 | Addon | Loads | Purpose |
 |-------|-------|---------|
-| **LootLink** | always (~930 KB) | UI, slash commands, keybinds, item browser, the region loader, and baked item/NPC names + quality. |
-| **LootLink_EasternKingdoms / _Kalimdor / _Outland / _Instances / _Misc** | LoadOnDemand (~0.3–1.5 MB each) | Per-continent / per-instance loot data, loaded only for the region you're in. |
+| **WhatItDrops** | always (~930 KB) | UI, slash commands, keybinds, item browser, the region loader, and baked item/NPC names + quality. |
+| **WhatItDrops_EasternKingdoms / _Kalimdor / _Outland / _Instances / _Misc** | LoadOnDemand (~0.3–1.5 MB each) | Per-continent / per-instance loot data, loaded only for the region you're in. |
 
 ## Commands
 
@@ -48,26 +48,26 @@ the **CMaNGOS** project.
 
 ## Regenerating data (dev)
 
-From `LootLink/tools/` (PowerShell), with LootCodex installed and the CMaNGOS
+From `WhatItDrops/tools/` (PowerShell), with LootCodex installed and the CMaNGOS
 world DB available (auto-downloaded/decompressed under `tools/cmangos/`):
 
 ```powershell
 ./generate-from-lootcodex.ps1
 ```
 
-This rebuilds the partition addons and `Data/LootLinkItems.lua`. The multi-MB
+This rebuilds the partition addons and `Data/WhatItDropsItems.lua`. The multi-MB
 SQL build input under `tools/cmangos/` is git-ignored.
 
 ```powershell
 ./generate-bosses.ps1
 ```
 
-This rebuilds `Data/LootLinkBosses.lua` (instance map id → boss NPC ids) from the
+This rebuilds `Data/WhatItDropsBosses.lua` (instance map id → boss NPC ids) from the
 same CMaNGOS `creature` / `creature_template` tables plus LootCodex item quality.
 
 ```powershell
 ./generate-questitems.ps1
 ```
 
-This rebuilds `Data/LootLinkQuestItems.lua` (item ids that are Quest-class in
+This rebuilds `Data/WhatItDropsQuestItems.lua` (item ids that are Quest-class in
 `item_template`), used to flag quest drops with a marker in the loot window.

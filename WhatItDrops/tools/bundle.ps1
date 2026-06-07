@@ -1,9 +1,9 @@
-# Build the shareable LootLink install zip without using Remove-Item (a path guard
+# Build the shareable WhatItDrops install zip without using Remove-Item (a path guard
 # blocks Remove-Item near the WoW dir). Writes entries straight into the archive.
 $base = "E:\World of Warcraft\_anniversary_\Interface\AddOns"
-$folders = @('LootLink','LootLink_EasternKingdoms','LootLink_Instances','LootLink_Kalimdor','LootLink_Misc','LootLink_Outland')
-$ver = (Select-String -Path (Join-Path $base 'LootLink\LootLink.toc') -Pattern '##\s*Version:\s*(.+)').Matches.Groups[1].Value.Trim()
-$out = Join-Path ([Environment]::GetFolderPath('Desktop')) 'LootLink-install.zip'
+$folders = @('WhatItDrops','WhatItDrops_EasternKingdoms','WhatItDrops_Instances','WhatItDrops_Kalimdor','WhatItDrops_Misc','WhatItDrops_Outland')
+$ver = (Select-String -Path (Join-Path $base 'WhatItDrops\WhatItDrops.toc') -Pattern '##\s*Version:\s*(.+)').Matches.Groups[1].Value.Trim()
+$out = Join-Path ([Environment]::GetFolderPath('Desktop')) 'WhatItDrops-install.zip'
 if (Test-Path $out) { [System.IO.File]::Delete($out) }
 
 Add-Type -AssemblyName System.IO.Compression
@@ -25,7 +25,7 @@ $zip.Dispose()
 "Bundled version: $ver  ->  $out"
 "Files: $count   Size: {0:N0} KB" -f ((Get-Item $out).Length/1KB)
 $zip = [System.IO.Compression.ZipFile]::OpenRead($out)
-$hasBosses = [bool]($zip.Entries | Where-Object { $_.FullName -eq 'LootLink/Data/LootLinkBosses.lua' })
+$hasBosses = [bool]($zip.Entries | Where-Object { $_.FullName -eq 'WhatItDrops/Data/WhatItDropsBosses.lua' })
 $hasTools  = [bool]($zip.Entries | Where-Object { $_.FullName -like '*/tools/*' })
 $tocVers = foreach ($e in ($zip.Entries | Where-Object { $_.FullName -like '*.toc' } | Sort-Object FullName)) {
   $r = New-Object System.IO.StreamReader($e.Open()); $t = $r.ReadToEnd(); $r.Close()

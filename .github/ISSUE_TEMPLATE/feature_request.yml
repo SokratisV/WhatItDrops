@@ -7,7 +7,7 @@ body:
     id: problem
     attributes:
       label: What's the problem or use case?
-      description: What are you trying to do that LootLink doesn't help with today?
+      description: What are you trying to do that WhatItDrops doesn't help with today?
     validations:
       required: true
   - type: textarea

@@ -29,7 +29,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: LootLink version
+      label: WhatItDrops version
       description: From /loot config or the .toc (## Version).
       placeholder: "1.4"
     validations:
@@ -54,5 +54,5 @@ body:
     attributes:
       label: Conflict check
       options:
-        - label: It still happens with only LootLink (+ its data packs) enabled.
+        - label: It still happens with only WhatItDrops (+ its data packs) enabled.
         - label: I did a full game restart (not just /reload) after updating.

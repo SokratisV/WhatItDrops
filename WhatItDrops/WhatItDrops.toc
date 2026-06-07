@@ -1,16 +1,19 @@
 ## Interface: 20505
-## Title: LootLink |cff66ccffWowhead|r
+## Title: WhatItDrops |cff66ccffWowhead|r
 ## Notes: Loot tables for any mob: /loot, /fullloot, /loot browse. Inline names + item search.
 ## Author: Sokratis
-## Version: 1.4
-## SavedVariables: LootLinkDB
+## Version: 1.0
+## SavedVariables: WhatItDropsDB
+## X-License: GPL-3.0
+# Uncomment and fill in once the CurseForge project exists (enables CF upload):
+# ## X-Curse-Project-ID: 000000
 
 embeds.xml
-Data\LootLinkItems.lua
-Data\LootLinkBosses.lua
-Data\LootLinkQuestItems.lua
+Data\WhatItDropsItems.lua
+Data\WhatItDropsBosses.lua
+Data\WhatItDropsQuestItems.lua
 Theme.lua
-LootLink.lua
+WhatItDrops.lua
 Settings.lua
 # Bindings.xml is intentionally NOT listed here — the client auto-loads it from
 # the addon folder. Listing it would load it twice and spam "Unrecognized XML"

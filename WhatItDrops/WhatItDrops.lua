@@ -42,20 +42,20 @@ end
 local QUALITY_COLORS = _G.ITEM_QUALITY_COLORS
 local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 
--- Names/quality are baked (LootLinkItems.lua); fall back to GetItemInfo when an
+-- Names/quality are baked (WhatItDropsItems.lua); fall back to GetItemInfo when an
 -- item/npc isn't in our tables (e.g. items not present in the CMaNGOS DB).
 local function ItemName(id)
 	if not id then return nil end
-	return (LootLinkItemName and LootLinkItemName[id]) or GetItemInfo(id) or ("item:" .. id)
+	return (WhatItDropsItemName and WhatItDropsItemName[id]) or GetItemInfo(id) or ("item:" .. id)
 end
 local function ItemQuality(id)
 	if not id then return nil end
-	local q = LootLinkItemQuality and LootLinkItemQuality[id]
+	local q = WhatItDropsItemQuality and WhatItDropsItemQuality[id]
 	if q ~= nil then return q end
 	return select(3, GetItemInfo(id))
 end
 local function NpcName(id)
-	return (LootLinkNpcName and LootLinkNpcName[id]) or ("NPC " .. id)
+	return (WhatItDropsNpcName and WhatItDropsNpcName[id]) or ("NPC " .. id)
 end
 
 ----------------------------------------------------------------------
@@ -71,12 +71,12 @@ local current = { id = nil, name = nil, items = nil }
 local function SavePos(frame, key)
 	local left, bottom = frame:GetLeft(), frame:GetBottom()
 	if not left then return end
-	LootLinkDB = LootLinkDB or {}
-	LootLinkDB.pos = LootLinkDB.pos or {}
-	LootLinkDB.pos[key] = { left, bottom }
+	WhatItDropsDB = WhatItDropsDB or {}
+	WhatItDropsDB.pos = WhatItDropsDB.pos or {}
+	WhatItDropsDB.pos[key] = { left, bottom }
 end
 local function RestorePos(frame, key)
-	local s = LootLinkDB and LootLinkDB.pos and LootLinkDB.pos[key]
+	local s = WhatItDropsDB and WhatItDropsDB.pos and WhatItDropsDB.pos[key]
 	if not s then return false end
 	frame:ClearAllPoints()
 	frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", s[1], s[2])
@@ -99,7 +99,7 @@ end
 local function GetWindow()
 	if win then return win end
 
-	local f = CreateFrame("Frame", "LootLinkFrame", UIParent, "BackdropTemplate")
+	local f = CreateFrame("Frame", "WhatItDropsFrame", UIParent, "BackdropTemplate")
 	f:SetSize(340, 200)
 	if not RestorePos(f, "loot") then f:SetPoint("CENTER") end
 	f:SetFrameStrata("DIALOG")
@@ -110,8 +110,8 @@ local function GetWindow()
 	f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); SavePos(self, "loot") end)
 	f:SetScript("OnHide", function(self) SavePos(self, "loot") end)
 	f:SetClampedToScreen(true)
-	tinsert(UISpecialFrames, "LootLinkFrame") -- closes on Escape
-	LootLink_Skin.Frame(f)
+	tinsert(UISpecialFrames, "WhatItDropsFrame") -- closes on Escape
+	WhatItDrops_Skin.Frame(f)
 
 	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	title:SetPoint("TOPLEFT", 14, -12)
@@ -126,16 +126,16 @@ local function GetWindow()
 
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
 	close:SetPoint("TOPRIGHT", 2, 2)
-	LootLink_Skin.Close(close)
+	WhatItDrops_Skin.Close(close)
 
 	-- Header icon buttons (Settings, Item browser), to the left of the close X.
 	HeaderIcon(f, "Interface\\Buttons\\UI-OptionsButton", "Settings",
-		function() if LootLink_OpenSettings then LootLink_OpenSettings() end end, -34)
+		function() if WhatItDrops_OpenSettings then WhatItDrops_OpenSettings() end end, -34)
 	HeaderIcon(f, "Interface\\Common\\UI-Searchbox-Icon", "Item browser",
-		function() if LootLink_OpenBrowser then LootLink_OpenBrowser() end end, -56)
+		function() if WhatItDrops_OpenBrowser then WhatItDrops_OpenBrowser() end end, -56)
 
 	-- Scrollable item list
-	local scroll = CreateFrame("ScrollFrame", "LootLinkScroll", f, "UIPanelScrollFrameTemplate")
+	local scroll = CreateFrame("ScrollFrame", "WhatItDropsScroll", f, "UIPanelScrollFrameTemplate")
 	scroll:SetPoint("TOPLEFT", 12, -HEADER_H)
 	scroll:SetPoint("TOPRIGHT", -30, -HEADER_H)
 	scroll:SetHeight(MAX_VIEW)
@@ -143,7 +143,7 @@ local function GetWindow()
 	content:SetSize(296, 1)
 	scroll:SetScrollChild(content)
 	f.scroll, f.content = scroll, content
-	LootLink_Skin.Scroll(scroll)
+	WhatItDrops_Skin.Scroll(scroll)
 
 	-- "No data" message (shown when the NPC isn't in our DB)
 	local empty = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -155,31 +155,31 @@ local function GetWindow()
 	f.empty = empty
 
 	-- Footer: two toggles (hide-junk, world-drops) + copyable Wowhead URL
-	local check = CreateFrame("CheckButton", "LootLinkHideJunk", f, "UICheckButtonTemplate")
+	local check = CreateFrame("CheckButton", "WhatItDropsHideJunk", f, "UICheckButtonTemplate")
 	check:SetSize(22, 22)
 	check:SetPoint("BOTTOMLEFT", 10, 8)
 	local checkLabel = check:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	checkLabel:SetPoint("LEFT", check, "RIGHT", 2, 0)
 	checkLabel:SetText("Hide common loot")
 	check:SetScript("OnClick", function(self)
-		LootLinkDB.hideJunk = self:GetChecked() and true or false
-		LootLink_Refresh()
+		WhatItDropsDB.hideJunk = self:GetChecked() and true or false
+		WhatItDrops_Refresh()
 	end)
 	f.check = check
-	LootLink_Skin.CheckBox(check)
+	WhatItDrops_Skin.CheckBox(check)
 
-	local worldCheck = CreateFrame("CheckButton", "LootLinkWorldDrops", f, "UICheckButtonTemplate")
+	local worldCheck = CreateFrame("CheckButton", "WhatItDropsWorldDrops", f, "UICheckButtonTemplate")
 	worldCheck:SetSize(22, 22)
 	worldCheck:SetPoint("BOTTOMLEFT", 10, 30)
 	local worldLabel = worldCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	worldLabel:SetPoint("LEFT", worldCheck, "RIGHT", 2, 0)
 	worldLabel:SetText("Show world drops")
 	worldCheck:SetScript("OnClick", function(self)
-		LootLinkDB.showWorldDrops = self:GetChecked() and true or false
-		LootLink_Refresh()
+		WhatItDropsDB.showWorldDrops = self:GetChecked() and true or false
+		WhatItDrops_Refresh()
 	end)
 	f.worldCheck = worldCheck
-	LootLink_Skin.CheckBox(worldCheck)
+	WhatItDrops_Skin.CheckBox(worldCheck)
 
 	local urlBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	urlBtn:SetSize(80, 20)
@@ -192,7 +192,7 @@ local function GetWindow()
 			f.url:Show(); f.url:SetFocus(); f.url:HighlightText()
 		end
 	end)
-	LootLink_Skin.Button(urlBtn)
+	WhatItDrops_Skin.Button(urlBtn)
 	f.urlBtn = urlBtn
 
 	local url = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
@@ -209,7 +209,7 @@ local function GetWindow()
 	end)
 	url:Hide()
 	f.url = url
-	LootLink_Skin.EditBox(url)
+	WhatItDrops_Skin.EditBox(url)
 
 	-- Ctrl+C shortcut:
 	--   1st press -> reveal & select the Wowhead URL (same as the button).
@@ -312,8 +312,8 @@ local function GetRow(i)
 			if link then DressUpItemLink(link) end       -- Ctrl-click: dressing-room preview
 		elseif IsModifiedClick("CHATLINK") then
 			if link then ChatEdit_InsertLink(link) end   -- Shift-click: link in chat
-		elseif LootLink_ShowItemSources then
-			LootLink_ShowItemSources(self.itemID)        -- plain click: who drops this?
+		elseif WhatItDrops_ShowItemSources then
+			WhatItDrops_ShowItemSources(self.itemID)        -- plain click: who drops this?
 		end
 	end)
 
@@ -323,10 +323,10 @@ end
 
 -- Re-render the current NPC's list (called on open, on toggle, and when
 -- async item info arrives via GET_ITEM_INFO_RECEIVED).
-function LootLink_Render()
+function WhatItDrops_Render()
 	if not win or not win:IsShown() then return end
 	local items = current.items
-	local hideJunk = LootLinkDB and LootLinkDB.hideJunk
+	local hideJunk = WhatItDropsDB and WhatItDropsDB.hideJunk
 
 	-- The junk/world-drop toggles and the Wowhead link only make sense for an NPC
 	-- loot table; hide them for player-gear and quest-item views.
@@ -367,7 +367,7 @@ function LootLink_Render()
 			local lbl = name or ("item:" .. tostring(itemID))
 			local text = color and (color.hex .. lbl .. "|r") or ("|cffffffff" .. lbl .. "|r")
 			-- Quest-class drops get a yellow "!" marker so they stand out in the list.
-			if itemID and LootLinkQuestItem and LootLinkQuestItem[itemID] then
+			if itemID and WhatItDropsQuestItem and WhatItDropsQuestItem[itemID] then
 				text = "|TInterface\\GossipFrame\\AvailableQuestIcon:14:14:0:0|t " .. text
 			end
 			r.name:SetText(text)
@@ -388,7 +388,7 @@ function LootLink_Render()
 end
 
 -- Continent / instance data is split into per-region LoadOnDemand addons that
--- all populate the global LootLinkFull. We load only the region you're in, the
+-- all populate the global WhatItDropsFull. We load only the region you're in, the
 -- first time you /fullloot there — so memory tracks where you actually play.
 local PARTITIONS = { "EasternKingdoms", "Kalimdor", "Outland", "Instances", "Misc" }
 local CONTINENT  = { [0] = "EasternKingdoms", [1] = "Kalimdor", [530] = "Outland" }
@@ -398,7 +398,7 @@ local function LoadPartition(name)
 	if loadedPart[name] then return end
 	loadedPart[name] = true
 	local load = (C_AddOns and C_AddOns.LoadAddOn) or LoadAddOn
-	if load then load("LootLink_" .. name) end
+	if load then load("WhatItDrops_" .. name) end
 end
 
 local function CurrentPartition()
@@ -411,9 +411,9 @@ end
 local function EnsureFull(npcID)
 	LoadPartition(CurrentPartition())
 	LoadPartition("Misc")
-	if LootLinkFull and LootLinkFull[npcID] then return true end
+	if WhatItDropsFull and WhatItDropsFull[npcID] then return true end
 	for _, p in ipairs(PARTITIONS) do LoadPartition(p) end
-	return LootLinkFull and LootLinkFull[npcID] ~= nil
+	return WhatItDropsFull and WhatItDropsFull[npcID] ~= nil
 end
 
 -- Build the item list from the flat data: { {id=, pct=}, ... }, rate-sorted.
@@ -421,10 +421,10 @@ end
 -- drops first and the generic world-drop pool after; world drops are included
 -- only when the toggle is on.
 local function BuildList(npcID)
-	local arr = LootLinkFull and LootLinkFull[npcID]
+	local arr = WhatItDropsFull and WhatItDropsFull[npcID]
 	if not arr then return nil end
 	local total = (#arr - 1) / 2
-	local maxPairs = (LootLinkDB and LootLinkDB.showWorldDrops) and total or arr[1]
+	local maxPairs = (WhatItDropsDB and WhatItDropsDB.showWorldDrops) and total or arr[1]
 	local list = {}
 	for k = 0, maxPairs - 1 do
 		list[#list + 1] = { id = arr[2 + 2 * k], pct = arr[3 + 2 * k] }
@@ -435,9 +435,9 @@ end
 
 -- Rebuild the current NPC's list (needed when a toggle changes *which* items are
 -- included, e.g. world drops) and redraw. Global so the toggles/Settings can call it.
-function LootLink_Refresh()
+function WhatItDrops_Refresh()
 	if current.id then current.items = BuildList(current.id) end
-	LootLink_Render()
+	WhatItDrops_Render()
 end
 
 local function ShowNPC(npcID, npcName)
@@ -448,12 +448,12 @@ local function ShowNPC(npcID, npcName)
 	f.source:SetText("Loot: Wowhead %  (data via LootCodex)")
 	f.title:SetText((npcName or "NPC") .. "  |cff888888(" .. npcID .. ")|r")
 	f.empty:SetText("No bundled loot for this NPC. Use the Wowhead link below.")
-	f.check:SetChecked(LootLinkDB and LootLinkDB.hideJunk or false)
-	f.worldCheck:SetChecked(LootLinkDB and LootLinkDB.showWorldDrops or false)
+	f.check:SetChecked(WhatItDropsDB and WhatItDropsDB.hideJunk or false)
+	f.worldCheck:SetChecked(WhatItDropsDB and WhatItDropsDB.showWorldDrops or false)
 	f.url:SetText(BuildURL(npcID))
 	f.url:Hide()
 	f:Show()
-	LootLink_Render()
+	WhatItDrops_Render()
 end
 
 -- Equipped-gear slots (id, label), in a sensible visual order.
@@ -492,7 +492,7 @@ local function ShowPlayer(unit)
 	f.empty:SetText("No visible gear yet — get within inspect range, then reopen.")
 	f.url:Hide()
 	f:Show()
-	LootLink_Render()
+	WhatItDrops_Render()
 	if not UnitIsUnit(unit, "player") and CanInspect and CanInspect(unit) and NotifyInspect then
 		NotifyInspect(unit)
 	end
@@ -510,8 +510,8 @@ local function ItemIDByName(name)
 	if not name or name == "" then return nil end
 	if not itemNameIndex then
 		itemNameIndex = {}
-		if LootLinkItemName then
-			for id, nm in pairs(LootLinkItemName) do
+		if WhatItDropsItemName then
+			for id, nm in pairs(WhatItDropsItemName) do
 				local key = nm:lower()
 				if not itemNameIndex[key] then itemNameIndex[key] = id end
 			end
@@ -553,7 +553,7 @@ local function CollectQuestItems(questIndex)
 end
 
 -- Open the loot window populated with the selected quest's required items.
-function LootLink_ShowQuest()
+function WhatItDrops_ShowQuest()
 	local f = GetWindow()
 	local idx, title, isHeader = SelectedQuestInfo()
 	current.id, current.name = nil, title
@@ -568,14 +568,14 @@ function LootLink_ShowQuest()
 	end
 	f.url:Hide()
 	f:Show()
-	LootLink_Render()
+	WhatItDrops_Render()
 end
 
 -- Add a button to Blizzard's quest log that opens the required-items view for the
 -- selected quest. Created once, after login, and only if the quest log exists.
 local function CreateQuestLogButton()
-	if not QuestLogFrame or QuestLogFrame.LootLinkButton then return end
-	local b = CreateFrame("Button", "LootLinkQuestLogButton", QuestLogFrame, "UIPanelButtonTemplate")
+	if not QuestLogFrame or QuestLogFrame.WhatItDropsButton then return end
+	local b = CreateFrame("Button", "WhatItDropsQuestLogButton", QuestLogFrame, "UIPanelButtonTemplate")
 	b:SetSize(110, 22)
 	b:SetText("Loot Needed")
 	-- Sit just to the right of the Abandon button when it's there; fall back to a
@@ -586,29 +586,29 @@ local function CreateQuestLogButton()
 	else
 		b:SetPoint("BOTTOMLEFT", QuestLogFrame, "BOTTOMLEFT", 90, 86)
 	end
-	b:SetScript("OnClick", LootLink_ShowQuest)
+	b:SetScript("OnClick", WhatItDrops_ShowQuest)
 	b:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-		GameTooltip:SetText("LootLink: show the items this quest needs\nand where they drop.", nil, nil, nil, nil, true)
+		GameTooltip:SetText("WhatItDrops: show the items this quest needs\nand where they drop.", nil, nil, nil, nil, true)
 		GameTooltip:Show()
 	end)
 	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
-	if LootLink_Skin and LootLink_Skin.Button then LootLink_Skin.Button(b) end
-	QuestLogFrame.LootLinkButton = b
+	if WhatItDrops_Skin and WhatItDrops_Skin.Button then WhatItDrops_Skin.Button(b) end
+	QuestLogFrame.WhatItDropsButton = b
 end
 
 ----------------------------------------------------------------------
 -- Minimap button via LibDBIcon-1.0 (so minimap-button collectors manage it).
 -- Left-click reloads the UI; right-click does a loot lookup. LibDBIcon stores
--- its position/hidden state in LootLinkDB.minimap.
+-- its position/hidden state in WhatItDropsDB.minimap.
 ----------------------------------------------------------------------
 local LDBIcon
-function LootLink_UpdateMinimapButton()   -- show/hide from settings
-	if not LDBIcon or not LDBIcon:IsRegistered("LootLink") then return end
-	if LootLinkDB.minimap and LootLinkDB.minimap.hide then
-		LDBIcon:Hide("LootLink")
+function WhatItDrops_UpdateMinimapButton()   -- show/hide from settings
+	if not LDBIcon or not LDBIcon:IsRegistered("WhatItDrops") then return end
+	if WhatItDropsDB.minimap and WhatItDropsDB.minimap.hide then
+		LDBIcon:Hide("WhatItDrops")
 	else
-		LDBIcon:Show("LootLink")
+		LDBIcon:Show("WhatItDrops")
 	end
 end
 
@@ -616,29 +616,29 @@ local function CreateMinimapButton()
 	local LDB = LibStub and LibStub("LibDataBroker-1.1", true)
 	LDBIcon = LibStub and LibStub("LibDBIcon-1.0", true)
 	if not LDB or not LDBIcon then return end          -- libs missing: skip silently
-	LootLinkDB.minimap = LootLinkDB.minimap or {}
+	WhatItDropsDB.minimap = WhatItDropsDB.minimap or {}
 
-	if not LDBIcon:IsRegistered("LootLink") then
-		local obj = LDB:GetDataObjectByName("LootLink") or LDB:NewDataObject("LootLink", {
+	if not LDBIcon:IsRegistered("WhatItDrops") then
+		local obj = LDB:GetDataObjectByName("WhatItDrops") or LDB:NewDataObject("WhatItDrops", {
 			type = "launcher",
 			icon = "Interface\\Icons\\INV_Misc_Bag_10",
-			label = "LootLink",
+			label = "WhatItDrops",
 			OnClick = function(_, button)
 				if button == "RightButton" then
-					if LootLink_DoBinding then LootLink_DoBinding() end  -- loot lookup
+					if WhatItDrops_DoBinding then WhatItDrops_DoBinding() end  -- loot lookup
 				else
 					ReloadUI()                                           -- reload UI
 				end
 			end,
 			OnTooltipShow = function(tt)
-				tt:AddLine("LootLink")
+				tt:AddLine("WhatItDrops")
 				tt:AddLine("Left-click: reload UI", 1, 1, 1)
 				tt:AddLine("Right-click: loot lookup", 1, 1, 1)
 			end,
 		})
-		LDBIcon:Register("LootLink", obj, LootLinkDB.minimap)
+		LDBIcon:Register("WhatItDrops", obj, WhatItDropsDB.minimap)
 	end
-	LootLink_UpdateMinimapButton()
+	WhatItDrops_UpdateMinimapButton()
 end
 
 ----------------------------------------------------------------------
@@ -656,7 +656,7 @@ local function BuildReverse()
 	if reverseIndex then return end
 	for _, p in ipairs(PARTITIONS) do LoadPartition(p) end
 	reverseIndex = {}
-	for npc, arr in pairs(LootLinkFull or {}) do
+	for npc, arr in pairs(WhatItDropsFull or {}) do
 		local total = (#arr - 1) / 2
 		for k = 0, total - 1 do
 			local id = arr[2 + 2 * k]
@@ -698,7 +698,7 @@ RenderBrowser = function()
 	local list = {}
 	if bState == "items" then
 		local res = bResults or {}
-		f.title:SetText(bContext or "LootLink — Browser")
+		f.title:SetText(bContext or "WhatItDrops — Browser")
 		if bContext then
 			f.status:SetText(#res .. " boss" .. (#res == 1 and "" or "es"))
 		else
@@ -761,14 +761,14 @@ DoBrowserSearch = function(query)
 	if #q >= 2 then
 		-- Targets (NPCs) first, then item drops; each sorted by name.
 		local npcs, items = {}, {}
-		if LootLinkNpcName then
-			for id, nm in pairs(LootLinkNpcName) do
+		if WhatItDropsNpcName then
+			for id, nm in pairs(WhatItDropsNpcName) do
 				if nm:lower():find(q, 1, true) then npcs[#npcs + 1] = { kind = "npc", id = id, name = nm } end
 			end
 			table.sort(npcs, function(a, b) return a.name < b.name end)
 		end
-		if LootLinkItemName then
-			for id, nm in pairs(LootLinkItemName) do
+		if WhatItDropsItemName then
+			for id, nm in pairs(WhatItDropsItemName) do
 				if nm:lower():find(q, 1, true) then items[#items + 1] = { kind = "item", id = id, name = nm } end
 			end
 			table.sort(items, function(a, b) return a.name < b.name end)
@@ -782,43 +782,43 @@ end
 
 local function GetBrowser()
 	if bWin then return bWin end
-	local f = CreateFrame("Frame", "LootLinkBrowserFrame", UIParent, "BackdropTemplate")
+	local f = CreateFrame("Frame", "WhatItDropsBrowserFrame", UIParent, "BackdropTemplate")
 	f:SetSize(360, 440); f:SetPoint("CENTER", 90, 0); f:SetFrameStrata("DIALOG")
 	f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving)
 	f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); SavePos(self, "browser") end)
 	f:SetScript("OnHide", function(self) SavePos(self, "browser") end)
 	f:SetClampedToScreen(true)
-	tinsert(UISpecialFrames, "LootLinkBrowserFrame") -- closes on Escape
-	LootLink_Skin.Frame(f)
+	tinsert(UISpecialFrames, "WhatItDropsBrowserFrame") -- closes on Escape
+	WhatItDrops_Skin.Frame(f)
 	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal"); title:SetPoint("TOP", 0, -12); f.title = title
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", 2, 2)
-	LootLink_Skin.Close(close)
+	WhatItDrops_Skin.Close(close)
 	HeaderIcon(f, "Interface\\Buttons\\UI-OptionsButton", "Settings",
-		function() if LootLink_OpenSettings then LootLink_OpenSettings() end end, -34)
+		function() if WhatItDrops_OpenSettings then WhatItDrops_OpenSettings() end end, -34)
 
 	local sb = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
 	sb:SetSize(228, 22); sb:SetPoint("TOPLEFT", 16, -34); sb:SetAutoFocus(false); sb:SetFontObject(ChatFontNormal)
 	sb:SetScript("OnEnterPressed", function(self) DoBrowserSearch(self:GetText()); self:ClearFocus() end)
 	sb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 	f.search = sb
-	LootLink_Skin.EditBox(sb)
+	WhatItDrops_Skin.EditBox(sb)
 	local go = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	go:SetSize(62, 22); go:SetPoint("LEFT", sb, "RIGHT", 6, 0); go:SetText("Search")
 	go:SetScript("OnClick", function() DoBrowserSearch(sb:GetText()) end)
-	LootLink_Skin.Button(go)
+	WhatItDrops_Skin.Button(go)
 
 	local back = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	back:SetSize(54, 20); back:SetPoint("TOPLEFT", 14, -60); back:SetText("< Back")
 	back:SetScript("OnClick", function() bState = "items"; RenderBrowser() end); back:Hide(); f.back = back
-	LootLink_Skin.Button(back)
+	WhatItDrops_Skin.Button(back)
 	local status = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"); status:SetPoint("TOPRIGHT", -16, -64); f.status = status
 
-	local scroll = CreateFrame("ScrollFrame", "LootLinkBrowserScroll", f, "UIPanelScrollFrameTemplate")
+	local scroll = CreateFrame("ScrollFrame", "WhatItDropsBrowserScroll", f, "UIPanelScrollFrameTemplate")
 	scroll:SetPoint("TOPLEFT", 12, -84); scroll:SetPoint("BOTTOMRIGHT", -30, 14)
 	local content = CreateFrame("Frame", nil, scroll); content:SetSize(318, 1); scroll:SetScrollChild(content)
 	f.scroll, f.content = scroll, content
-	LootLink_Skin.Scroll(scroll)
+	WhatItDrops_Skin.Scroll(scroll)
 
 	-- Hint + copyable Wowhead link, shown when an item has no mob source in our data.
 	local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -831,13 +831,13 @@ local function GetBrowser()
 	url:SetScript("OnTextChanged", function(self)
 		if self.expected and self:GetText() ~= self.expected then self:SetText(self.expected); self:HighlightText() end
 	end)
-	url:Hide(); LootLink_Skin.EditBox(url); f.url = url
+	url:Hide(); WhatItDrops_Skin.EditBox(url); f.url = url
 
 	bWin = f
 	return f
 end
 
-function LootLink_OpenBrowser(text)
+function WhatItDrops_OpenBrowser(text)
 	local f = GetBrowser()
 	bState, bSelItem, bContext = "items", nil, nil
 	-- Use the remembered position if the user has placed it before; otherwise
@@ -858,7 +858,7 @@ function LootLink_OpenBrowser(text)
 	f:Show()
 	if text and text ~= "" then
 		f.search:SetText(text); DoBrowserSearch(text)
-	elseif LootLinkDB and LootLinkDB.clearSearchOnOpen then
+	elseif WhatItDropsDB and WhatItDropsDB.clearSearchOnOpen then
 		f.search:SetText(""); bResults = nil; RenderBrowser()   -- start fresh each open
 	else
 		RenderBrowser()
@@ -869,9 +869,9 @@ function LootLink_OpenBrowser(text)
 end
 
 -- Open the browser straight to "who drops this item" (used by clicking a row).
-function LootLink_ShowItemSources(itemID)
+function WhatItDrops_ShowItemSources(itemID)
 	if not itemID then return end
-	LootLink_OpenBrowser()       -- position + show the browser
+	WhatItDrops_OpenBrowser()       -- position + show the browser
 	bSelItem, bState = itemID, "npcs"
 	BuildReverse()
 	RenderBrowser()
@@ -881,17 +881,17 @@ end
 -- If the player is inside a 5-man or raid we have boss data for, open the browser
 -- listing that instance's bosses (each click -> that boss's loot). Returns true if
 -- it showed something, so callers can fall back to a normal browser open otherwise.
-function LootLink_ShowInstanceBosses()
+function WhatItDrops_ShowInstanceBosses()
 	if not IsInInstance or not GetInstanceInfo then return false end
 	local inside = IsInInstance()
 	if not inside then return false end
 	local instName, instType, _, _, _, _, _, mapID = GetInstanceInfo()
 	-- Only dungeons/raids have a boss roster; skip battlegrounds/arenas.
 	if instType ~= "party" and instType ~= "raid" then return false end
-	local ids = mapID and LootLinkInstanceBoss and LootLinkInstanceBoss[mapID]
+	local ids = mapID and WhatItDropsInstanceBoss and WhatItDropsInstanceBoss[mapID]
 	if not ids or #ids == 0 then return false end
 
-	LootLink_OpenBrowser()       -- position + show the browser (clears bContext)
+	WhatItDrops_OpenBrowser()       -- position + show the browser (clears bContext)
 	local res = {}
 	for _, id in ipairs(ids) do
 		res[#res + 1] = { kind = "npc", id = id, name = NpcName(id) }
@@ -910,7 +910,7 @@ end
 -- The unit to look up: when the option is on, a valid mouseover creature wins
 -- over the current target; otherwise just the target.
 local function ResolveUnit()
-	if LootLinkDB and LootLinkDB.useMouseover and UnitExists("mouseover")
+	if WhatItDropsDB and WhatItDropsDB.useMouseover and UnitExists("mouseover")
 		and (UnitIsPlayer("mouseover") or GetNpcID("mouseover")) then
 		return "mouseover"
 	end
@@ -934,14 +934,14 @@ local driver = CreateFrame("Frame")
 driver:RegisterEvent("ADDON_LOADED")
 driver:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == ADDON then
-		LootLinkDB = LootLinkDB or {}
-		if LootLinkDB.auto == nil then LootLinkDB.auto = false end
-		if LootLinkDB.hideJunk == nil then LootLinkDB.hideJunk = false end
-		if LootLinkDB.showWorldDrops == nil then LootLinkDB.showWorldDrops = true end
-		if LootLinkDB.theme == nil then LootLinkDB.theme = "blizzard" end
-		if LootLinkDB.clearSearchOnOpen == nil then LootLinkDB.clearSearchOnOpen = true end
-		if LootLinkDB.useMouseover == nil then LootLinkDB.useMouseover = false end
-		LootLinkDB.minimap = LootLinkDB.minimap or { hide = false }
+		WhatItDropsDB = WhatItDropsDB or {}
+		if WhatItDropsDB.auto == nil then WhatItDropsDB.auto = false end
+		if WhatItDropsDB.hideJunk == nil then WhatItDropsDB.hideJunk = false end
+		if WhatItDropsDB.showWorldDrops == nil then WhatItDropsDB.showWorldDrops = true end
+		if WhatItDropsDB.theme == nil then WhatItDropsDB.theme = "blizzard" end
+		if WhatItDropsDB.clearSearchOnOpen == nil then WhatItDropsDB.clearSearchOnOpen = true end
+		if WhatItDropsDB.useMouseover == nil then WhatItDropsDB.useMouseover = false end
+		WhatItDropsDB.minimap = WhatItDropsDB.minimap or { hide = false }
 		self:UnregisterEvent("ADDON_LOADED")
 		self:RegisterEvent("PLAYER_LOGIN")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -953,24 +953,24 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		CreateMinimapButton()
 		-- Apply the default keybind (CTRL-L) once, and only if the action is
 		-- unbound and CTRL-L isn't already taken — never clobber the user.
-		if not LootLinkDB.defaultBindApplied then
-			LootLinkDB.defaultBindApplied = true
-			if not GetBindingKey("LOOTLINK_FULLLOOKUP") then
+		if not WhatItDropsDB.defaultBindApplied then
+			WhatItDropsDB.defaultBindApplied = true
+			if not GetBindingKey("WHATITDROPS_FULLLOOKUP") then
 				local taken = GetBindingAction("CTRL-L")
 				if not taken or taken == "" then
-					SetBinding("CTRL-L", "LOOTLINK_FULLLOOKUP")
+					SetBinding("CTRL-L", "WHATITDROPS_FULLLOOKUP")
 					SaveBindings(GetCurrentBindingSet())
 				end
 			end
 		end
 	elseif event == "PLAYER_TARGET_CHANGED" then
-		if LootLinkDB.auto and UnitExists("target") and UnitCanAttack("player", "target") and not UnitIsPlayer("target") then
+		if WhatItDropsDB.auto and UnitExists("target") and UnitCanAttack("player", "target") and not UnitIsPlayer("target") then
 			local npcID = GetNpcID("target")
 			if npcID then EnsureFull(npcID); ShowNPC(npcID, UnitName("target")) end
 		end
 	elseif event == "GET_ITEM_INFO_RECEIVED" then
 		if win and win:IsShown() and current.waiting then
-			LootLink_Render()
+			WhatItDrops_Render()
 		end
 	elseif event == "INSPECT_READY" then
 		-- Inspect data arrived: refill the gear list if it's the unit we're showing.
@@ -978,7 +978,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 			and current.unit and UnitGUID(current.unit) == current.inspectGUID
 			and win and win:IsShown() then
 			current.items = CollectGear(current.unit)
-			LootLink_Render()
+			WhatItDrops_Render()
 		end
 	end
 end)
@@ -986,24 +986,24 @@ end)
 ----------------------------------------------------------------------
 -- Slash command
 ----------------------------------------------------------------------
-SLASH_LOOTLINK1 = "/loot"
-SLASH_LOOTLINK2 = "/lootlink"
-SlashCmdList.LOOTLINK = function(msg)
+SLASH_WHATITDROPS1 = "/loot"
+SLASH_WHATITDROPS2 = "/whatitdrops"
+SlashCmdList.WHATITDROPS = function(msg)
 	msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
 	if msg == "auto" then
-		LootLinkDB.auto = not LootLinkDB.auto
+		WhatItDropsDB.auto = not WhatItDropsDB.auto
 	elseif msg == "config" or msg == "options" then
-		if LootLink_OpenSettings then LootLink_OpenSettings() end
+		if WhatItDrops_OpenSettings then WhatItDrops_OpenSettings() end
 	elseif msg:match("^browse") then
-		LootLink_OpenBrowser(msg:match("^browse%s+(.+)$") or "")
+		WhatItDrops_OpenBrowser(msg:match("^browse%s+(.+)$") or "")
 	elseif msg == "quest" then
-		LootLink_ShowQuest()
+		WhatItDrops_ShowQuest()
 	elseif msg == "bosses" then
-		if not LootLink_ShowInstanceBosses() then
-			print("|cff66ccffLootLink|r: no boss list — you're not in a dungeon/raid we have data for.")
+		if not WhatItDrops_ShowInstanceBosses() then
+			print("|cff66ccffWhatItDrops|r: no boss list — you're not in a dungeon/raid we have data for.")
 		end
 	elseif msg == "help" then
-		print("|cff66ccffLootLink|r commands:")
+		print("|cff66ccffWhatItDrops|r commands:")
 		print("  |cffffd100/loot|r — loot table for your current target (Wowhead %, via LootCodex data)")
 		print("  |cffffd100/loot browse [text]|r — search items or NPCs by name")
 		print("  |cffffd100/loot bosses|r — list the bosses of the instance you're in")
@@ -1018,21 +1018,21 @@ SlashCmdList.LOOTLINK = function(msg)
 end
 
 -- /fullloot kept as an alias for muscle memory (single mode now).
-SLASH_LOOTLINKFULL1 = "/fullloot"
-SlashCmdList.LOOTLINKFULL = function() LinkUnit() end
+SLASH_WHATITDROPSFULL1 = "/fullloot"
+SlashCmdList.WHATITDROPSFULL = function() LinkUnit() end
 
 -- Binding entry points (invoked from Bindings.xml) + Key Bindings UI labels.
-BINDING_HEADER_LOOTLINK = "LootLink"
-BINDING_NAME_LOOTLINK_FULLLOOKUP = "Show loot for target"
-BINDING_NAME_LOOTLINK_LOOKUP = "Open item browser"
-function LootLink_DoBinding()
+BINDING_HEADER_WHATITDROPS = "WhatItDrops"
+BINDING_NAME_WHATITDROPS_FULLLOOKUP = "Show loot for target"
+BINDING_NAME_WHATITDROPS_LOOKUP = "Open item browser"
+function WhatItDrops_DoBinding()
 	-- Mouseover (if enabled) or target: a player shows gear, a creature shows
 	-- loot; anything else opens the browser.
 	local unit = ResolveUnit()
 	if UnitExists(unit) and (UnitIsPlayer(unit) or GetNpcID(unit)) then
 		LinkUnit(unit)
-	elseif not LootLink_ShowInstanceBosses() then
+	elseif not WhatItDrops_ShowInstanceBosses() then
 		-- No target and not in a known instance: fall back to the plain browser.
-		LootLink_OpenBrowser()
+		WhatItDrops_OpenBrowser()
 	end
 end

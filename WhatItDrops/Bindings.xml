@@ -1,0 +1,8 @@
+<Bindings>
+	<Binding name="WHATITDROPS_FULLLOOKUP" header="WHATITDROPS">
+		WhatItDrops_DoBinding()
+	</Binding>
+	<Binding name="WHATITDROPS_LOOKUP">
+		WhatItDrops_OpenBrowser()
+	</Binding>
+</Bindings>

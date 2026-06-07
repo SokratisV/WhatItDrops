@@ -1,13 +1,13 @@
-# LootLink
+# WhatItDrops
 
 **Target any enemy in World of Warcraft (TBC Classic / Anniversary) and instantly see its loot table.**
 
 [![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
-![Version](https://img.shields.io/badge/version-1.4-brightgreen)
+![Version](https://img.shields.io/badge/version-1.0-brightgreen)
 ![WoW](https://img.shields.io/badge/WoW-TBC%20Classic%20%2F%20Anniversary-f8b700)
 ![Interface](https://img.shields.io/badge/interface-20505-555)
 
-LootLink shows **Wowhead‑accurate** drop rates for whatever you're looking at — no
+WhatItDrops shows **Wowhead‑accurate** drop rates for whatever you're looking at — no
 website, no alt‑tab. Target a mob, open the window, and see exactly what it drops and
 how often. Search items or NPCs by name, drill into "who drops this", list the bosses
 of the instance you're standing in, and see which items a quest needs and where they
@@ -59,8 +59,8 @@ packs that load on demand:
 
 | Addon | Loads | Purpose |
 |---|---|---|
-| **LootLink** | always (~930 KB) | UI, slash commands, keybinds, item browser, the region loader, and baked item/NPC names + quality. |
-| **LootLink_EasternKingdoms** / **_Kalimdor** / **_Outland** / **_Instances** / **_Misc** | LoadOnDemand (~0.3–1.5 MB each) | Per‑continent / per‑instance loot data, loaded only for the region you're in. |
+| **WhatItDrops** | always (~930 KB) | UI, slash commands, keybinds, item browser, the region loader, and baked item/NPC names + quality. |
+| **WhatItDrops_EasternKingdoms** / **_Kalimdor** / **_Outland** / **_Instances** / **_Misc** | LoadOnDemand (~0.3–1.5 MB each) | Per‑continent / per‑instance loot data, loaded only for the region you're in. |
 
 > ⚠️ All six folders must sit **directly** under `Interface/AddOns/` — the data packs
 > are separate `LoadOnDemand` addons that the main addon loads via `LoadAddOn`, so they
@@ -79,12 +79,12 @@ the region you're in.
 > This nails 5‑man rosters; the gap is script‑**summoned** raid bosses (Ragnaros,
 > Majordomo, Nefarian), which have no spawn point to map to an instance.
 
-Regenerating the bundled data is documented in [`LootLink/README.md`](LootLink/README.md).
+Regenerating the bundled data is documented in [`WhatItDrops/README.md`](WhatItDrops/README.md).
 
 ## Contributing
 
 Bug reports and feature ideas are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and
-open an [issue](https://github.com/SokratisV/LootLink/issues). Changes are tracked in
+open an [issue](https://github.com/SokratisV/WhatItDrops/issues). Changes are tracked in
 [CHANGELOG.md](CHANGELOG.md).
 
 ## License & credits

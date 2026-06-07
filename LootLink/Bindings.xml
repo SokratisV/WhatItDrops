@@ -1,8 +1,0 @@
-<Bindings>
-	<Binding name="LOOTLINK_FULLLOOKUP" header="LOOTLINK">
-		LootLink_DoBinding()
-	</Binding>
-	<Binding name="LOOTLINK_LOOKUP">
-		LootLink_OpenBrowser()
-	</Binding>
-</Bindings>

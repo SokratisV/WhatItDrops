@@ -1,12 +1,12 @@
 local ADDON = ...
 
 local panel = CreateFrame("Frame")
-panel.name = "LootLink"
+panel.name = "WhatItDrops"
 local category -- new Settings API category, when available
 
 local function db()
-	LootLinkDB = LootLinkDB or {}
-	return LootLinkDB
+	WhatItDropsDB = WhatItDropsDB or {}
+	return WhatItDropsDB
 end
 
 ----------------------------------------------------------------------
@@ -108,7 +108,7 @@ end
 ----------------------------------------------------------------------
 local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 title:SetPoint("TOPLEFT", 16, -16)
-title:SetText("LootLink")
+title:SetText("WhatItDrops")
 
 local sub = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
@@ -121,12 +121,12 @@ AddCheck("Auto-show the loot window when you target an enemy",
 
 AddCheck("Hide common (grey/white) loot by default",
 	function() return db().hideJunk end,
-	function(v) db().hideJunk = v; if LootLink_Refresh then LootLink_Refresh() end end,
+	function(v) db().hideJunk = v; if WhatItDrops_Refresh then WhatItDrops_Refresh() end end,
 	18, -88)
 
 AddCheck("Show generic world-drop / common loot",
 	function() return db().showWorldDrops end,
-	function(v) db().showWorldDrops = v; if LootLink_Refresh then LootLink_Refresh() end end,
+	function(v) db().showWorldDrops = v; if WhatItDrops_Refresh then WhatItDrops_Refresh() end end,
 	18, -118)
 
 AddCheck("Reset the search box each time the browser opens",
@@ -139,7 +139,7 @@ AddCheck("Use mouseover unit (takes priority over your target)",
 	function(v) db().useMouseover = v end,
 	18, -178)
 
-AddCheck("Flat / ElvUI skin" .. (LootLink_Skin and LootLink_Skin.HasElv() and "  (ElvUI detected)" or "") .. "  — requires /reload",
+AddCheck("Flat / ElvUI skin" .. (WhatItDrops_Skin and WhatItDrops_Skin.HasElv() and "  (ElvUI detected)" or "") .. "  — requires /reload",
 	function() return db().theme == "elvui" end,
 	function(v) db().theme = v and "elvui" or "blizzard" end,
 	18, -208)
@@ -148,7 +148,7 @@ AddCheck("Show the minimap button  (left-click: reload UI, right-click: loot loo
 	function() return not (db().minimap and db().minimap.hide) end,
 	function(v)
 		local m = db(); m.minimap = m.minimap or {}; m.minimap.hide = not v
-		if LootLink_UpdateMinimapButton then LootLink_UpdateMinimapButton() end
+		if WhatItDrops_UpdateMinimapButton then WhatItDrops_UpdateMinimapButton() end
 	end,
 	18, -238)
 
@@ -156,27 +156,27 @@ local kb = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 kb:SetPoint("TOPLEFT", 16, -278)
 kb:SetText("Keybinds")
 
-AddBindRow("LOOTLINK_FULLLOOKUP", "Loot for target", 18, -302)
-AddBindRow("LOOTLINK_LOOKUP", "Item browser", 215, -302)
+AddBindRow("WHATITDROPS_FULLLOOKUP", "Loot for target", 18, -302)
+AddBindRow("WHATITDROPS_LOOKUP", "Item browser", 215, -302)
 
 local note = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
 note:SetPoint("TOPLEFT", 18, -356)
 note:SetText("Bind: left-click a slot then press a key. Right-click a slot to clear.")
 local note2 = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
 note2:SetPoint("TOPLEFT", 18, -370)
-note2:SetText("These also appear under Esc > Key Bindings > LootLink.")
+note2:SetText("These also appear under Esc > Key Bindings > WhatItDrops.")
 
 ----------------------------------------------------------------------
 -- Register + open helper (supports both the new and legacy options APIs)
 ----------------------------------------------------------------------
 if Settings and Settings.RegisterCanvasLayoutCategory then
-	category = Settings.RegisterCanvasLayoutCategory(panel, "LootLink")
+	category = Settings.RegisterCanvasLayoutCategory(panel, "WhatItDrops")
 	Settings.RegisterAddOnCategory(category)
 elseif InterfaceOptions_AddCategory then
 	InterfaceOptions_AddCategory(panel)
 end
 
-function LootLink_OpenSettings()
+function WhatItDrops_OpenSettings()
 	if category and Settings and Settings.OpenToCategory then
 		Settings.OpenToCategory(category:GetID())
 	elseif InterfaceOptionsFrame_OpenToCategory then

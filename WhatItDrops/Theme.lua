@@ -1,4 +1,4 @@
--- LootLink theming layer.
+-- WhatItDrops theming layer.
 -- Two themes:
 --   "blizzard" — the classic gold-bordered dialog look (default, unchanged).
 --   "elvui"    — a flat dark skin. If ElvUI is installed it uses ElvUI's real
@@ -7,12 +7,12 @@
 -- never breaks the addon.
 
 local Skin = {}
-LootLink_Skin = Skin
+WhatItDrops_Skin = Skin
 
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 
 local function Theme()
-	return (LootLinkDB and LootLinkDB.theme) or "blizzard"
+	return (WhatItDropsDB and WhatItDropsDB.theme) or "blizzard"
 end
 Skin.GetTheme = Theme
 

@@ -1,4 +1,4 @@
-# This repo tracks only the LootLink addons living in this shared AddOns folder.
+# This repo tracks only the WhatItDrops addons living in this shared AddOns folder.
 # Ignore everything at the top level, then re-include our addons.
 /*
 !/.gitignore
@@ -8,12 +8,12 @@
 !/CONTRIBUTING.md
 !/.editorconfig
 !/.github/
-!/LootLink*/
+!/WhatItDrops*/
 
 # Heavy, regenerable build inputs — never shipped, never loaded by the game.
-LootLink/tools/cmangos/*.sql
-LootLink/tools/cmangos/*.sql.gz
-LootLink/tools/lootcodex/*.lua
+WhatItDrops/tools/cmangos/*.sql
+WhatItDrops/tools/cmangos/*.sql.gz
+WhatItDrops/tools/lootcodex/*.lua
 
 # OS / editor noise
 *.bak
