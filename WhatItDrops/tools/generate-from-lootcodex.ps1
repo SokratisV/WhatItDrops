@@ -73,6 +73,16 @@ $curNpc = 0; $spec = $null; $world = $null
 function FlushNpc {
     if ($script:curNpc -le 0) { return }
     if (($script:spec.Count + $script:world.Count) -eq 0) { return }
+    # Sanity guard: a real mob's mob-specific drop list is at most a couple hundred
+    # items. A list in the thousands is a corrupted "reference loot" dump in the
+    # source DB (e.g. NPC 28171 once carried ~8700 items all at 100%); emitting it
+    # would freeze the client when the loot window tries to render every row. Skip
+    # it loudly rather than ship a crash. (The world-drop pool is shared/large by
+    # design, so this only bounds the mob-specific portion.)
+    if ($script:spec.Count -gt 500) {
+        Write-Warning ("Skipping npc {0}: {1} mob-specific drops looks like a corrupted reference dump." -f $script:curNpc, $script:spec.Count)
+        return
+    }
     $script:spec  | Sort-Object -Property r -Descending | Out-Null
     $sOrd = @($script:spec  | Sort-Object -Property r -Descending)
     $wOrd = @($script:world | Sort-Object -Property r -Descending)

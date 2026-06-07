@@ -1,7 +1,7 @@
 ## Interface: 20505
 ## Title: WhatItDrops |cff66ccffKalimdor Data|r
 ## Notes: Wowhead loot for Kalimdor (via LootCodex GPLv3). Loaded on demand by WhatItDrops.
-## Version: 1.0
+## Version: 1.0.1
 ## LoadOnDemand: 1
 
 WhatItDrops_Kalimdor.lua

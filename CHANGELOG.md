@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-06-07
+
+Bug-fix release.
+
+- **Fixed a client freeze/crash** when selecting "Don Carlos (1)" in the browser. That
+  NPC carried a corrupted loot table (~8,700 items, all at 100%) that tried to render
+  thousands of rows in a single frame. Removed the bad entry, added a hard cap on
+  rendered rows, and added a guard in the data generator so an oversized reference dump
+  can never be shipped again.
+- The loot/item window now always sits **above** the browser, instead of being hidden
+  behind the browser it was launched from.
+- **Flat / ElvUI skin:** fixed leftover empty boxes (the hidden Back button and URL box
+  left orphaned backdrops floating in the window) and skinned the previously-unstyled
+  scrollbar.
+
 ## [1.0] - 2026-06-07
 
 Initial release as **WhatItDrops**. This is the addon previously published as
@@ -20,4 +35,5 @@ Initial release as **WhatItDrops**. This is the addon previously published as
 Commands: `/loot` (target lookup), `/loot config`, `/loot browse`, `/fullloot`, and
 `/whatitdrops`.
 
+[1.0.1]: https://github.com/SokratisV/WhatItDrops/compare/v1.0...v1.0.1
 [1.0]: https://github.com/SokratisV/WhatItDrops/commits/master

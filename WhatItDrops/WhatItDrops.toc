@@ -2,7 +2,7 @@
 ## Title: WhatItDrops |cff66ccffWowhead|r
 ## Notes: Loot tables for any mob: /loot, /fullloot, /loot browse. Inline names + item search.
 ## Author: Sokratis
-## Version: 1.0
+## Version: 1.0.1
 ## SavedVariables: WhatItDropsDB
 ## X-License: GPL-3.0
 ## X-Curse-Project-ID: 1567458

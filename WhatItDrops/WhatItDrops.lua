@@ -63,6 +63,11 @@ end
 ----------------------------------------------------------------------
 local ROW_H, MAX_VIEW = 18, 216
 local HEADER_H, FOOTER_H = 40, 78
+-- Hard ceiling on rendered rows. The browser already caps its lists at 300; the
+-- loot view had no cap, so a single malformed loot table (e.g. a corrupted
+-- reference dump with thousands of 100% entries) could spawn thousands of frames
+-- in one frame and freeze/crash the client. No real mob loot table is this long.
+local MAX_ROWS = 300
 local win, rows
 local current = { id = nil, name = nil, items = nil }
 
@@ -102,7 +107,10 @@ local function GetWindow()
 	local f = CreateFrame("Frame", "WhatItDropsFrame", UIParent, "BackdropTemplate")
 	f:SetSize(340, 200)
 	if not RestorePos(f, "loot") then f:SetPoint("CENTER") end
-	f:SetFrameStrata("DIALOG")
+	-- One strata above the browser (DIALOG) so the item/loot window always sits on
+	-- top of it -- clicking an NPC in the browser pops its loot table in front,
+	-- never hidden behind the browser they launched it from.
+	f:SetFrameStrata("FULLSCREEN_DIALOG")
 	f:SetMovable(true)
 	f:EnableMouse(true)
 	f:RegisterForDrag("LeftButton")
@@ -346,6 +354,7 @@ function WhatItDrops_Render()
 	local function pctStr(p) return (p >= 1 and "%.1f%%" or "%.2f%%"):format(p) end
 	local shown, waiting = 0, false
 	for _, entry in ipairs(items) do
+		if shown >= MAX_ROWS then break end
 		local itemID = entry.id
 		-- Names/quality from baked tables, or from the entry itself (player gear).
 		local name = entry.name or ItemName(itemID)

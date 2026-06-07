@@ -28750,5 +28750,4 @@ WhatItDropsNpcName = {
 [25867]="Sunblade Dragonhawk",
 [25924]="Twilight Speaker Viktor",
 [28132]="Don Carlos",
-[28171]="Don Carlos (1)",
 }

@@ -42,6 +42,12 @@ local function flatBackdrop(w, r, g, b, a)
 		bg:SetPoint("BOTTOMRIGHT", w, "BOTTOMRIGHT", 1, -1)
 		bg:SetFrameLevel(math.max(0, w:GetFrameLevel() - 1))
 		w.__llbg = bg
+		-- Because bg is a sibling, it doesn't inherit the widget's Show/Hide. Mirror
+		-- it explicitly, or a widget that's hidden by default (the Back button, the
+		-- URL box before first use) leaves an empty backdrop floating in the window.
+		bg:SetShown(w:IsShown())
+		w:HookScript("OnShow", function() bg:Show() end)
+		w:HookScript("OnHide", function() bg:Hide() end)
 	end
 	bg:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
 	bg:SetBackdropColor(r, g, b, a)
@@ -131,7 +137,28 @@ end
 -- scroll is a UIPanelScrollFrameTemplate; its bar is $parentScrollBar.
 function Skin.Scroll(scroll)
 	if Theme() ~= "elvui" then return end
+	local name = scroll:GetName()
+	local bar = name and _G[name .. "ScrollBar"]
+	if not bar then return end
 	local _, S = Elv()
-	local bar = scroll:GetName() and _G[scroll:GetName() .. "ScrollBar"]
-	if S and S.HandleScrollBar and bar then guard(function() S:HandleScrollBar(bar) end) end
+	if S and S.HandleScrollBar then
+		if guard(function() S:HandleScrollBar(bar) end) then return end
+	end
+	-- Native flat fallback: the default scrollbar is stone-textured Blizzard art that
+	-- reads as "leftover" widgets against our flat skin. Strip the arrow buttons + the
+	-- bar's own textures and give the thumb a plain flat fill. Drag and mouse-wheel
+	-- still work; the arrows just become invisible (and clickable) hit areas.
+	guard(function()
+		local function hideTex(t) if t then t:SetTexture(nil) end end
+		for _, suffix in ipairs({ "ScrollUpButton", "ScrollDownButton" }) do
+			local b = _G[name .. "ScrollBar" .. suffix]
+			if b then
+				hideTex(b:GetNormalTexture()); hideTex(b:GetPushedTexture())
+				hideTex(b:GetDisabledTexture()); hideTex(b:GetHighlightTexture())
+			end
+		end
+		stripTextures(bar)
+		local thumb = bar.GetThumbTexture and bar:GetThumbTexture()
+		if thumb then thumb:SetTexture(WHITE); thumb:SetVertexColor(0.28, 0.28, 0.32, 1) end
+	end)
 end
