@@ -2,6 +2,7 @@
 # Ignore everything at the top level, then re-include our addons.
 /*
 !/.gitignore
+!/LICENSE
 !/LootLink*/
 
 # Heavy, regenerable build inputs — never shipped, never loaded by the game.
