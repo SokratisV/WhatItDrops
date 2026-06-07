@@ -1,0 +1,58 @@
+name: Bug report
+description: Something isn't working as expected
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! Please fill in as much as you can — Lua errors and repro
+        steps are the most helpful.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+      placeholder: When I open the loot window on a target, ...
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Target '...'
+        2. Run /loot
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: LootLink version
+      description: From /loot config or the .toc (## Version).
+      placeholder: "1.4"
+    validations:
+      required: true
+  - type: dropdown
+    id: flavor
+    attributes:
+      label: WoW flavor
+      options:
+        - TBC Classic / Anniversary
+        - Other (describe below)
+    validations:
+      required: true
+  - type: textarea
+    id: errors
+    attributes:
+      label: Lua errors
+      description: Paste the full error + stack from BugSack/BugGrabber, if any.
+      render: text
+  - type: checkboxes
+    id: isolated
+    attributes:
+      label: Conflict check
+      options:
+        - label: It still happens with only LootLink (+ its data packs) enabled.
+        - label: I did a full game restart (not just /reload) after updating.

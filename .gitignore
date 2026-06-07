@@ -3,6 +3,11 @@
 /*
 !/.gitignore
 !/LICENSE
+!/README.md
+!/CHANGELOG.md
+!/CONTRIBUTING.md
+!/.editorconfig
+!/.github/
 !/LootLink*/
 
 # Heavy, regenerable build inputs — never shipped, never loaded by the game.
