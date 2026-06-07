@@ -365,7 +365,12 @@ function LootLink_Render()
 			r.icon:SetTexture(icon or GetItemIcon(itemID) or FALLBACK_ICON)
 			local color = quality and QUALITY_COLORS[quality]
 			local lbl = name or ("item:" .. tostring(itemID))
-			r.name:SetText(color and (color.hex .. lbl .. "|r") or ("|cffffffff" .. lbl .. "|r"))
+			local text = color and (color.hex .. lbl .. "|r") or ("|cffffffff" .. lbl .. "|r")
+			-- Quest-class drops get a yellow "!" marker so they stand out in the list.
+			if itemID and LootLinkQuestItem and LootLinkQuestItem[itemID] then
+				text = "|TInterface\\GossipFrame\\AvailableQuestIcon:14:14:0:0|t " .. text
+			end
+			r.name:SetText(text)
 			r.rate:SetText(entry.rightText or (entry.pct and pctStr(entry.pct)) or "")
 			r:Show()
 		end
@@ -590,6 +595,50 @@ local function CreateQuestLogButton()
 	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	if LootLink_Skin and LootLink_Skin.Button then LootLink_Skin.Button(b) end
 	QuestLogFrame.LootLinkButton = b
+end
+
+----------------------------------------------------------------------
+-- Minimap button via LibDBIcon-1.0 (so minimap-button collectors manage it).
+-- Left-click reloads the UI; right-click does a loot lookup. LibDBIcon stores
+-- its position/hidden state in LootLinkDB.minimap.
+----------------------------------------------------------------------
+local LDBIcon
+function LootLink_UpdateMinimapButton()   -- show/hide from settings
+	if not LDBIcon or not LDBIcon:IsRegistered("LootLink") then return end
+	if LootLinkDB.minimap and LootLinkDB.minimap.hide then
+		LDBIcon:Hide("LootLink")
+	else
+		LDBIcon:Show("LootLink")
+	end
+end
+
+local function CreateMinimapButton()
+	local LDB = LibStub and LibStub("LibDataBroker-1.1", true)
+	LDBIcon = LibStub and LibStub("LibDBIcon-1.0", true)
+	if not LDB or not LDBIcon then return end          -- libs missing: skip silently
+	LootLinkDB.minimap = LootLinkDB.minimap or {}
+
+	if not LDBIcon:IsRegistered("LootLink") then
+		local obj = LDB:GetDataObjectByName("LootLink") or LDB:NewDataObject("LootLink", {
+			type = "launcher",
+			icon = "Interface\\Icons\\INV_Misc_Bag_10",
+			label = "LootLink",
+			OnClick = function(_, button)
+				if button == "RightButton" then
+					if LootLink_DoBinding then LootLink_DoBinding() end  -- loot lookup
+				else
+					ReloadUI()                                           -- reload UI
+				end
+			end,
+			OnTooltipShow = function(tt)
+				tt:AddLine("LootLink")
+				tt:AddLine("Left-click: reload UI", 1, 1, 1)
+				tt:AddLine("Right-click: loot lookup", 1, 1, 1)
+			end,
+		})
+		LDBIcon:Register("LootLink", obj, LootLinkDB.minimap)
+	end
+	LootLink_UpdateMinimapButton()
 end
 
 ----------------------------------------------------------------------
@@ -892,6 +941,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		if LootLinkDB.theme == nil then LootLinkDB.theme = "blizzard" end
 		if LootLinkDB.clearSearchOnOpen == nil then LootLinkDB.clearSearchOnOpen = true end
 		if LootLinkDB.useMouseover == nil then LootLinkDB.useMouseover = false end
+		LootLinkDB.minimap = LootLinkDB.minimap or { hide = false }
 		self:UnregisterEvent("ADDON_LOADED")
 		self:RegisterEvent("PLAYER_LOGIN")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -900,6 +950,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "PLAYER_LOGIN" then
 		self:UnregisterEvent("PLAYER_LOGIN")
 		CreateQuestLogButton()
+		CreateMinimapButton()
 		-- Apply the default keybind (CTRL-L) once, and only if the action is
 		-- unbound and CTRL-L isn't already taken — never clobber the user.
 		if not LootLinkDB.defaultBindApplied then

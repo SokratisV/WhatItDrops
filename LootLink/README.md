@@ -18,9 +18,11 @@ Target any enemy in World of Warcraft (TBC Classic / Anniversary) and see its lo
 - `/loot auto` — toggle auto-show on target.
 - `/loot config` — settings & keybinds.
 
-In the window: **Hide common loot** drops greys/whites; **Show world drops** includes the generic world/common-drop pool. **Ctrl+C** reveals the Wowhead link, again copies & closes. **Ctrl-click** an item to preview it in the dressing room; **Shift-click** to link it in chat.
+In the window: drops that are **quest items** are flagged with a yellow **!** marker. **Hide common loot** drops greys/whites; **Show world drops** includes the generic world/common-drop pool. **Ctrl+C** reveals the Wowhead link, again copies & closes. **Ctrl-click** an item to preview it in the dressing room; **Shift-click** to link it in chat.
 
 **Keybinds** (default **CTRL-L**): looks up your target; with no target inside a dungeon/raid it lists that instance's bosses; otherwise it opens the item browser.
+
+**Minimap button:** left-click **reloads the UI**, right-click does a loot lookup (same as the keybind), drag to move it around the minimap. Toggle it in `/loot config`.
 
 > **Boss list note:** the Classic/Anniversary client has no Encounter Journal API, so bosses are derived from the world DB (a single-spawn rare+ dropper, or a Rank-3 elite). This nails 5-man rosters; the gap is script-**summoned** raid bosses (Ragnaros, Majordomo, Nefarian), which have no spawn point to map to an instance.
 
@@ -62,3 +64,10 @@ SQL build input under `tools/cmangos/` is git-ignored.
 
 This rebuilds `Data/LootLinkBosses.lua` (instance map id → boss NPC ids) from the
 same CMaNGOS `creature` / `creature_template` tables plus LootCodex item quality.
+
+```powershell
+./generate-questitems.ps1
+```
+
+This rebuilds `Data/LootLinkQuestItems.lua` (item ids that are Quest-class in
+`item_template`), used to flag quest drops with a marker in the loot window.

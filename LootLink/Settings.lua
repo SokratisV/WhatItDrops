@@ -144,18 +144,26 @@ AddCheck("Flat / ElvUI skin" .. (LootLink_Skin and LootLink_Skin.HasElv() and " 
 	function(v) db().theme = v and "elvui" or "blizzard" end,
 	18, -208)
 
+AddCheck("Show the minimap button  (left-click: reload UI, right-click: loot lookup)",
+	function() return not (db().minimap and db().minimap.hide) end,
+	function(v)
+		local m = db(); m.minimap = m.minimap or {}; m.minimap.hide = not v
+		if LootLink_UpdateMinimapButton then LootLink_UpdateMinimapButton() end
+	end,
+	18, -238)
+
 local kb = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-kb:SetPoint("TOPLEFT", 16, -248)
+kb:SetPoint("TOPLEFT", 16, -278)
 kb:SetText("Keybinds")
 
-AddBindRow("LOOTLINK_FULLLOOKUP", "Loot for target", 18, -272)
-AddBindRow("LOOTLINK_LOOKUP", "Item browser", 215, -272)
+AddBindRow("LOOTLINK_FULLLOOKUP", "Loot for target", 18, -302)
+AddBindRow("LOOTLINK_LOOKUP", "Item browser", 215, -302)
 
 local note = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-note:SetPoint("TOPLEFT", 18, -326)
+note:SetPoint("TOPLEFT", 18, -356)
 note:SetText("Bind: left-click a slot then press a key. Right-click a slot to clear.")
 local note2 = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-note2:SetPoint("TOPLEFT", 18, -340)
+note2:SetPoint("TOPLEFT", 18, -370)
 note2:SetText("These also appear under Esc > Key Bindings > LootLink.")
 
 ----------------------------------------------------------------------
