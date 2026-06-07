@@ -1,0 +1,78 @@
+name: Package and release
+
+# WhatItDrops ships as SIX sibling addons (the main addon + 5 LoadOnDemand data
+# packs), so the standard single-folder BigWigs packager layout doesn't fit. This
+# builds a zip with all six folders at the root and uploads it to CurseForge via the
+# author Upload API, then attaches it to a GitHub Release.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+env:
+  CF_PROJECT_ID: "1567458"
+  ADDON_DIRS: "WhatItDrops WhatItDrops_EasternKingdoms WhatItDrops_Kalimdor WhatItDrops_Outland WhatItDrops_Instances WhatItDrops_Misc"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build multi-addon zip
+        id: build
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          STAGE="$RUNNER_TEMP/stage"
+          mkdir -p "$STAGE"
+          for d in $ADDON_DIRS; do cp -r "$d" "$STAGE/$d"; done
+          # project art + dev-only tools should not ship inside the addon
+          rm -f  "$STAGE/WhatItDrops/logo.png"
+          rm -rf "$STAGE/WhatItDrops/tools"
+          ZIP="$GITHUB_WORKSPACE/WhatItDrops-$VERSION.zip"
+          ( cd "$STAGE" && zip -r -X "$ZIP" $ADDON_DIRS >/dev/null )
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "Built $ZIP"
+          unzip -l "$ZIP" | head -25
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" "${{ steps.build.outputs.zip }}" \
+            --title "$GITHUB_REF_NAME" --generate-notes \
+          || gh release upload "$GITHUB_REF_NAME" "${{ steps.build.outputs.zip }}" --clobber
+
+      - name: Upload to CurseForge
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CF_API_KEY:-}" ]; then echo "No CF_API_KEY secret; skipping CurseForge upload."; exit 0; fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Derive the WoW game version from the .toc Interface (e.g. 20505 -> 2.5.5)
+          IFACE=$(grep -m1 '## Interface:' WhatItDrops/WhatItDrops.toc | grep -oE '[0-9]+')
+          GAMEVER="$((IFACE/10000)).$(((IFACE/100)%100)).$((IFACE%100))"
+          echo "TOC Interface $IFACE -> game version $GAMEVER"
+          VID=$(curl -sf -H "X-Api-Token: $CF_API_KEY" https://wow.curseforge.com/api/game/versions \
+                | jq -r --arg v "$GAMEVER" '[.[] | select(.name==$v)] | .[0].id // empty')
+          if [ -z "$VID" ]; then echo "::error::Could not resolve CurseForge game-version id for $GAMEVER"; exit 1; fi
+          echo "CurseForge game-version id: $VID"
+          METADATA=$(jq -nc \
+            --arg cl "Release ${GITHUB_REF_NAME} — see the GitHub release notes." \
+            --arg dn "WhatItDrops ${VERSION}" \
+            --argjson gv "[$VID]" \
+            '{changelog:$cl, changelogType:"text", displayName:$dn, releaseType:"release", gameVersions:$gv}')
+          curl -sf -X POST "https://wow.curseforge.com/api/projects/$CF_PROJECT_ID/upload-file" \
+            -H "X-Api-Token: $CF_API_KEY" \
+            -F "metadata=$METADATA" \
+            -F "file=@${{ steps.build.outputs.zip }}"
+          echo
+          echo "Uploaded WhatItDrops-$VERSION.zip to CurseForge project $CF_PROJECT_ID."
