@@ -5,8 +5,7 @@
 ## Version: 1.0
 ## SavedVariables: WhatItDropsDB
 ## X-License: GPL-3.0
-# Uncomment and fill in once the CurseForge project exists (enables CF upload):
-# ## X-Curse-Project-ID: 000000
+## X-Curse-Project-ID: 1567458
 
 embeds.xml
 Data\WhatItDropsItems.lua
