@@ -1,8 +1,8 @@
-## Interface: 20505
+## Interface: 16001, 20505
 ## Title: WhatItDrops |cff66ccffWowhead|r
 ## Notes: Loot tables for any mob: /loot, /fullloot, /loot browse. Inline names + item search.
 ## Author: Sokratis
-## Version: 1.0.1
+## Version: 1.1.0
 ## SavedVariables: WhatItDropsDB
 ## X-License: GPL-3.0
 ## X-Curse-Project-ID: 1567458

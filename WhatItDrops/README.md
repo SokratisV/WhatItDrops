@@ -1,6 +1,12 @@
 # WhatItDrops
 
-Target any enemy in World of Warcraft (TBC Classic / Anniversary) and see its loot table.
+Target any enemy in World of Warcraft (WoW Forever / TBC Classic) and see its loot table.
+
+> **Client support.** Runs on **WoW Forever** (interface `16001`) and on the
+> **TBC Classic / Anniversary** client (interface `20505`) from the same files.
+> Forever serves Classic content from the Midnight 12.x client, so it reports a
+> Classic project id but only exposes the modern namespaced API — every call that
+> moved is feature-detected rather than switched on project id.
 
 ## Addons in this repo
 

@@ -1,9 +1,32 @@
 local ADDON = ...
 
+----------------------------------------------------------------------
+-- Client / API compatibility
+----------------------------------------------------------------------
+-- WoW Forever runs Classic content on the Midnight (12.x) client. It reports a
+-- Classic WOW_PROJECT_ID but ships the modern addon API, so project id alone
+-- can't identify it — the interface number can (Forever is the 160xx range).
+local INTERFACE = select(4, GetBuildInfo()) or 0
+local IS_FOREVER = INTERFACE >= 16000 and INTERFACE < 20000
+
+-- Midnight removed the loose item globals; everything lives under C_Item there.
+-- The older Classic clients still have both, so prefer the namespaced form and
+-- fall back for anything that predates it.
+local GetItemInfo     = (C_Item and C_Item.GetItemInfo) or _G.GetItemInfo
+local getItemIcon     = (C_Item and C_Item.GetItemIconByID) or _G.GetItemIcon
+
+-- Quest items that never resolved to an ID reach the renderer with a nil id. The
+-- old GetItemIcon global tolerated that; C_Item.GetItemIconByID raises on it.
+local function ItemIcon(id)
+	if not id or not getItemIcon then return nil end
+	return getItemIcon(id)
+end
+
 -- Pick the correct Wowhead database for whatever flavor we're running on,
 -- so the same file produces the right link on Retail, TBC, Wrath, Era, etc.
 -- Retail uses no branch prefix ("wowhead.com/npc="); Classic flavors use one.
 local function DetectBranch()
+	if IS_FOREVER then return "classic" end -- Forever's content is Vanilla
 	local p = WOW_PROJECT_ID
 	if not p then return "" end -- very old client; assume mainline-style
 	if p == WOW_PROJECT_MAINLINE then return "" end
@@ -371,7 +394,7 @@ function WhatItDrops_Render()
 			local r = GetRow(shown)
 			r:SetPoint("TOPLEFT", 0, -(shown - 1) * ROW_H)
 			r.itemID, r.link = itemID, link
-			r.icon:SetTexture(icon or GetItemIcon(itemID) or FALLBACK_ICON)
+			r.icon:SetTexture(icon or ItemIcon(itemID) or FALLBACK_ICON)
 			local color = quality and QUALITY_COLORS[quality]
 			local lbl = name or ("item:" .. tostring(itemID))
 			local text = color and (color.hex .. lbl .. "|r") or ("|cffffffff" .. lbl .. "|r")
@@ -529,9 +552,42 @@ local function ItemIDByName(name)
 	return itemNameIndex[name:lower()]
 end
 
--- The currently selected quest's title and header flag, via the modern API when
--- present (Classic Era exposes C_QuestLog) and the legacy call otherwise.
+-- Strip the progress counter off an objective line, leaving just the item name.
+-- The classic quest log writes "Wolf Pelt: 3/8"; the modern one writes "3/8 Wolf
+-- Pelt". Anything that matches neither is kept whole and looked up as-is.
+local function ObjectiveName(text)
+	if not text or text == "" then return text end
+	return text:match("^(.-):%s*%d+%s*/%s*%d+%s*$")
+		or text:match("^%s*%d+%s*/%s*%d+%s+(.+)$")
+		or text
+end
+
+-- Which quest log we're reading. The classic clients select by log index and read
+-- objectives off the leader board; Midnight / WoW Forever select by questID and
+-- read them from C_QuestLog + GetQuestObjectiveInfo. Prefer the legacy API when
+-- it's there: on a client that has both, GetQuestLogSelection is what actually
+-- tracks the classic QuestLogFrame's highlighted row.
+local LEGACY_QUESTLOG = (GetQuestLogSelection and GetNumQuestLeaderBoards
+	and GetQuestLogLeaderBoard) and true or false
+local MODERN_QUESTLOG = (not LEGACY_QUESTLOG) and C_QuestLog and C_QuestLog.GetSelectedQuest
+	and C_QuestLog.GetNumQuestObjectives and GetQuestObjectiveInfo and true or false
+
+-- The currently selected quest. Returns an opaque handle for CollectQuestItems
+-- (a questID on modern clients, a log index on the legacy ones), plus the title
+-- and whether the selection is a zone header rather than a quest.
 local function SelectedQuestInfo()
+	if MODERN_QUESTLOG then
+		local questID = C_QuestLog.GetSelectedQuest()
+		if not questID or questID == 0 then return nil, nil, nil end
+		local title = C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(questID)
+		if not title and C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetInfo then
+			local idx = C_QuestLog.GetLogIndexForQuestID(questID)
+			local info = idx and C_QuestLog.GetInfo(idx)
+			title = info and info.title
+		end
+		return questID, title, false -- a header can never be the selected questID
+	end
+
 	local idx = (GetQuestLogSelection and GetQuestLogSelection()) or 0
 	if not idx or idx <= 0 then return nil, nil, nil end
 	if C_QuestLog and C_QuestLog.GetInfo then
@@ -543,17 +599,32 @@ local function SelectedQuestInfo()
 end
 
 -- Read the "collect N of item X" objectives off the selected quest.
-local function CollectQuestItems(questIndex)
-	if SelectQuestLogEntry then SelectQuestLogEntry(questIndex) end
-	local n = (GetNumQuestLeaderBoards and GetNumQuestLeaderBoards()) or 0
+local function CollectQuestItems(questKey)
 	local list = {}
+
+	if MODERN_QUESTLOG then
+		local n = C_QuestLog.GetNumQuestObjectives(questKey) or 0
+		for i = 1, n do
+			local text, objType, _, fulfilled, required = GetQuestObjectiveInfo(questKey, i, false)
+			if objType == "item" and text then
+				local name = ObjectiveName(text)
+				-- fulfilled/required are authoritative here, so build the counter from
+				-- them instead of re-parsing whatever the localised text looks like.
+				local progress
+				if required and required > 0 then progress = (fulfilled or 0) .. "/" .. required end
+				list[#list + 1] = { id = ItemIDByName(name), name = name, rightText = progress }
+			end
+		end
+		return (#list > 0) and list or nil
+	end
+
+	if SelectQuestLogEntry then SelectQuestLogEntry(questKey) end
+	local n = (GetNumQuestLeaderBoards and GetNumQuestLeaderBoards()) or 0
 	for i = 1, n do
 		local text, objType = GetQuestLogLeaderBoard(i)
 		if objType == "item" and text then
-			-- "Item Name: have/need" -> name, "have/need" (the colon split is locale-safe
-			-- enough for enUS/anniversary; if it doesn't match we keep the whole string).
-			local name, progress = text:match("^(.-):%s*(%d+%s*/%s*%d+)%s*$")
-			name = name or text
+			local name = ObjectiveName(text)
+			local progress = text:match("(%d+%s*/%s*%d+)")
 			progress = progress and progress:gsub("%s+", "")
 			list[#list + 1] = { id = ItemIDByName(name), name = name, rightText = progress }
 		end
@@ -582,19 +653,37 @@ end
 
 -- Add a button to Blizzard's quest log that opens the required-items view for the
 -- selected quest. Created once, after login, and only if the quest log exists.
+--
+-- The classic clients have a standalone QuestLogFrame; Midnight / WoW Forever put
+-- the log in the world map as QuestMapFrame, where the details pane is what has
+-- room for an extra button. If neither is recognised we skip the button entirely —
+-- /loot quest still reaches the same view.
 local function CreateQuestLogButton()
-	if not QuestLogFrame or QuestLogFrame.WhatItDropsButton then return end
-	local b = CreateFrame("Button", "WhatItDropsQuestLogButton", QuestLogFrame, "UIPanelButtonTemplate")
+	local host, anchor, anchorPoint, relPoint, ox, oy
+
+	if QuestLogFrame then
+		host = QuestLogFrame
+		anchor = _G.QuestLogFrameAbandonButton or _G.QuestFrameAbandonButton
+		anchorPoint, relPoint, ox, oy = "LEFT", "RIGHT", 4, 0
+		if not anchor then
+			anchor, anchorPoint, relPoint, ox, oy = QuestLogFrame, "BOTTOMLEFT", "BOTTOMLEFT", 90, 86
+		end
+	elseif QuestMapFrame and QuestMapFrame.DetailsFrame then
+		host = QuestMapFrame.DetailsFrame
+		anchor = host.AbandonButton or host.BackButton or host
+		if anchor == host then
+			anchorPoint, relPoint, ox, oy = "BOTTOMLEFT", "BOTTOMLEFT", 6, 6
+		else
+			anchorPoint, relPoint, ox, oy = "LEFT", "RIGHT", 4, 0
+		end
+	end
+
+	if not host or host.WhatItDropsButton then return end
+
+	local b = CreateFrame("Button", "WhatItDropsQuestLogButton", host, "UIPanelButtonTemplate")
 	b:SetSize(110, 22)
 	b:SetText("Loot Needed")
-	-- Sit just to the right of the Abandon button when it's there; fall back to a
-	-- fixed bottom-left spot so the button still appears on altered layouts.
-	local anchor = _G.QuestLogFrameAbandonButton or _G.QuestFrameAbandonButton
-	if anchor then
-		b:SetPoint("LEFT", anchor, "RIGHT", 4, 0)
-	else
-		b:SetPoint("BOTTOMLEFT", QuestLogFrame, "BOTTOMLEFT", 90, 86)
-	end
+	b:SetPoint(anchorPoint, anchor, relPoint, ox, oy)
 	b:SetScript("OnClick", WhatItDrops_ShowQuest)
 	b:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -603,7 +692,7 @@ local function CreateQuestLogButton()
 	end)
 	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	if WhatItDrops_Skin and WhatItDrops_Skin.Button then WhatItDrops_Skin.Button(b) end
-	QuestLogFrame.WhatItDropsButton = b
+	host.WhatItDropsButton = b
 end
 
 ----------------------------------------------------------------------
@@ -746,7 +835,7 @@ RenderBrowser = function()
 		elseif bState == "items" then
 			r.itemID = e.id
 			local q = ItemQuality(e.id); local c = q and QUALITY_COLORS[q]
-			r.icon:SetTexture(GetItemIcon(e.id) or FALLBACK_ICON)
+			r.icon:SetTexture(ItemIcon(e.id) or FALLBACK_ICON)
 			r.name:SetText((c and c.hex or "|cffffffff") .. e.name .. "|r")
 			r.right:SetText("")
 			r.onClick = function() bSelItem = e.id; bState = "npcs"; BuildReverse(); RenderBrowser() end
