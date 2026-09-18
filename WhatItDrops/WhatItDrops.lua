@@ -9,6 +9,14 @@ local ADDON = ...
 local INTERFACE = select(4, GetBuildInfo()) or 0
 local IS_FOREVER = INTERFACE >= 16000 and INTERFACE < 20000
 
+-- Midnight hands addon-tainted code "secret" values for some unit info. A secret
+-- can be stored and passed around, but string and ordering operations on one throw.
+-- Older Classic clients have no secrets and no issecretvalue.
+local issecret = _G.issecretvalue
+local function IsSecret(v)
+	return issecret ~= nil and issecret(v)
+end
+
 -- Midnight removed the loose item globals; everything lives under C_Item there.
 -- The older Classic clients still have both, so prefer the namespaced form and
 -- fall back for anything that predates it.
@@ -52,8 +60,20 @@ end
 
 -- Pull the NPC ID out of a unit GUID.
 -- Creature/Vehicle/Pet GUIDs look like: "Creature-0-1234-5-6789-NPCID-SPAWN"
+--
+-- Midnight can hand addon-tainted code a "secret" GUID, which strsplit refuses to
+-- touch. Nothing in this addon works without the NPC id, so say so once and then
+-- bow out quietly instead of throwing on every target change.
+local warnedSecret = false
 local function GetNpcID(unit)
 	local guid = UnitGUID(unit)
+	if IsSecret(guid) then
+		if not warnedSecret then
+			warnedSecret = true
+			DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffWhatItDrops|r: this client won't let addons read unit IDs, so loot lookup by target is unavailable. |cffffd100/loot browse|r still works.")
+		end
+		return
+	end
 	if not guid then return end
 	local kind, _, _, _, _, npcID = strsplit("-", guid)
 	if kind == "Creature" or kind == "Vehicle" or kind == "Pet" then
