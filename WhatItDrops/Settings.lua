@@ -43,7 +43,7 @@ local function AddBindRow(bindingName, label, x, y)
 		local o1, o2 = GetBindingKey(bindingName)
 		if o1 then SetBinding(o1) end
 		if o2 then SetBinding(o2) end
-		SaveBindings(GetCurrentBindingSet())
+		WhatItDrops_SaveBindings()
 		btn.listening = false; btn:EnableKeyboard(false)
 		refresh()
 	end
@@ -94,7 +94,7 @@ local function AddBindRow(bindingName, label, x, y)
 		if o1 then SetBinding(o1) end
 		if o2 then SetBinding(o2) end
 		if SetBinding(combo, bindingName) then
-			SaveBindings(GetCurrentBindingSet())
+			WhatItDrops_SaveBindings()
 		end
 		self.listening = false
 		self:EnableKeyboard(false)

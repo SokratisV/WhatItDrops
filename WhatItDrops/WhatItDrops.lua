@@ -1046,6 +1046,39 @@ local function LinkUnit(unit)
 end
 
 ----------------------------------------------------------------------
+-- Default keybind
+----------------------------------------------------------------------
+-- SaveBindings takes 1 (account) or 2 (character) and raises on anything else.
+-- At PLAYER_LOGIN the binding set isn't resolved yet on every client -- Forever
+-- answers nil there -- so this reports whether the save actually happened.
+function WhatItDrops_SaveBindings()
+	local set = GetCurrentBindingSet and GetCurrentBindingSet()
+	if type(set) ~= "number" or set < 1 or set > 2 then return false end
+	return (pcall(SaveBindings, set))
+end
+
+-- Returns true once the matter is settled, either way; false means "ask me again
+-- when the bindings have loaded". The saved flag is only set on a real save: a
+-- binding we applied but couldn't persist would be gone after the next logout,
+-- with the flag stopping us from ever re-applying it.
+local function ApplyDefaultBind()
+	if WhatItDropsDB.defaultBindApplied then return true end
+	if GetBindingKey("WHATITDROPS_FULLLOOKUP") then
+		WhatItDropsDB.defaultBindApplied = true  -- already bound; nothing to do
+		return true
+	end
+	local taken = GetBindingAction("CTRL-L")
+	if taken and taken ~= "" then
+		WhatItDropsDB.defaultBindApplied = true  -- CTRL-L is the user's; never clobber
+		return true
+	end
+	if not SetBinding("CTRL-L", "WHATITDROPS_FULLLOOKUP") then return true end
+	if not WhatItDrops_SaveBindings() then return false end
+	WhatItDropsDB.defaultBindApplied = true
+	return true
+end
+
+----------------------------------------------------------------------
 -- Events
 ----------------------------------------------------------------------
 local driver = CreateFrame("Frame")
@@ -1071,16 +1104,10 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		CreateMinimapButton()
 		-- Apply the default keybind (CTRL-L) once, and only if the action is
 		-- unbound and CTRL-L isn't already taken — never clobber the user.
-		if not WhatItDropsDB.defaultBindApplied then
-			WhatItDropsDB.defaultBindApplied = true
-			if not GetBindingKey("WHATITDROPS_FULLLOOKUP") then
-				local taken = GetBindingAction("CTRL-L")
-				if not taken or taken == "" then
-					SetBinding("CTRL-L", "WHATITDROPS_FULLLOOKUP")
-					SaveBindings(GetCurrentBindingSet())
-				end
-			end
-		end
+		if not ApplyDefaultBind() then self:RegisterEvent("UPDATE_BINDINGS") end
+	elseif event == "UPDATE_BINDINGS" then
+		-- The binding set wasn't resolved at login; it is now.
+		if ApplyDefaultBind() then self:UnregisterEvent("UPDATE_BINDINGS") end
 	elseif event == "PLAYER_TARGET_CHANGED" then
 		if WhatItDropsDB.auto and UnitExists("target") and UnitCanAttack("player", "target") and not UnitIsPlayer("target") then
 			local npcID = GetNpcID("target")
