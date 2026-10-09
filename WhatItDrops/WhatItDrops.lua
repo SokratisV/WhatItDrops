@@ -83,6 +83,31 @@ local function GetNpcID(unit)
 end
 
 local QUALITY_COLORS = _G.ITEM_QUALITY_COLORS
+
+-- "|cffRRGGBB" for an item quality, or nil when the client can't say. Used to read
+-- ITEM_QUALITY_COLORS[q].hex bare, which would have raised at render time on a
+-- client that dropped the table; an uncoloured row is the harmless fallback.
+local function QualityHex(q)
+	local c = q and QUALITY_COLORS and QUALITY_COLORS[q]
+	if not c then return nil end
+	if c.hex then return c.hex end
+	if c.r and c.g and c.b then
+		return string.format("|cff%02x%02x%02x", c.r * 255 + 0.5, c.g * 255 + 0.5, c.b * 255 + 0.5)
+	end
+end
+
+-- Chat-link insertion and the dressing-room preview are loose globals on Classic;
+-- Midnight has been folding that family into namespaces, so look for either home
+-- at click time instead of assuming one.
+local function InsertChatLink(link)
+	local insert = (ChatFrameUtil and ChatFrameUtil.InsertLink) or _G.ChatEdit_InsertLink
+	if insert then insert(link) end
+end
+
+local function PreviewItem(link)
+	local dress = _G.DressUpItemLink or _G.DressUpLink
+	if dress then dress(link) end
+end
 local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 
 -- Names/quality are baked (WhatItDropsItems.lua); fall back to GetItemInfo when an
@@ -360,9 +385,9 @@ local function GetRow(i)
 		if not self.itemID then return end
 		local link = self.link or select(2, GetItemInfo(self.itemID))
 		if IsModifiedClick("DRESSUP") then
-			if link then DressUpItemLink(link) end       -- Ctrl-click: dressing-room preview
+			if link then PreviewItem(link) end          -- Ctrl-click: dressing-room preview
 		elseif IsModifiedClick("CHATLINK") then
-			if link then ChatEdit_InsertLink(link) end   -- Shift-click: link in chat
+			if link then InsertChatLink(link) end      -- Shift-click: link in chat
 		elseif WhatItDrops_ShowItemSources then
 			WhatItDrops_ShowItemSources(self.itemID)        -- plain click: who drops this?
 		end
@@ -415,9 +440,9 @@ function WhatItDrops_Render()
 			r:SetPoint("TOPLEFT", 0, -(shown - 1) * ROW_H)
 			r.itemID, r.link = itemID, link
 			r.icon:SetTexture(icon or ItemIcon(itemID) or FALLBACK_ICON)
-			local color = quality and QUALITY_COLORS[quality]
+			local hex = QualityHex(quality)
 			local lbl = name or ("item:" .. tostring(itemID))
-			local text = color and (color.hex .. lbl .. "|r") or ("|cffffffff" .. lbl .. "|r")
+			local text = (hex or "|cffffffff") .. lbl .. "|r"
 			-- Quest-class drops get a yellow "!" marker so they stand out in the list.
 			if itemID and WhatItDropsQuestItem and WhatItDropsQuestItem[itemID] then
 				text = "|TInterface\\GossipFrame\\AvailableQuestIcon:14:14:0:0|t " .. text
@@ -796,8 +821,8 @@ local function GetBRow(i)
 	r:SetScript("OnClick", function(self)
 		if self.itemID and (IsModifiedClick("DRESSUP") or IsModifiedClick("CHATLINK")) then
 			local link = select(2, GetItemInfo(self.itemID))
-			if link and IsModifiedClick("DRESSUP") then DressUpItemLink(link)
-			elseif link then ChatEdit_InsertLink(link) end
+			if link and IsModifiedClick("DRESSUP") then PreviewItem(link)
+			elseif link then InsertChatLink(link) end
 		elseif self.onClick then
 			self.onClick()
 		end
@@ -854,9 +879,9 @@ RenderBrowser = function()
 			r.onClick = function() EnsureFull(e.id); ShowNPC(e.id, e.name) end
 		elseif bState == "items" then
 			r.itemID = e.id
-			local q = ItemQuality(e.id); local c = q and QUALITY_COLORS[q]
+			local hex = QualityHex(ItemQuality(e.id))
 			r.icon:SetTexture(ItemIcon(e.id) or FALLBACK_ICON)
-			r.name:SetText((c and c.hex or "|cffffffff") .. e.name .. "|r")
+			r.name:SetText((hex or "|cffffffff") .. e.name .. "|r")
 			r.right:SetText("")
 			r.onClick = function() bSelItem = e.id; bState = "npcs"; BuildReverse(); RenderBrowser() end
 		else
@@ -1079,20 +1104,35 @@ local function ApplyDefaultBind()
 end
 
 ----------------------------------------------------------------------
+-- Saved variables
+----------------------------------------------------------------------
+-- Fills in whatever the global lacks, in place, and has to be safe to run more
+-- than once. On WoW Forever the saved values are not reliably there at
+-- ADDON_LOADED -- measured in the sibling Unbuffed addon, where the table is
+-- empty at that point and the real one replaces the global shortly after -- so
+-- defaults seeded at ADDON_LOADED can be discarded moments later. Every read in
+-- this addon goes through the global rather than a captured reference, so a late
+-- replacement is picked up for free; seeding a second time at login is all it
+-- takes to be sure the table that survives to logout has every key.
+local function SeedDB()
+	WhatItDropsDB = WhatItDropsDB or {}
+	if WhatItDropsDB.auto == nil then WhatItDropsDB.auto = false end
+	if WhatItDropsDB.hideJunk == nil then WhatItDropsDB.hideJunk = false end
+	if WhatItDropsDB.showWorldDrops == nil then WhatItDropsDB.showWorldDrops = true end
+	if WhatItDropsDB.theme == nil then WhatItDropsDB.theme = "blizzard" end
+	if WhatItDropsDB.clearSearchOnOpen == nil then WhatItDropsDB.clearSearchOnOpen = true end
+	if WhatItDropsDB.useMouseover == nil then WhatItDropsDB.useMouseover = false end
+	WhatItDropsDB.minimap = WhatItDropsDB.minimap or { hide = false }
+end
+
+----------------------------------------------------------------------
 -- Events
 ----------------------------------------------------------------------
 local driver = CreateFrame("Frame")
 driver:RegisterEvent("ADDON_LOADED")
 driver:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == ADDON then
-		WhatItDropsDB = WhatItDropsDB or {}
-		if WhatItDropsDB.auto == nil then WhatItDropsDB.auto = false end
-		if WhatItDropsDB.hideJunk == nil then WhatItDropsDB.hideJunk = false end
-		if WhatItDropsDB.showWorldDrops == nil then WhatItDropsDB.showWorldDrops = true end
-		if WhatItDropsDB.theme == nil then WhatItDropsDB.theme = "blizzard" end
-		if WhatItDropsDB.clearSearchOnOpen == nil then WhatItDropsDB.clearSearchOnOpen = true end
-		if WhatItDropsDB.useMouseover == nil then WhatItDropsDB.useMouseover = false end
-		WhatItDropsDB.minimap = WhatItDropsDB.minimap or { hide = false }
+		SeedDB()
 		self:UnregisterEvent("ADDON_LOADED")
 		self:RegisterEvent("PLAYER_LOGIN")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -1100,6 +1140,9 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		self:RegisterEvent("INSPECT_READY")
 	elseif event == "PLAYER_LOGIN" then
 		self:UnregisterEvent("PLAYER_LOGIN")
+		-- Again, because the saved values may only have landed after ADDON_LOADED.
+		-- Must come before anything below reads or writes a setting.
+		SeedDB()
 		CreateQuestLogButton()
 		CreateMinimapButton()
 		-- Apply the default keybind (CTRL-L) once, and only if the action is
