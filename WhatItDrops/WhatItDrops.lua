@@ -560,10 +560,25 @@ local ejNames, ejByMap, ejAll        -- lower(name) -> {rec}, mapID -> {rec} (jo
 local ejSaved, ejRestoreToken        -- the Journal's own filter/difficulty while we borrow them
 local ejQueued = false
 
+local ejError                         -- why the index build failed, if it did
+
+local EJ_REQUIRED = { "EJ_GetNumTiers", "EJ_SelectTier", "EJ_GetInstanceByIndex", "EJ_SelectInstance",
+	"EJ_GetEncounterInfoByIndex", "EJ_SelectEncounter", "EJ_GetNumLoot" }
+
+-- Which Journal calls this client doesn't have (empty = usable).
+local function EJMissing()
+	local missing = {}
+	for _, name in ipairs(EJ_REQUIRED) do
+		if not _G[name] then missing[#missing + 1] = name end
+	end
+	if not (C_EncounterJournal and C_EncounterJournal.GetLootInfoByIndex) then
+		missing[#missing + 1] = "C_EncounterJournal.GetLootInfoByIndex"
+	end
+	return missing
+end
+
 local function EJAvailable()
-	return IS_RETAIL and EJ_GetNumTiers and EJ_SelectTier and EJ_GetInstanceByIndex
-		and EJ_SelectInstance and EJ_GetEncounterInfoByIndex and EJ_SelectEncounter
-		and EJ_GetNumLoot and C_EncounterJournal and C_EncounterJournal.GetLootInfoByIndex and true or false
+	return IS_RETAIL and #EJMissing() == 0
 end
 
 local function BuildJournalIndex()
@@ -613,8 +628,38 @@ end
 
 local function EnsureJournalIndex()
 	if ejNames then return end
-	local ok = pcall(BuildJournalIndex)
-	if not ok then ejNames, ejByMap, ejAll = ejNames or {}, ejByMap or {}, ejAll or {} end
+	local ok, err = pcall(BuildJournalIndex)
+	if not ok then
+		ejNames, ejByMap, ejAll = ejNames or {}, ejByMap or {}, ejAll or {}
+		ejError = tostring(err)
+		DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffWhatItDrops|r: Encounter Journal lookup failed: " .. ejError
+			.. "  |cffffd100/loot journal|r shows details.")
+	end
+end
+
+-- /loot journal: say what the Journal source is doing, for when a boss goes missing.
+function WhatItDrops_JournalStatus(query)
+	local function say(msg) DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffWhatItDrops|r journal: " .. msg) end
+	if not IS_RETAIL then say("Retail only (this client uses the baked Classic data).") return end
+	local missing = EJMissing()
+	if #missing > 0 then say("unavailable -- this client lacks: " .. table.concat(missing, ", ")) return end
+	EnsureJournalIndex()
+	local maps = 0
+	for _ in pairs(ejByMap or {}) do maps = maps + 1 end
+	say(("indexed %d encounters across %d instance maps; tiers reported: %s"):format(
+		#(ejAll or {}), maps, tostring(EJ_GetNumTiers())))
+	if ejError then say("index build error: " .. ejError) end
+	local q = (query or ""):lower()
+	if q ~= "" then
+		local n = 0
+		for _, rec in ipairs(ejAll or {}) do
+			if rec.name:lower():find(q, 1, true) then
+				n = n + 1
+				if n <= 8 then say(("  match: %s  (%s, instance %s, map %s)"):format(rec.name, tostring(rec.instName), tostring(rec.inst), tostring(rec.map))) end
+			end
+		end
+		say(n .. ' encounter(s) match "' .. q .. '"')
+	end
 end
 
 local function FindJournalEncounter(name)
@@ -1455,6 +1500,8 @@ SlashCmdList.WHATITDROPS = function(msg)
 		if not WhatItDrops_ShowInstanceBosses() then
 			print("|cff66ccffWhatItDrops|r: no boss list — you're not in a dungeon/raid we have data for.")
 		end
+	elseif msg:match("^journal") then
+		WhatItDrops_JournalStatus(msg:match("^journal%s+(.+)$"))
 	elseif msg == "help" then
 		print("|cff66ccffWhatItDrops|r commands:")
 		print("  |cffffd100/loot|r — loot table for your current target (Wowhead %, via LootCodex data)")

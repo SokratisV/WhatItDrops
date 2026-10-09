@@ -1,9 +1,13 @@
 # WhatItDrops
 
-Target any enemy in World of Warcraft (WoW Forever / TBC Classic) and see its loot table.
+Target any enemy in World of Warcraft (Retail / WoW Forever / TBC Classic) and see its loot table.
 
-> **Client support.** Runs on **WoW Forever** (interface `16001`) and on the
-> **TBC Classic / Anniversary** client (interface `20505`) from the same files.
+> **Client support.** Runs on **Retail** (interface `120100`), **WoW Forever** (interface
+> `16001`) and the **TBC Classic / Anniversary** client (interface `20505`) from the same files.
+> Retail reads loot for creatures from the bundled `WhatItDrops_Retail` pack (TrinityCore
+> database, GPL v3) and current dungeon/raid bosses from the in-game Encounter Journal
+> (no drop rates there, so rows show the item slot).
+>
 > Forever serves Classic content from the Midnight 12.x client, so it reports a
 > Classic project id but only exposes the modern namespaced API — every call that
 > moved is feature-detected rather than switched on project id.
