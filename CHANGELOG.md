@@ -4,16 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-- **Settings survive login on WoW Forever.** Forever hands over SavedVariables after
-  `ADDON_LOADED`, so defaults seeded there could be discarded moments later. Defaults are
-  now seeded again at `PLAYER_LOGIN`.
-- Quality colouring, shift-click chat links and ctrl-click dressing-room previews no longer
-  depend on a single legacy global each; a missing one degrades to a plain row / no-op
-  instead of raising.
-
-## [1.1.0] - 2026-09-18
+## [1.1.0] - 2026-10-09
 
 WoW Forever support.
 
@@ -32,6 +23,12 @@ WoW Forever support.
 - The **Loot Needed** button attaches to `QuestMapFrame` when there's no standalone
   `QuestLogFrame`, and is skipped quietly if neither exists (`/loot quest` still works).
 - Wowhead links resolve to the **classic** database on Forever.
+- **Settings survive login on WoW Forever.** Forever hands over SavedVariables after
+  `ADDON_LOADED`, so defaults seeded there could be discarded moments later. Defaults are
+  now seeded again at `PLAYER_LOGIN`.
+- Quality colouring, shift-click chat links and ctrl-click dressing-room previews no longer
+  depend on a single legacy global each; a missing one degrades to a plain row / no-op
+  instead of raising.
 
 ## [1.0.1] - 2026-06-07
 
@@ -64,5 +61,6 @@ Initial release as **WhatItDrops**. This is the addon previously published as
 Commands: `/loot` (target lookup), `/loot config`, `/loot browse`, `/fullloot`, and
 `/whatitdrops`.
 
+[1.1.0]: https://github.com/SokratisV/WhatItDrops/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/SokratisV/WhatItDrops/compare/v1.0...v1.0.1
 [1.0]: https://github.com/SokratisV/WhatItDrops/commits/master

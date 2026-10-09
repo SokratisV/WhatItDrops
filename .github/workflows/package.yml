@@ -57,22 +57,39 @@ jobs:
           set -euo pipefail
           if [ -z "${CF_API_KEY:-}" ]; then echo "No CF_API_KEY secret; skipping CurseForge upload."; exit 0; fi
           VERSION="${GITHUB_REF_NAME#v}"
-          # Derive the WoW game version from the .toc Interface (e.g. 20505 -> 2.5.5)
-          IFACE=$(grep -m1 '## Interface:' WhatItDrops/WhatItDrops.toc | grep -oE '[0-9]+')
-          GAMEVER="$((IFACE/10000)).$(((IFACE/100)%100)).$((IFACE%100))"
-          echo "TOC Interface $IFACE -> game version $GAMEVER"
-          VID=$(curl -sf -H "X-Api-Token: $CF_API_KEY" https://wow.curseforge.com/api/game/versions \
-                | jq -r --arg v "$GAMEVER" '[.[] | select(.name==$v)] | .[0].id // empty')
-          if [ -z "$VID" ]; then echo "::error::Could not resolve CurseForge game-version id for $GAMEVER"; exit 1; fi
-          echo "CurseForge game-version id: $VID"
+          ALL=$(curl -sf -H "X-Api-Token: $CF_API_KEY" https://wow.curseforge.com/api/game/versions)
+
+          # Shown on every run so a missing WoW Forever entry is easy to spot.
+          echo "CurseForge game versions that look like Forever / 1.60.x:"
+          echo "$ALL" | jq -r '.[] | select((.name | ascii_downcase | contains("forever")) or (.name | startswith("1.60"))) | "  id=\(.id)  name=\(.name)"' || true
+
+          # Every number on the TOC's "## Interface:" line is a supported client
+          # (e.g. "16001, 20505"): 16001 -> 1.60.1, 20505 -> 2.5.5. Each one that
+          # CurseForge knows is tagged on the file; unknown ones are warned about,
+          # not fatal, as long as at least one resolves.
+          IFACES=$(grep -m1 '## Interface:' WhatItDrops/WhatItDrops.toc | grep -oE '[0-9]+')
+          IDS=()
+          for IFACE in $IFACES; do
+            GAMEVER="$((IFACE/10000)).$(((IFACE/100)%100)).$((IFACE%100))"
+            VID=$(echo "$ALL" | jq -r --arg v "$GAMEVER" '[.[] | select(.name==$v)] | .[0].id // empty')
+            if [ -n "$VID" ]; then
+              echo "TOC Interface $IFACE -> $GAMEVER -> CurseForge id $VID"
+              IDS+=("$VID")
+            else
+              echo "::warning::TOC Interface $IFACE ($GAMEVER) has no CurseForge game version; not tagged. Retag the file on the Files tab if needed."
+            fi
+          done
+          if [ "${#IDS[@]}" -eq 0 ]; then echo "::error::No TOC Interface resolved to a CurseForge game version"; exit 1; fi
+          GV=$(printf '%s\n' "${IDS[@]}" | jq -s -c 'map(tonumber)')
+
           METADATA=$(jq -nc \
             --arg cl "Release ${GITHUB_REF_NAME} — see the GitHub release notes." \
             --arg dn "WhatItDrops ${VERSION}" \
-            --argjson gv "[$VID]" \
+            --argjson gv "$GV" \
             '{changelog:$cl, changelogType:"text", displayName:$dn, releaseType:"release", gameVersions:$gv}')
           curl -sf -X POST "https://wow.curseforge.com/api/projects/$CF_PROJECT_ID/upload-file" \
             -H "X-Api-Token: $CF_API_KEY" \
             -F "metadata=$METADATA" \
             -F "file=@${{ steps.build.outputs.zip }}"
           echo
-          echo "Uploaded WhatItDrops-$VERSION.zip to CurseForge project $CF_PROJECT_ID."
+          echo "Uploaded WhatItDrops-$VERSION.zip to CurseForge project $CF_PROJECT_ID (game versions: $GV)."
