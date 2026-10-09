@@ -20,3 +20,6 @@ WhatItDrops/tools/lootcodex/*.lua
 *.tmp
 Thumbs.db
 .DS_Store
+
+# Python bytecode from the data generators
+__pycache__/
