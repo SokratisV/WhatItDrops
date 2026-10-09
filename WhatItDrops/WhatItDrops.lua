@@ -550,6 +550,130 @@ local function EnsureRetailData()
 	StartRetailItemNames()
 end
 
+----------------------------------------------------------------------
+-- Encounter Journal (Retail): current dungeon / raid boss loot
+----------------------------------------------------------------------
+-- The TDB has no loot for current instanced bosses; the game's own Encounter
+-- Journal does -- but with no drop rates and no NPC ids. So an encounter is matched
+-- to the targeted unit by name, preferring the instance you are standing in.
+local ejNames, ejByMap, ejAll        -- lower(name) -> {rec}, mapID -> {rec} (journal order), {rec}
+local ejSaved, ejRestoreToken        -- the Journal's own filter/difficulty while we borrow them
+local ejQueued = false
+
+local function EJAvailable()
+	return IS_RETAIL and EJ_GetNumTiers and EJ_SelectTier and EJ_GetInstanceByIndex
+		and EJ_SelectInstance and EJ_GetEncounterInfoByIndex and EJ_SelectEncounter
+		and EJ_GetNumLoot and C_EncounterJournal and C_EncounterJournal.GetLootInfoByIndex and true or false
+end
+
+local function BuildJournalIndex()
+	if ejNames then return end
+	ejNames, ejByMap, ejAll = {}, {}, {}
+	if not EJAvailable() then return end
+	local function add(key, rec)
+		if type(key) ~= "string" or key == "" then return end
+		key = key:lower()
+		local l = ejNames[key]
+		if not l then l = {}; ejNames[key] = l end
+		for _, r in ipairs(l) do if r == rec then return end end
+		l[#l + 1] = rec
+	end
+	local tier0 = EJ_GetCurrentTier and EJ_GetCurrentTier()
+	for tier = 1, EJ_GetNumTiers() do
+		EJ_SelectTier(tier)
+		for _, isRaid in ipairs({ false, true }) do
+			for i = 1, 300 do
+				local instID, instName, _, _, _, _, _, _, _, _, mapID = EJ_GetInstanceByIndex(i, isRaid)
+				if not instID then break end
+				EJ_SelectInstance(instID)
+				for e = 1, 40 do
+					local name, _, encID = EJ_GetEncounterInfoByIndex(e)
+					if not name or not encID then break end
+					local rec = { name = name, enc = encID, inst = instID, instName = instName, map = mapID }
+					ejAll[#ejAll + 1] = rec
+					add(name, rec)
+					if mapID then
+						local m = ejByMap[mapID]
+						if not m then m = {}; ejByMap[mapID] = m end
+						m[#m + 1] = rec
+					end
+					if EJ_GetCreatureInfo then          -- multi-creature encounters
+						for c = 1, 12 do
+							local _, cname = EJ_GetCreatureInfo(c, encID)
+							if not cname then break end
+							add(cname, rec)
+						end
+					end
+				end
+			end
+		end
+	end
+	if tier0 then EJ_SelectTier(tier0) end
+end
+
+local function EnsureJournalIndex()
+	if ejNames then return end
+	local ok = pcall(BuildJournalIndex)
+	if not ok then ejNames, ejByMap, ejAll = ejNames or {}, ejByMap or {}, ejAll or {} end
+end
+
+local function FindJournalEncounter(name)
+	if not EJAvailable() or IsSecret(name) or type(name) ~= "string" then return nil end
+	EnsureJournalIndex()
+	local list = ejNames[name:lower()]
+	if not list then return nil end
+	local mapID = select(8, GetInstanceInfo())
+	for _, rec in ipairs(list) do
+		if rec.map == mapID then return rec end
+	end
+	return list[#list]                   -- newest tier last
+end
+
+-- Point the Journal at an encounter, borrowing its loot filter and difficulty.
+-- They are put back a few seconds later so the real Journal UI is left as found.
+local function JournalSelect(rec)
+	if not ejSaved then
+		ejSaved = {
+			filter = { EJ_GetLootFilter and EJ_GetLootFilter() },
+			difficulty = EJ_GetDifficulty and EJ_GetDifficulty(),
+		}
+	end
+	if EJ_SetLootFilter then pcall(EJ_SetLootFilter, 0, 0) end        -- all classes/specs
+	EJ_SelectInstance(rec.inst)
+	local diff = select(3, GetInstanceInfo())
+	if diff and diff > 0 and EJ_IsValidInstanceDifficulty and EJ_SetDifficulty
+		and EJ_IsValidInstanceDifficulty(diff) then
+		EJ_SetDifficulty(diff)
+	end
+	EJ_SelectEncounter(rec.enc)
+	local token = {}
+	ejRestoreToken = token
+	C_Timer.After(3, function()
+		if ejRestoreToken ~= token or not ejSaved then return end
+		local s = ejSaved
+		ejSaved = nil
+		if s.filter[1] and EJ_SetLootFilter then pcall(EJ_SetLootFilter, s.filter[1], s.filter[2]) end
+		if s.difficulty and EJ_SetDifficulty then pcall(EJ_SetDifficulty, s.difficulty) end
+	end)
+end
+
+-- The selected encounter's loot as window entries (no rates, so a slot tag instead).
+local function ReadJournalLoot()
+	local items, seen = {}, {}
+	for i = 1, (EJ_GetNumLoot() or 0) do
+		local info = C_EncounterJournal.GetLootInfoByIndex(i)
+		if info and info.itemID and not seen[info.itemID] then
+			seen[info.itemID] = true
+			local tag = info.displayAsExtremelyRare and "extremely rare"
+				or info.displayAsVeryRare and "very rare" or info.slot
+			items[#items + 1] = { id = info.itemID, rightText = (tag and tag ~= "") and ("|cff888888" .. tag .. "|r") or nil }
+		end
+	end
+	return items
+end
+
+local ShowJournal                      -- defined with the window code below
+
 -- Build the item list from the flat data: { {id=, pct=}, ... }, rate-sorted.
 -- Flat layout: arr = { specificCount, id,pct, id,pct, ... } with mob-specific
 -- drops first and the generic world-drop pool after; world drops are included
@@ -575,6 +699,14 @@ function WhatItDrops_Refresh()
 end
 
 local function ShowNPC(npcID, npcName)
+	-- Current instanced bosses live in the Encounter Journal. Inside the matching
+	-- instance the Journal wins; elsewhere the TDB does, unless it has nothing.
+	if IS_RETAIL then
+		local rec = FindJournalEncounter(npcName)
+		if rec and (rec.map == select(8, GetInstanceInfo()) or not (WhatItDropsFull and WhatItDropsFull[npcID])) then
+			return ShowJournal(rec)
+		end
+	end
 	local f = GetWindow()
 	current.id, current.name = npcID, npcName
 	current.player, current.unit, current.inspectGUID = false, nil, nil
@@ -585,6 +717,23 @@ local function ShowNPC(npcID, npcName)
 	f.check:SetChecked(WhatItDropsDB and WhatItDropsDB.hideJunk or false)
 	f.worldCheck:SetChecked(WhatItDropsDB and WhatItDropsDB.showWorldDrops or false)
 	f.url:SetText(BuildURL(npcID))
+	f.url:Hide()
+	f:Show()
+	WhatItDrops_Render()
+end
+
+ShowJournal = function(rec)
+	local f = GetWindow()
+	current.id, current.name = nil, rec.name
+	current.player, current.unit, current.inspectGUID = false, nil, nil
+	current.journal = rec
+	JournalSelect(rec)
+	local items = ReadJournalLoot()
+	current.items, current.journalItems = items, items
+	f.source:SetText("Loot: Encounter Journal  (no drop rates)")
+	f.title:SetText(rec.name .. "  |cff888888(" .. (rec.instName or "") .. ")|r")
+	f.empty:SetText("The Encounter Journal lists no loot for this boss.")
+	f.url:SetText("")
 	f.url:Hide()
 	f:Show()
 	WhatItDrops_Render()
@@ -938,6 +1087,12 @@ RenderBrowser = function()
 			r.name:SetText("|cffffd100" .. e.name .. "|r  |cff888888(" .. e.id .. ")|r")
 			r.right:SetText("|cff888888target|r")
 			r.onClick = function() EnsureFull(e.id); ShowNPC(e.id, e.name) end
+		elseif bState == "items" and e.kind == "boss" then
+			r.itemID = nil
+			r.icon:SetTexture(FALLBACK_ICON)
+			r.name:SetText("|cffffd100" .. e.name .. "|r")
+			r.right:SetText("|cff888888journal|r")
+			r.onClick = function() ShowJournal(e.rec) end
 		elseif bState == "items" then
 			r.itemID = e.id
 			local hex = QualityHex(ItemQuality(e.id))
@@ -970,8 +1125,17 @@ DoBrowserSearch = function(query)
 			for id, nm in pairs(WhatItDropsNpcName) do
 				if nm:lower():find(q, 1, true) then npcs[#npcs + 1] = { kind = "npc", id = id, name = nm } end
 			end
-			table.sort(npcs, function(a, b) return a.name < b.name end)
 		end
+		-- Retail: current dungeon/raid bosses from the Encounter Journal.
+		if EJAvailable() then
+			EnsureJournalIndex()
+			for _, rec in ipairs(ejAll or {}) do
+				if rec.name:lower():find(q, 1, true) then
+					npcs[#npcs + 1] = { kind = "boss", name = rec.name .. "  (" .. (rec.instName or "?") .. ")", rec = rec }
+				end
+			end
+		end
+		table.sort(npcs, function(a, b) return a.name < b.name end)
 		if WhatItDropsItemName then
 			for id, nm in pairs(WhatItDropsItemName) do
 				if nm:lower():find(q, 1, true) then items[#items + 1] = { kind = "item", id = id, name = nm } end
@@ -1094,14 +1258,26 @@ function WhatItDrops_ShowInstanceBosses()
 	-- Only dungeons/raids have a boss roster; skip battlegrounds/arenas.
 	if instType ~= "party" and instType ~= "raid" then return false end
 	local ids = mapID and WhatItDropsInstanceBoss and WhatItDropsInstanceBoss[mapID]
-	if not ids or #ids == 0 then return false end
+	local journal
+	if IS_RETAIL and mapID and EJAvailable() then
+		EnsureJournalIndex()
+		journal = ejByMap[mapID]
+	end
+	if (not ids or #ids == 0) and (not journal or #journal == 0) then return false end
 
 	WhatItDrops_OpenBrowser()       -- position + show the browser (clears bContext)
 	local res = {}
-	for _, id in ipairs(ids) do
-		res[#res + 1] = { kind = "npc", id = id, name = NpcName(id) }
+	if journal and #journal > 0 then
+		-- Retail: the Journal's own roster, in encounter order.
+		for _, rec in ipairs(journal) do
+			res[#res + 1] = { kind = "boss", name = rec.name, rec = rec }
+		end
+	else
+		for _, id in ipairs(ids) do
+			res[#res + 1] = { kind = "npc", id = id, name = NpcName(id) }
+		end
+		table.sort(res, function(a, b) return a.name < b.name end)
 	end
-	table.sort(res, function(a, b) return a.name < b.name end)
 	bState, bSelItem, bResults = "items", nil, res
 	bContext = "Bosses — " .. (instName or "Instance")
 	RenderBrowser()
@@ -1201,6 +1377,25 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")
 		self:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 		self:RegisterEvent("INSPECT_READY")
+		-- Journal loot streams in after EJ_SelectEncounter (the client's own spelling
+		-- of the event); only Retail has it, so don't let an unknown name raise.
+		if IS_RETAIL then pcall(self.RegisterEvent, self, "EJ_LOOT_DATA_RECIEVED") end
+	elseif event == "EJ_LOOT_DATA_RECIEVED" then
+		-- Re-read while the Journal is still pointed at our encounter (before the
+		-- borrowed filter is put back), once per burst.
+		if current.journal and ejSaved and current.items == current.journalItems and not ejQueued then
+			ejQueued = true
+			C_Timer.After(0.3, function()
+				ejQueued = false
+				if current.journal and ejSaved and current.items == current.journalItems then
+					local items = ReadJournalLoot()
+					if #items > 0 then
+						current.items, current.journalItems = items, items
+						WhatItDrops_Render()
+					end
+				end
+			end)
+		end
 	elseif event == "PLAYER_LOGIN" then
 		self:UnregisterEvent("PLAYER_LOGIN")
 		-- Again, because the saved values may only have landed after ADDON_LOADED.

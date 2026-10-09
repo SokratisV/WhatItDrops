@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Retail (Midnight 12.1) support.
+
+- **Retail creature loot** from the TrinityCore TDB world database: a new
+  `WhatItDrops_Retail` LoadOnDemand pack (8,399 creatures, real drop chances). Item names
+  and quality come from the client at runtime.
+- **Current dungeon and raid bosses** are read from the Encounter Journal, matched to your
+  target by name (the instance you are standing in wins). The Journal has no drop rates, so
+  rows show the item slot instead. The Journal's own class/spec filter and difficulty are
+  borrowed for the lookup and put back afterwards.
+- `/loot bosses` lists the Journal's encounters for the current instance; the browser
+  searches Journal bosses alongside creatures.
+- All TOCs now list interface `120100` alongside `16001` and `20505`.
+
 ## [1.1.0] - 2026-10-09
 
 WoW Forever support.
