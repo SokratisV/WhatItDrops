@@ -1,4 +1,4 @@
-## Interface: 16001, 20505
+## Interface: 16001, 20505, 120100
 ## Title: WhatItDrops |cff66ccffWowhead|r
 ## Notes: Loot tables for any mob: /loot, /fullloot, /loot browse. Inline names + item search.
 ## Author: Sokratis

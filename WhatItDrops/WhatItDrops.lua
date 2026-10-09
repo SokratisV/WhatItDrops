@@ -9,6 +9,11 @@ local ADDON = ...
 local INTERFACE = select(4, GetBuildInfo()) or 0
 local IS_FOREVER = INTERFACE >= 16000 and INTERFACE < 20000
 
+-- Retail has none of the baked Classic tables: creature loot comes from the
+-- WhatItDrops_Retail pack (TrinityCore TDB) and item names/quality from the client.
+-- Forever reports a Classic project id, so it never matches this.
+local IS_RETAIL = WOW_PROJECT_ID ~= nil and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and not IS_FOREVER
+
 -- Midnight hands addon-tainted code "secret" values for some unit info. A secret
 -- can be stored and passed around, but string and ordering operations on one throw.
 -- Older Classic clients have no secrets and no issecretvalue.
@@ -124,6 +129,14 @@ local function ItemQuality(id)
 end
 local function NpcName(id)
 	return (WhatItDropsNpcName and WhatItDropsNpcName[id]) or ("NPC " .. id)
+end
+
+-- Quest-class drops: the baked table on Classic; on Retail ask the client for the
+-- item's class (12 = quest item).
+local function IsQuestItem(id)
+	if WhatItDropsQuestItem then return WhatItDropsQuestItem[id] end
+	local instant = C_Item and C_Item.GetItemInfoInstant
+	return instant and select(6, instant(id)) == 12
 end
 
 ----------------------------------------------------------------------
@@ -444,7 +457,7 @@ function WhatItDrops_Render()
 			local lbl = name or ("item:" .. tostring(itemID))
 			local text = (hex or "|cffffffff") .. lbl .. "|r"
 			-- Quest-class drops get a yellow "!" marker so they stand out in the list.
-			if itemID and WhatItDropsQuestItem and WhatItDropsQuestItem[itemID] then
+			if itemID and IsQuestItem(itemID) then
 				text = "|TInterface\\GossipFrame\\AvailableQuestIcon:14:14:0:0|t " .. text
 			end
 			r.name:SetText(text)
@@ -467,7 +480,7 @@ end
 -- Continent / instance data is split into per-region LoadOnDemand addons that
 -- all populate the global WhatItDropsFull. We load only the region you're in, the
 -- first time you /fullloot there — so memory tracks where you actually play.
-local PARTITIONS = { "EasternKingdoms", "Kalimdor", "Outland", "Instances", "Misc" }
+local PARTITIONS = IS_RETAIL and { "Retail" } or { "EasternKingdoms", "Kalimdor", "Outland", "Instances", "Misc" }
 local CONTINENT  = { [0] = "EasternKingdoms", [1] = "Kalimdor", [530] = "Outland" }
 local loadedPart = {}
 
@@ -479,6 +492,7 @@ local function LoadPartition(name)
 end
 
 local function CurrentPartition()
+	if IS_RETAIL then return "Retail" end
 	local mapID = select(8, GetInstanceInfo())
 	return CONTINENT[mapID] or "Instances"
 end
@@ -487,10 +501,53 @@ end
 -- and only fall back to loading every partition if the NPC isn't found there.
 local function EnsureFull(npcID)
 	LoadPartition(CurrentPartition())
-	LoadPartition("Misc")
+	if not IS_RETAIL then LoadPartition("Misc") end
 	if WhatItDropsFull and WhatItDropsFull[npcID] then return true end
 	for _, p in ipairs(PARTITIONS) do LoadPartition(p) end
 	return WhatItDropsFull and WhatItDropsFull[npcID] ~= nil
+end
+
+-- Retail ships no item-name table, so the browser's search index is filled from the
+-- client: every item in the Retail pack is asked for once, in small batches, and the
+-- names land in WhatItDropsItemName as the client answers (GET_ITEM_INFO_RECEIVED).
+local retailNamesStarted = false
+local function RecordItemName(id)
+	local name = id and GetItemInfo(id)
+	if name then
+		WhatItDropsItemName = WhatItDropsItemName or {}
+		WhatItDropsItemName[id] = name
+	end
+end
+
+local function StartRetailItemNames()
+	if retailNamesStarted or not WhatItDropsFull then return end
+	retailNamesStarted = true
+	local ids, seen = {}, {}
+	for _, arr in pairs(WhatItDropsFull) do
+		for k = 2, #arr, 2 do
+			local id = arr[k]
+			if not seen[id] then seen[id] = true; ids[#ids + 1] = id end
+		end
+	end
+	local request = C_Item and C_Item.RequestLoadItemDataByID
+	local nextIndex = 1
+	local function pump()
+		local last = math.min(nextIndex + 199, #ids)
+		for j = nextIndex, last do
+			RecordItemName(ids[j])
+			if request and not (WhatItDropsItemName and WhatItDropsItemName[ids[j]]) then request(ids[j]) end
+		end
+		nextIndex = last + 1
+		if nextIndex <= #ids then C_Timer.After(0.1, pump) end
+	end
+	pump()
+end
+
+-- Everything the retail browser and quest matcher need: the pack, then item names.
+local function EnsureRetailData()
+	if not IS_RETAIL then return end
+	LoadPartition("Retail")
+	StartRetailItemNames()
 end
 
 -- Build the item list from the flat data: { {id=, pct=}, ... }, rate-sorted.
@@ -585,7 +642,10 @@ end
 local itemNameIndex
 local function ItemIDByName(name)
 	if not name or name == "" then return nil end
-	if not itemNameIndex then
+	EnsureRetailData()
+	-- Retail names stream in from the client, so an index built once would stay
+	-- permanently incomplete; rebuild it each time there.
+	if not itemNameIndex or IS_RETAIL then
 		itemNameIndex = {}
 		if WhatItDropsItemName then
 			for id, nm in pairs(WhatItDropsItemName) do
@@ -798,6 +858,7 @@ local RenderBrowser, DoBrowserSearch
 local function BuildReverse()
 	if reverseIndex then return end
 	for _, p in ipairs(PARTITIONS) do LoadPartition(p) end
+	EnsureRetailData()
 	reverseIndex = {}
 	for npc, arr in pairs(WhatItDropsFull or {}) do
 		local total = (#arr - 1) / 2
@@ -901,6 +962,7 @@ DoBrowserSearch = function(query)
 	bState, bSelItem, bContext = "items", nil, nil
 	local q = (query or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
 	local res = {}
+	EnsureRetailData()
 	if #q >= 2 then
 		-- Targets (NPCs) first, then item drops; each sorted by name.
 		local npcs, items = {}, {}
@@ -1128,6 +1190,7 @@ end
 ----------------------------------------------------------------------
 -- Events
 ----------------------------------------------------------------------
+local renderQueued = false
 local driver = CreateFrame("Frame")
 driver:RegisterEvent("ADDON_LOADED")
 driver:SetScript("OnEvent", function(self, event, arg1)
@@ -1157,8 +1220,15 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 			if npcID then EnsureFull(npcID); ShowNPC(npcID, UnitName("target")) end
 		end
 	elseif event == "GET_ITEM_INFO_RECEIVED" then
-		if win and win:IsShown() and current.waiting then
-			WhatItDrops_Render()
+		-- Retail streams thousands of these while the browser index fills; redraw
+		-- once per burst instead of once per item.
+		if IS_RETAIL and retailNamesStarted then RecordItemName(arg1) end
+		if win and win:IsShown() and current.waiting and not renderQueued then
+			renderQueued = true
+			C_Timer.After(0.2, function()
+				renderQueued = false
+				WhatItDrops_Render()
+			end)
 		end
 	elseif event == "INSPECT_READY" then
 		-- Inspect data arrived: refill the gear list if it's the unit we're showing.

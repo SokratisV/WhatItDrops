@@ -1,0 +1,7 @@
+## Interface: 16001, 20505, 120100
+## Title: WhatItDrops |cff66ccffRetail Data|r
+## Notes: Retail creature loot from the TrinityCore TDB (GPLv3). Loaded on demand by WhatItDrops.
+## Version: 1.2.0
+## LoadOnDemand: 1
+
+WhatItDrops_Retail.lua

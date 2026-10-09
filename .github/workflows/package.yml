@@ -16,7 +16,7 @@ permissions:
 
 env:
   CF_PROJECT_ID: "1567458"
-  ADDON_DIRS: "WhatItDrops WhatItDrops_EasternKingdoms WhatItDrops_Kalimdor WhatItDrops_Outland WhatItDrops_Instances WhatItDrops_Misc"
+  ADDON_DIRS: "WhatItDrops WhatItDrops_EasternKingdoms WhatItDrops_Kalimdor WhatItDrops_Outland WhatItDrops_Instances WhatItDrops_Misc WhatItDrops_Retail"
 
 jobs:
   release:
