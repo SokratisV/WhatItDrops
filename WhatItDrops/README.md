@@ -26,7 +26,7 @@ Target any enemy in World of Warcraft (Retail / WoW Forever / TBC Classic) and s
 - `/loot bosses` — list the **bosses of the instance you're in** (each one clickable to its loot table). This is also what the loot keybind does when you have no target while inside a dungeon/raid.
 - `/loot quest` — items the **selected quest** needs, and where they drop. Also available as a **"Loot Needed"** button in the quest log.
 - `/loot auto` — toggle auto-show on target.
-- `/loot config` — settings & keybinds.
+- `/loot config` (or `/wid`) — settings & keybinds.
 
 In the window: drops that are **quest items** are flagged with a yellow **!** marker. **Hide common loot** drops greys/whites; **Show world drops** includes the generic world/common-drop pool. **Ctrl+C** reveals the Wowhead link, again copies & closes. **Ctrl-click** an item to preview it in the dressing room; **Shift-click** to link it in chat.
 

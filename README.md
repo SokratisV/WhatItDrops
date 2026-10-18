@@ -54,7 +54,7 @@ Screenshots: drop images into docs/ and reference them here, e.g.
 | Command | What it does |
 |---|---|
 | `/loot` | Loot table for your current target. |
-| `/loot config` | Open settings & keybinds. |
+| `/loot config` (or `/wid`) | Open settings & keybinds. |
 
 **Keybind** (default **CTRL‑L**): looks up your current target.
 

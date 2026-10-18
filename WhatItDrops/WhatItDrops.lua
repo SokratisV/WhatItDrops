@@ -795,17 +795,38 @@ local GEAR_SLOTS = {
 local function CollectGear(unit)
 	local list = {}
 	for _, slot in ipairs(GEAR_SLOTS) do
+		-- Right after an inspect the client knows *which* item is worn before it has
+		-- the item's data, so the link can still be nil while the id is already known.
+		-- Fall back to the id (and ask for the data) rather than dropping the slot.
 		local link = GetInventoryItemLink(unit, slot[1])
-		if link then
-			local itemID = tonumber(link:match("item:(%d+)"))
-			local name, _, quality = GetItemInfo(link)
+		local itemID = link and tonumber(link:match("item:(%d+)"))
+			or (GetInventoryItemID and GetInventoryItemID(unit, slot[1]))
+		if itemID then
+			if not link and C_Item and C_Item.RequestLoadItemDataByID then
+				C_Item.RequestLoadItemDataByID(itemID)
+			end
+			local name, _, quality = GetItemInfo(link or itemID)
 			list[#list + 1] = {
 				id = itemID, link = link, rightText = slot[2],
-				name = name or link:match("%[(.-)%]"), quality = quality,
+				name = name or (link and link:match("%[(.-)%]")), quality = quality,
 			}
 		end
 	end
 	return (#list > 0) and list or nil
+end
+
+-- Re-read the gear of the player currently shown. Inspect data and the data of each
+-- worn item arrive at different moments, so this runs on INSPECT_READY, on item info
+-- arriving, and on a short timer after the request -- whichever lands the last piece.
+local function RefreshGear()
+	if not (current.player and current.unit and win and win:IsShown()) then return end
+	if not UnitExists(current.unit) then return end
+	local guid = UnitGUID(current.unit)
+	if not IsSecret(guid) and not IsSecret(current.inspectGUID) and guid ~= current.inspectGUID then
+		return                                  -- target changed since; not this player any more
+	end
+	current.items = CollectGear(current.unit)
+	WhatItDrops_Render()
 end
 
 -- Open the window populated with a player's equipped gear. For other players we
@@ -823,6 +844,7 @@ local function ShowPlayer(unit)
 	WhatItDrops_Render()
 	if not UnitIsUnit(unit, "player") and CanInspect and CanInspect(unit) and NotifyInspect then
 		NotifyInspect(unit)
+		for _, delay in ipairs({ 0.5, 1.5, 3 }) do C_Timer.After(delay, RefreshGear) end
 	end
 end
 
@@ -1463,21 +1485,17 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		-- Retail streams thousands of these while the browser index fills; redraw
 		-- once per burst instead of once per item.
 		if IS_RETAIL and retailNamesStarted then RecordItemName(arg1) end
-		if win and win:IsShown() and current.waiting and not renderQueued then
+		if win and win:IsShown() and (current.waiting or current.player) and not renderQueued then
 			renderQueued = true
 			C_Timer.After(0.2, function()
 				renderQueued = false
-				WhatItDrops_Render()
+				-- A player's gear list is a snapshot, so it must be re-read, not just redrawn.
+				if current.player then RefreshGear() else WhatItDrops_Render() end
 			end)
 		end
 	elseif event == "INSPECT_READY" then
 		-- Inspect data arrived: refill the gear list if it's the unit we're showing.
-		if current.player and current.inspectGUID and arg1 == current.inspectGUID
-			and current.unit and UnitGUID(current.unit) == current.inspectGUID
-			and win and win:IsShown() then
-			current.items = CollectGear(current.unit)
-			WhatItDrops_Render()
-		end
+		RefreshGear()
 	end
 end)
 
@@ -1509,12 +1527,18 @@ SlashCmdList.WHATITDROPS = function(msg)
 		print("  |cffffd100/loot bosses|r — list the bosses of the instance you're in")
 		print("  |cffffd100/loot quest|r — items the selected quest needs, and where they drop")
 		print("  |cffffd100/loot auto|r — toggle auto-showing on target")
-		print("  |cffffd100/loot config|r — open settings & keybinds")
+		print("  |cffffd100/loot config|r (or |cffffd100/wid|r) — open settings & keybinds")
 		print("  Ctrl+C shows the Wowhead link; press again to copy & close.")
 		print("  Click an item to see what drops it; Ctrl-click previews; Shift-click links it.")
 	else
 		LinkUnit()
 	end
+end
+
+-- /wid: straight to the settings panel.
+SLASH_WHATITDROPSWID1 = "/wid"
+SlashCmdList.WHATITDROPSWID = function()
+	if WhatItDrops_OpenSettings then WhatItDrops_OpenSettings() end
 end
 
 -- /fullloot kept as an alias for muscle memory (single mode now).

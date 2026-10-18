@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+- **`/wid`** opens the settings panel directly (same as `/loot config`).
+- **Fixed: a player's gear list was incomplete the first time it opened.** Gear was read
+  before the inspect reply arrived and never again once the worn items' data loaded, so only
+  a second press showed everything. Slots are now kept by item id while their data loads, and
+  the list is re-read when inspect data arrives, when item data arrives, and on a short
+  timer after the request.
 - **One collapsible entry in the AddOns list.** All parts (the main addon, the five Classic
   data packs and the Retail pack) now share `## Group: WhatItDrops`, so they fold under a single
   "WhatItDrops" header the way multi-part addons like Spoken do.
