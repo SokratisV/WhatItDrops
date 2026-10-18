@@ -2,6 +2,9 @@
 ## Title: WhatItDrops |cff66ccffEasternKingdoms Data|r
 ## Notes: Wowhead loot for EasternKingdoms (via LootCodex GPLv3). Loaded on demand by WhatItDrops.
 ## Version: 1.2.0
+## IconTexture: Interface\AddOns\WhatItDrops\icon.tga
+## Group: WhatItDrops
+## X-Part-Of: WhatItDrops
 ## LoadOnDemand: 1
 
 WhatItDrops_EasternKingdoms.lua

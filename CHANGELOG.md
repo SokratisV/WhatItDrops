@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- **One collapsible entry in the AddOns list.** All parts (the main addon, the five Classic
+  data packs and the Retail pack) now share `## Group: WhatItDrops`, so they fold under a single
+  "WhatItDrops" header the way multi-part addons like Spoken do.
+- **Addon icon**: the treasure-chest logo, shipped as `icon.tga` and used for every part.
+
 ## [1.2.0] - 2026-10-09
 
 Retail (Midnight 12.1) support.
