@@ -31,6 +31,18 @@ Skin.HasElv = function() local e = Elv(); return e ~= nil end
 
 local function guard(fn) local ok = pcall(fn); return ok end
 
+-- Window opacity (Settings > Appearance), applied to the background fill only.
+local function Alpha(base)
+	return base * ((WhatItDropsDB and WhatItDropsDB.opacity) or 1)
+end
+
+-- Flat themes that only restyle the window frame. Unlike "elvui" they leave every
+-- inner widget alone, so switching between them (and Blizzard) needs no /reload.
+local FLAT = {
+	slate     = { bg = { 0.11, 0.14, 0.20 }, edge = { 0.30, 0.38, 0.52 } },
+	parchment = { bg = { 0.17, 0.14, 0.09 }, edge = { 0.55, 0.45, 0.25 } },
+}
+
 -- Native flat backdrop helper for widgets that aren't BackdropTemplate frames.
 local function flatBackdrop(w, r, g, b, a)
 	local bg = w.__llbg
@@ -78,8 +90,17 @@ function Skin.Frame(f)
 		-- native flat fallback
 		guard(function()
 			f:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1, insets = { left = 1, right = 1, top = 1, bottom = 1 } })
-			f:SetBackdropColor(0.06, 0.06, 0.07, 0.94)
+			f:SetBackdropColor(0.06, 0.06, 0.07, Alpha(0.94))
 			f:SetBackdropBorderColor(0, 0, 0, 1)
+		end)
+		return
+	end
+	local flat = FLAT[t]
+	if flat then
+		guard(function()
+			f:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1, insets = { left = 1, right = 1, top = 1, bottom = 1 } })
+			f:SetBackdropColor(flat.bg[1], flat.bg[2], flat.bg[3], Alpha(0.96))
+			f:SetBackdropBorderColor(flat.edge[1], flat.edge[2], flat.edge[3], 1)
 		end)
 		return
 	end
@@ -91,6 +112,8 @@ function Skin.Frame(f)
 			tile = true, tileSize = 32, edgeSize = 32,
 			insets = { left = 8, right = 8, top = 8, bottom = 8 },
 		})
+		f:SetBackdropColor(1, 1, 1, Alpha(1))
+		f:SetBackdropBorderColor(1, 1, 1, 1)
 	end)
 end
 

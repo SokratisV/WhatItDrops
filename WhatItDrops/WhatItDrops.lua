@@ -101,6 +101,12 @@ local function QualityHex(q)
 	end
 end
 
+-- The same colour as r, g, b, or nil when the client can't say.
+local function QualityRGB(q)
+	local c = q and QUALITY_COLORS and QUALITY_COLORS[q]
+	if c and c.r and c.g and c.b then return c.r, c.g, c.b end
+end
+
 -- Chat-link insertion and the dressing-room preview are loose globals on Classic;
 -- Midnight has been folding that family into namespaces, so look for either home
 -- at click time instead of assuming one.
@@ -144,6 +150,30 @@ end
 ----------------------------------------------------------------------
 local ROW_H, MAX_VIEW = 18, 216
 local HEADER_H, FOOTER_H = 40, 78
+
+-- Appearance settings (Settings > WhatItDrops > Appearance). Row height is read on
+-- every redraw, so changing it applies live.
+local ROW_SIZES = { compact = 16, normal = 18, roomy = 22 }
+local ACCENTS = {
+	gold   = { 1, 0.82, 0 },        -- the stock GameFontNormal gold
+	blue   = { 0.29, 0.64, 1 },
+	green  = { 0.37, 0.83, 0.37 },
+	red    = { 0.91, 0.42, 0.42 },
+	violet = { 0.75, 0.48, 1 },
+}
+WhatItDrops_Accents = ACCENTS
+local function AccentRGB()
+	local a = ACCENTS[WhatItDropsDB and WhatItDropsDB.accent or "gold"] or ACCENTS.gold
+	return a[1], a[2], a[3]
+end
+local function ApplyRowHeight()
+	ROW_H = ROW_SIZES[WhatItDropsDB and WhatItDropsDB.rowSize or "normal"] or 18
+end
+local function Opt(key)                -- an effect toggle; nil (not seeded yet) counts as on
+	local v = WhatItDropsDB and WhatItDropsDB[key]
+	return v ~= false
+end
+local fadeKey                          -- which list the rows last faded in for
 -- Hard ceiling on rendered rows. The browser already caps its lists at 300; the
 -- loot view had no cap, so a single malformed loot table (e.g. a corrupted
 -- reference dump with thousands of 100% entries) could spawn thousands of frames
@@ -187,6 +217,7 @@ local function GetWindow()
 
 	local f = CreateFrame("Frame", "WhatItDropsFrame", UIParent, "BackdropTemplate")
 	f:SetSize(340, 200)
+	f:SetScale((WhatItDropsDB and WhatItDropsDB.uiScale) or 1)   -- before RestorePos: positions are in scaled units
 	if not RestorePos(f, "loot") then f:SetPoint("CENTER") end
 	-- One strata above the browser (DIALOG) so the item/loot window always sits on
 	-- top of it -- clicking an NPC in the browser pops its loot table in front,
@@ -197,7 +228,7 @@ local function GetWindow()
 	f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving)
 	f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); SavePos(self, "loot") end)
-	f:SetScript("OnHide", function(self) SavePos(self, "loot") end)
+	f:SetScript("OnHide", function(self) SavePos(self, "loot"); fadeKey = nil end)
 	f:SetClampedToScreen(true)
 	tinsert(UISpecialFrames, "WhatItDropsFrame") -- closes on Escape
 	WhatItDrops_Skin.Frame(f)
@@ -206,6 +237,7 @@ local function GetWindow()
 	title:SetPoint("TOPLEFT", 14, -12)
 	title:SetPoint("TOPRIGHT", -76, -12)
 	title:SetJustifyH("LEFT")
+	title:SetTextColor(AccentRGB())
 	f.title = title
 
 	local source = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -369,19 +401,42 @@ local function GetRow(i)
 	local r = CreateFrame("Button", nil, win.content)
 	r:SetSize(296, ROW_H)
 
+	-- Drop-rate bar: sits behind everything else in the row, width = the drop chance.
+	r.bar = r:CreateTexture(nil, "BACKGROUND")
+	r.bar:SetPoint("TOPLEFT")
+	r.bar:SetPoint("BOTTOMLEFT")
+	r.bar:SetWidth(1)
+	r.bar:Hide()
+
 	r.icon = r:CreateTexture(nil, "ARTWORK")
 	r.icon:SetSize(16, 16)
-	r.icon:SetPoint("LEFT", 0, 0)
+	r.icon:SetPoint("LEFT", 1, 0)
 	r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
+	-- One-pixel quality-coloured frame around the icon.
+	r.border = CreateFrame("Frame", nil, r, "BackdropTemplate")
+	r.border:SetPoint("TOPLEFT", r.icon, "TOPLEFT", -1, 1)
+	r.border:SetPoint("BOTTOMRIGHT", r.icon, "BOTTOMRIGHT", 1, -1)
+	r.border:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+	r.border:Hide()
+
 	r.name = r:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0)
+	r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
 	r.name:SetJustifyH("LEFT")
 
 	r.rate = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	r.rate:SetPoint("RIGHT", 0, 0)
+	r.rate:SetPoint("RIGHT", -2, 0)
 	r.rate:SetJustifyH("RIGHT")
-	r.name:SetPoint("RIGHT", r.rate, "LEFT", -6, 0)
+
+	-- Sparkle beside the rate for rare-or-better drops that are, well, rare.
+	r.spark = r:CreateTexture(nil, "OVERLAY")
+	r.spark:SetTexture("Interface\\Cooldown\\star4")
+	r.spark:SetBlendMode("ADD")
+	r.spark:SetSize(14, 14)
+	r.spark:SetPoint("RIGHT", r.rate, "LEFT", -3, 0)
+	r.spark:Hide()
+
+	r.name:SetPoint("RIGHT", r.rate, "LEFT", -20, 0)   -- leave room for the sparkle
 
 	local hl = r:CreateTexture(nil, "HIGHLIGHT")
 	hl:SetAllPoints()
@@ -410,12 +465,67 @@ local function GetRow(i)
 	return r
 end
 
+-- Portrait card beside the loot window: a 3D model of whatever the list is for.
+-- Off by default; creatures load by NPC id, players by unit. Journal bosses have no
+-- NPC id, so they get no card.
+local function UpdateModelCard()
+	local f = win
+	if not f then return end
+	local card = f.modelCard
+	local want = WhatItDropsDB and WhatItDropsDB.fxModel and f:IsShown()
+		and (current.id or (current.player and current.unit))
+	if not want then
+		if card then card:Hide(); card.key = nil end
+		return
+	end
+	if not card then
+		card = CreateFrame("Frame", nil, f, "BackdropTemplate")
+		card:SetSize(110, 132)
+		card:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+		card:SetBackdropColor(0.05, 0.05, 0.07, 0.9)
+		card.model = CreateFrame("PlayerModel", nil, card)
+		card.model:SetPoint("TOPLEFT", 2, -2)
+		card.model:SetPoint("BOTTOMRIGHT", -2, 2)
+		f.modelCard = card
+	end
+	card:SetBackdropBorderColor(AccentRGB())
+	-- Beside the window, on whichever side has room.
+	card:ClearAllPoints()
+	local right = f:GetRight()
+	if right and (right + 114) * f:GetEffectiveScale() > UIParent:GetRight() * UIParent:GetEffectiveScale() then
+		card:SetPoint("TOPRIGHT", f, "TOPLEFT", -4, 0)
+	else
+		card:SetPoint("TOPLEFT", f, "TOPRIGHT", 4, 0)
+	end
+	local key
+	if current.id then
+		key = "n" .. current.id
+	else
+		key = IsSecret(current.inspectGUID) and ("p" .. GetTime()) or ("p" .. tostring(current.inspectGUID))
+	end
+	if card.key ~= key then
+		card.key = key
+		pcall(function()
+			card.model:ClearModel()
+			if current.id then card.model:SetCreature(current.id) else card.model:SetUnit(current.unit) end
+		end)
+	end
+	card:Show()
+end
+
 -- Re-render the current NPC's list (called on open, on toggle, and when
 -- async item info arrives via GET_ITEM_INFO_RECEIVED).
 function WhatItDrops_Render()
 	if not win or not win:IsShown() then return end
 	local items = current.items
 	local hideJunk = WhatItDropsDB and WhatItDropsDB.hideJunk
+
+	-- Rows fade in once per list, not on every redraw (item data arriving, toggles).
+	local nm = current.name
+	if IsSecret(nm) then nm = nil end
+	local key = tostring(current.id or nm or "?") .. (current.player and "p" or "n")
+	local fadeNow = Opt("fxFade") and key ~= fadeKey
+	fadeKey = key
 
 	-- The junk/world-drop toggles and the Wowhead link only make sense for an NPC
 	-- loot table; hide them for player-gear and quest-item views.
@@ -425,6 +535,7 @@ function WhatItDrops_Render()
 		win.scroll:Hide(); win.check:Hide(); win.worldCheck:Hide(); win.urlBtn:Hide(); win.empty:Show()
 		win.content:SetHeight(1)
 		win:SetHeight(HEADER_H + 30 + FOOTER_H)
+		UpdateModelCard()
 		return
 	end
 	win.empty:Hide(); win.scroll:Show()
@@ -450,9 +561,30 @@ function WhatItDrops_Render()
 		if not hidden then
 			shown = shown + 1
 			local r = GetRow(shown)
+			r:SetHeight(ROW_H)
 			r:SetPoint("TOPLEFT", 0, -(shown - 1) * ROW_H)
 			r.itemID, r.link = itemID, link
 			r.icon:SetTexture(icon or ItemIcon(itemID) or FALLBACK_ICON)
+			r.icon:SetSize(ROW_H - 2, ROW_H - 2)
+
+			local qr, qg, qb = QualityRGB(quality)
+			if Opt("fxBorders") and qr then
+				r.border:SetBackdropBorderColor(qr, qg, qb, 1); r.border:Show()
+			else
+				r.border:Hide()
+			end
+			if Opt("fxBars") and entry.pct then
+				r.bar:SetColorTexture(qr or 1, qg or 1, qb or 1, qr and 0.28 or 0.14)
+				r.bar:SetWidth(math.max(2, 296 * math.min(entry.pct, 100) / 100))
+				r.bar:Show()
+			else
+				r.bar:Hide()
+			end
+			if Opt("fxSparkle") and entry.pct and entry.pct > 0 and entry.pct < 2 and quality and quality >= 3 then
+				r.spark:SetVertexColor(AccentRGB()); r.spark:Show()
+			else
+				r.spark:Hide()
+			end
 			local hex = QualityHex(quality)
 			local lbl = name or ("item:" .. tostring(itemID))
 			local text = (hex or "|cffffffff") .. lbl .. "|r"
@@ -463,6 +595,22 @@ function WhatItDrops_Render()
 			r.name:SetText(text)
 			r.rate:SetText(entry.rightText or (entry.pct and pctStr(entry.pct)) or "")
 			r:Show()
+			if fadeNow then
+				if not r.fadeAG then
+					local ag = r:CreateAnimationGroup()
+					local a = ag:CreateAnimation("Alpha")
+					a:SetFromAlpha(0); a:SetToAlpha(1); a:SetDuration(0.18)
+					ag:SetScript("OnFinished", function() r:SetAlpha(1) end)
+					r.fadeAG, r.fadeAnim = ag, a
+				end
+				r.fadeAG:Stop()
+				r:SetAlpha(0)
+				r.fadeAnim:SetStartDelay(math.min(shown, 14) * 0.025)
+				r.fadeAG:Play()
+			else
+				if r.fadeAG then r.fadeAG:Stop() end
+				r:SetAlpha(1)
+			end
 		end
 	end
 	for i = shown + 1, #rows do rows[i]:Hide() end
@@ -475,6 +623,7 @@ function WhatItDrops_Render()
 	-- If any item wasn't cached yet, the GET_ITEM_INFO_RECEIVED handler will
 	-- re-render as the data streams in.
 	current.waiting = waiting
+	UpdateModelCard()
 end
 
 -- Continent / instance data is split into per-region LoadOnDemand addons that
@@ -1147,6 +1296,7 @@ RenderBrowser = function()
 	for i, e in ipairs(list) do
 		shown = i
 		local r = GetBRow(i)
+		r:SetHeight(ROW_H)
 		r:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
 		if bState == "items" and e.kind == "npc" then
 			r.itemID = nil
@@ -1219,7 +1369,9 @@ end
 local function GetBrowser()
 	if bWin then return bWin end
 	local f = CreateFrame("Frame", "WhatItDropsBrowserFrame", UIParent, "BackdropTemplate")
-	f:SetSize(360, 440); f:SetPoint("CENTER", 90, 0); f:SetFrameStrata("DIALOG")
+	f:SetSize(360, 440); f:SetFrameStrata("DIALOG")
+	f:SetScale((WhatItDropsDB and WhatItDropsDB.uiScale) or 1)   -- before any position is applied
+	f:SetPoint("CENTER", 90, 0)
 	f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving)
 	f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); SavePos(self, "browser") end)
@@ -1228,6 +1380,7 @@ local function GetBrowser()
 	tinsert(UISpecialFrames, "WhatItDropsBrowserFrame") -- closes on Escape
 	WhatItDrops_Skin.Frame(f)
 	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal"); title:SetPoint("TOP", 0, -12); f.title = title
+	title:SetTextColor(AccentRGB())
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", 2, 2)
 	WhatItDrops_Skin.Close(close)
 	HeaderIcon(f, "Interface\\Buttons\\UI-OptionsButton", "Settings",
@@ -1428,6 +1581,16 @@ local function SeedDB()
 	if WhatItDropsDB.clearSearchOnOpen == nil then WhatItDropsDB.clearSearchOnOpen = true end
 	if WhatItDropsDB.useMouseover == nil then WhatItDropsDB.useMouseover = false end
 	WhatItDropsDB.minimap = WhatItDropsDB.minimap or { hide = false }
+	-- Appearance: the effects start on (that is the point of them), the model starts off.
+	for _, k in ipairs({ "fxBars", "fxBorders", "fxSparkle", "fxFade" }) do
+		if WhatItDropsDB[k] == nil then WhatItDropsDB[k] = true end
+	end
+	if WhatItDropsDB.fxModel == nil then WhatItDropsDB.fxModel = false end
+	if WhatItDropsDB.rowSize == nil then WhatItDropsDB.rowSize = "normal" end
+	if WhatItDropsDB.opacity == nil then WhatItDropsDB.opacity = 1 end
+	if WhatItDropsDB.uiScale == nil then WhatItDropsDB.uiScale = 1 end
+	if WhatItDropsDB.accent == nil then WhatItDropsDB.accent = "gold" end
+	ApplyRowHeight()
 end
 
 ----------------------------------------------------------------------
@@ -1500,6 +1663,33 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 end)
 
 ----------------------------------------------------------------------
+-- Appearance: apply the Settings > Appearance choices to what is already on screen
+----------------------------------------------------------------------
+function WhatItDrops_ApplyAppearance()
+	ApplyRowHeight()
+	local scale = (WhatItDropsDB and WhatItDropsDB.uiScale) or 1
+	local r, g, b = AccentRGB()
+	for _, f in ipairs({ win or false, bWin or false }) do
+		if f then
+			WhatItDrops_Skin.Frame(f)                       -- theme + opacity
+			if f.title then f.title:SetTextColor(r, g, b) end
+			local old = f:GetScale()
+			if math.abs(old - scale) > 0.001 then
+				-- Keep the window where it is on screen while its scale changes.
+				local left, bottom = f:GetLeft(), f:GetBottom()
+				f:SetScale(scale)
+				if left and bottom then
+					f:ClearAllPoints()
+					f:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left * old / scale, bottom * old / scale)
+				end
+			end
+		end
+	end
+	if win and win:IsShown() then WhatItDrops_Render() end
+	if bWin and bWin:IsShown() then RenderBrowser() end
+end
+
+----------------------------------------------------------------------
 -- Slash command
 ----------------------------------------------------------------------
 SLASH_WHATITDROPS1 = "/loot"
@@ -1537,8 +1727,10 @@ end
 
 -- /wid: straight to the settings panel.
 SLASH_WHATITDROPSWID1 = "/wid"
-SlashCmdList.WHATITDROPSWID = function()
-	if WhatItDrops_OpenSettings then WhatItDrops_OpenSettings() end
+SlashCmdList.WHATITDROPSWID = function(msg)
+	if WhatItDrops_OpenSettings then
+		WhatItDrops_OpenSettings((msg or ""):lower():match("^%s*appearance") and "appearance" or nil)
+	end
 end
 
 -- /fullloot kept as an alias for muscle memory (single mode now).

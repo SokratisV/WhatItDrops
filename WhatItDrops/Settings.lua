@@ -12,10 +12,11 @@ end
 ----------------------------------------------------------------------
 -- Widgets
 ----------------------------------------------------------------------
-local function AddCheck(label, get, set, x, y)
-	local cb = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+local function AddCheck(label, get, set, x, y, parent)
+	parent = parent or panel
+	local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
 	cb:SetPoint("TOPLEFT", x, y)
-	local fs = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	local fs = parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 	fs:SetPoint("LEFT", cb, "RIGHT", 4, 0)
 	fs:SetText(label)
 	cb:SetScript("OnShow", function(self) self:SetChecked(get() and true or false) end)
@@ -139,10 +140,10 @@ AddCheck("Use mouseover unit (takes priority over your target)",
 	function(v) db().useMouseover = v end,
 	18, -178)
 
-AddCheck("Flat / ElvUI skin" .. (WhatItDrops_Skin and WhatItDrops_Skin.HasElv() and "  (ElvUI detected)" or "") .. "  — requires /reload",
-	function() return db().theme == "elvui" end,
-	function(v) db().theme = v and "elvui" or "blizzard" end,
-	18, -208)
+local lookHint = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+lookHint:SetPoint("TOPLEFT", 22, -214)
+lookHint:SetText("Theme, colours and effects are on the |cffffd100Appearance|r page (left list, under WhatItDrops)"
+	.. (WhatItDrops_Skin and WhatItDrops_Skin.HasElv() and "  |cff888888(ElvUI detected)|r" or "") .. ".")
 
 AddCheck("Show the minimap button  (left-click: reload UI, right-click: loot lookup)",
 	function() return not (db().minimap and db().minimap.hide) end,
@@ -167,20 +168,220 @@ note2:SetPoint("TOPLEFT", 18, -370)
 note2:SetText("These also appear under Esc > Key Bindings > WhatItDrops.")
 
 ----------------------------------------------------------------------
+-- Appearance page: theme, accent, opacity, scale, row height, effects
+----------------------------------------------------------------------
+local ap = CreateFrame("Frame")
+ap.name = "Appearance"
+ap.parent = "WhatItDrops"          -- nests it under the main page on the legacy options API
+
+local FLATTEX = "Interface\\Buttons\\WHITE8X8"
+local function applyLook()
+	if WhatItDrops_ApplyAppearance then WhatItDrops_ApplyAppearance() end
+end
+local function apHeader(text, x, y)
+	local fs = ap:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+	fs:SetPoint("TOPLEFT", x, y)
+	fs:SetText(text)
+	return fs
+end
+
+local apTitle = ap:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+apTitle:SetPoint("TOPLEFT", 16, -16)
+apTitle:SetText("WhatItDrops: Appearance")
+local apSub = ap:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+apSub:SetPoint("TOPLEFT", apTitle, "BOTTOMLEFT", 0, -4)
+apSub:SetText("Changes apply to any open WhatItDrops window straight away.")
+
+-- A small flat colour button; `selected` decides its border.
+local function Swatch(w, h, r, g, b)
+	local s = CreateFrame("Button", nil, ap, "BackdropTemplate")
+	s:SetSize(w, h)
+	s:SetBackdrop({ bgFile = FLATTEX, edgeFile = FLATTEX, edgeSize = 2 })
+	s:SetBackdropColor(r, g, b, 1)
+	s:SetBackdropBorderColor(0.25, 0.25, 0.28, 1)
+	return s
+end
+
+-- Theme
+apHeader("Theme", 16, -62)
+local THEMES = {
+	{ "blizzard",  "Blizzard",  0.10, 0.09, 0.07 },
+	{ "elvui",     "ElvUI",     0.11, 0.11, 0.11 },
+	{ "slate",     "Slate",     0.11, 0.14, 0.20 },
+	{ "parchment", "Parchment", 0.17, 0.14, 0.09 },
+}
+local themeBtns = {}
+local reloadNote = ap:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+reloadNote:SetPoint("TOPLEFT", 18, -142)
+reloadNote:SetText("Switching to or from ElvUI needs a /reload; the other themes change instantly.")
+reloadNote:Hide()
+
+local function refreshThemes()
+	local cur = db().theme or "blizzard"
+	for _, b in ipairs(themeBtns) do
+		if b.key == cur then b:SetBackdropBorderColor(1, 0.82, 0, 1) else b:SetBackdropBorderColor(0.25, 0.25, 0.28, 1) end
+	end
+end
+for i, t in ipairs(THEMES) do
+	local b = Swatch(96, 54, t[3], t[4], t[5])
+	b:SetPoint("TOPLEFT", 18 + (i - 1) * 104, -82)
+	local lbl = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	lbl:SetPoint("BOTTOMLEFT", 6, 5)
+	lbl:SetText(t[2])
+	b.key = t[1]
+	b:SetScript("OnClick", function(self)
+		local old = db().theme or "blizzard"
+		db().theme = self.key
+		refreshThemes()
+		applyLook()
+		reloadNote:SetShown((old == "elvui") ~= (self.key == "elvui"))
+	end)
+	themeBtns[i] = b
+end
+
+-- Accent
+apHeader("Accent colour", 16, -166)
+local ACCENT_ORDER = { "gold", "blue", "green", "red", "violet" }
+local accentBtns = {}
+local function refreshAccents()
+	local cur = db().accent or "gold"
+	for _, b in ipairs(accentBtns) do
+		if b.key == cur then b:SetBackdropBorderColor(1, 1, 1, 1) else b:SetBackdropBorderColor(0.25, 0.25, 0.28, 1) end
+	end
+end
+for i, key in ipairs(ACCENT_ORDER) do
+	local c = (WhatItDrops_Accents and WhatItDrops_Accents[key]) or { 1, 0.82, 0 }
+	local b = Swatch(26, 26, c[1], c[2], c[3])
+	b:SetPoint("TOPLEFT", 18 + (i - 1) * 34, -186)
+	b.key = key
+	b:SetScript("OnClick", function(self)
+		db().accent = self.key
+		refreshAccents()
+		applyLook()
+	end)
+	accentBtns[i] = b
+end
+
+-- A horizontal slider built from plain textures (no dependence on a template the
+-- client may have renamed). `live` applies while dragging; otherwise on release.
+local function AddSlider(label, lo, hi, get, set, y, live)
+	local t = ap:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	t:SetPoint("TOPLEFT", 18, y)
+	t:SetText(label)
+	local s = CreateFrame("Slider", nil, ap)
+	s:SetOrientation("HORIZONTAL")
+	s:SetSize(220, 18)
+	s:SetPoint("TOPLEFT", 150, y + 3)
+	s:SetMinMaxValues(lo, hi)
+	s:SetValueStep(1)
+	if s.SetObeyStepOnDrag then s:SetObeyStepOnDrag(true) end
+	local track = s:CreateTexture(nil, "BACKGROUND")
+	track:SetColorTexture(0.25, 0.25, 0.28, 1)
+	track:SetPoint("LEFT")
+	track:SetPoint("RIGHT")
+	track:SetHeight(4)
+	s:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+	local val = ap:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	val:SetPoint("LEFT", s, "RIGHT", 10, 0)
+	s.ready = false
+	s:SetScript("OnShow", function(self)
+		self.ready = false
+		self:SetValue(get())
+		val:SetText(math.floor(get() + 0.5) .. "%")
+		self.ready = true
+	end)
+	s:SetScript("OnValueChanged", function(self, v)
+		v = math.floor(v + 0.5)
+		val:SetText(v .. "%")
+		if not self.ready then return end
+		set(v)
+		if live then applyLook() end
+	end)
+	if not live then s:SetScript("OnMouseUp", applyLook) end
+	return s
+end
+
+AddSlider("Window opacity", 40, 100,
+	function() return (db().opacity or 1) * 100 end,
+	function(v) db().opacity = v / 100 end,
+	-228, true)
+AddSlider("Window scale", 70, 140,
+	function() return (db().uiScale or 1) * 100 end,
+	function(v) db().uiScale = v / 100 end,
+	-258, false)
+
+-- Row height
+local rowLabel = ap:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+rowLabel:SetPoint("TOPLEFT", 18, -294)
+rowLabel:SetText("Row height")
+local ROWSIZES = { { "compact", "Compact" }, { "normal", "Normal" }, { "roomy", "Roomy" } }
+local rowBtns = {}
+local function refreshRows()
+	local cur = db().rowSize or "normal"
+	for _, b in ipairs(rowBtns) do
+		if b.key == cur then b:LockHighlight() else b:UnlockHighlight() end
+	end
+end
+for i, rs in ipairs(ROWSIZES) do
+	local b = CreateFrame("Button", nil, ap, "UIPanelButtonTemplate")
+	b:SetSize(76, 22)
+	b:SetPoint("TOPLEFT", 150 + (i - 1) * 82, -290)
+	b:SetText(rs[2])
+	b.key = rs[1]
+	b:SetScript("OnClick", function(self)
+		db().rowSize = self.key
+		refreshRows()
+		applyLook()
+	end)
+	rowBtns[i] = b
+end
+
+-- Effects
+apHeader("Loot window effects", 16, -330)
+AddCheck("Drop-rate bars behind each row",
+	function() return db().fxBars ~= false end,
+	function(v) db().fxBars = v; applyLook() end, 18, -352, ap)
+AddCheck("Quality-coloured icon borders",
+	function() return db().fxBorders ~= false end,
+	function(v) db().fxBorders = v; applyLook() end, 18, -380, ap)
+AddCheck("Sparkle on rare or better drops under 2%",
+	function() return db().fxSparkle ~= false end,
+	function(v) db().fxSparkle = v; applyLook() end, 18, -408, ap)
+AddCheck("Rows fade in when a list opens",
+	function() return db().fxFade ~= false end,
+	function(v) db().fxFade = v end, 18, -436, ap)
+AddCheck("3D model of the target beside the window",
+	function() return db().fxModel == true end,
+	function(v) db().fxModel = v; applyLook() end, 18, -464, ap)
+
+ap:SetScript("OnShow", function()
+	refreshThemes(); refreshAccents(); refreshRows()
+	reloadNote:Hide()
+end)
+
+----------------------------------------------------------------------
 -- Register + open helper (supports both the new and legacy options APIs)
 ----------------------------------------------------------------------
+local subCategory
 if Settings and Settings.RegisterCanvasLayoutCategory then
 	category = Settings.RegisterCanvasLayoutCategory(panel, "WhatItDrops")
 	Settings.RegisterAddOnCategory(category)
+	if Settings.RegisterCanvasLayoutSubcategory then
+		subCategory = Settings.RegisterCanvasLayoutSubcategory(category, ap, "Appearance")
+	end
 elseif InterfaceOptions_AddCategory then
 	InterfaceOptions_AddCategory(panel)
+	InterfaceOptions_AddCategory(ap)
 end
 
-function WhatItDrops_OpenSettings()
-	if category and Settings and Settings.OpenToCategory then
-		Settings.OpenToCategory(category:GetID())
+-- `which` = "appearance" opens the Appearance page; anything else opens the main one.
+function WhatItDrops_OpenSettings(which)
+	local target = (which == "appearance" and subCategory) or category
+	if target and Settings and Settings.OpenToCategory then
+		Settings.OpenToCategory(target:GetID())
 	elseif InterfaceOptionsFrame_OpenToCategory then
-		InterfaceOptionsFrame_OpenToCategory(panel) -- called twice to work around
-		InterfaceOptionsFrame_OpenToCategory(panel) -- a long-standing classic bug
+		local p = (which == "appearance") and ap or panel
+		InterfaceOptionsFrame_OpenToCategory(p) -- called twice to work around
+		InterfaceOptionsFrame_OpenToCategory(p) -- a long-standing classic bug
 	end
 end

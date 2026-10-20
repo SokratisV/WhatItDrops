@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- **Loot window polish.** Each row gets a drop-rate bar behind it (width = the chance), a
+  quality-coloured border around its icon, and a sparkle beside rare-or-better drops under 2%.
+  Rows fade in when a list opens. Optionally, a 3D model of the target sits in a portrait card
+  beside the window (off by default).
+- **New Appearance settings page** (`/wid appearance`, or under WhatItDrops in the AddOns
+  options): theme swatches (Blizzard, ElvUI, and the new Slate and Parchment), accent colour,
+  window opacity and scale, row height (compact, normal, roomy), and a switch for each effect.
+  Changes apply to open windows straight away. Only switching to or from ElvUI still needs a
+  `/reload`. The old "Flat / ElvUI skin" checkbox on the main page is replaced by this.
+
 ## [1.2.1] - 2026-10-18
 
 - **`/wid`** opens the settings panel directly (same as `/loot config`).

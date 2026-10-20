@@ -55,6 +55,7 @@ Screenshots: drop images into docs/ and reference them here, e.g.
 |---|---|
 | `/loot` | Loot table for your current target. |
 | `/loot config` (or `/wid`) | Open settings & keybinds. |
+| `/wid appearance` | Theme, accent colour, opacity, scale, row height, and the loot-window effects. |
 
 **Keybind** (default **CTRL‑L**): looks up your current target.
 
