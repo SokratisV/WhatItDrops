@@ -11,6 +11,11 @@ Target any enemy in World of Warcraft (Retail / WoW Forever / TBC Classic) and s
 > Forever serves Classic content from the Midnight 12.x client, so it reports a
 > Classic project id but only exposes the modern namespaced API — every call that
 > moved is feature-detected rather than switched on project id.
+>
+> **WoW: Forever accuracy.** The bundled Classic-side loot data comes from a TBC-era database,
+> but Forever's content is Vanilla. Drop rates, which creatures drop what, and which items exist
+> can therefore be **inaccurate on WoW: Forever**. Treat the lists there as a guide, not gospel.
+> Retail uses retail data and is not affected.
 
 ## Addons in this repo
 

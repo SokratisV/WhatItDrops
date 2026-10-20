@@ -16,6 +16,11 @@
 > Forever serves Classic content from the Midnight 12.x client, so it reports a
 > Classic project id but only exposes the modern namespaced API — every call that
 > moved is feature-detected rather than switched on project id.
+>
+> **WoW: Forever accuracy.** The bundled Classic-side loot data comes from a TBC-era database,
+> but Forever's content is Vanilla. Drop rates, which creatures drop what, and which items exist
+> can therefore be **inaccurate on WoW: Forever**. Treat the lists there as a guide, not gospel.
+> Retail uses retail data and is not affected.
 
 WhatItDrops shows **Wowhead‑accurate** drop rates for whatever you're looking at — no
 website, no alt‑tab. Target a mob, open the window, and see exactly what it drops and

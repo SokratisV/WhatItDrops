@@ -1,7 +1,7 @@
 ## Interface: 16001, 20505, 120100
 ## Title: WhatItDrops |cff66ccffOutland Data|r
 ## Notes: Wowhead loot for Outland (via LootCodex GPLv3). Loaded on demand by WhatItDrops.
-## Version: 1.2.1
+## Version: 1.3.0
 ## IconTexture: Interface\AddOns\WhatItDrops\icon.tga
 ## Group: WhatItDrops
 ## X-Part-Of: WhatItDrops
