@@ -36,6 +36,8 @@ In the window: drops that are **quest items** are flagged with a yellow **!** ma
 
 > **Boss list note:** the Classic/Anniversary client has no Encounter Journal API, so bosses are derived from the world DB (a single-spawn rare+ dropper, or a Rank-3 elite). This nails 5-man rosters; the gap is script-**summoned** raid bosses (Ragnaros, Majordomo, Nefarian), which have no spawn point to map to an instance.
 
+The settings window is in the style of FlareUI by Malkkav (MIT).
+
 ## Data
 
 Loot **rates, items, world-drop flags, names, and quality** come from the

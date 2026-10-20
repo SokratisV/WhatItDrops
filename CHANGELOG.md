@@ -10,11 +10,15 @@ All notable changes to this project are documented here. The format is based on
   quality-coloured border around its icon, and a sparkle beside rare-or-better drops under 2%.
   Rows fade in when a list opens. Optionally, a 3D model of the target sits in a portrait card
   beside the window (off by default).
-- **New Appearance settings page** (`/wid appearance`, or under WhatItDrops in the AddOns
-  options): theme swatches (Blizzard, ElvUI, and the new Slate and Parchment), accent colour,
-  window opacity and scale, row height (compact, normal, roomy), and a switch for each effect.
-  Changes apply to open windows straight away. Only switching to or from ElvUI still needs a
-  `/reload`. The old "Flat / ElvUI skin" checkbox on the main page is replaced by this.
+- **A new settings window**, in the style of FlareUI by Malkkav (MIT): bronze trim, a page
+  list on the left, foldable sections in the middle, and a panel on the right that explains
+  whatever you hover. Pages: General, Appearance and Keybinds. `/wid` toggles it, `/wid appearance`
+  opens that page, and the gear in either window opens it too. The game's own AddOns settings
+  keep a small entry with an "Open settings" button.
+- **Appearance:** theme swatches (Blizzard, ElvUI, and the new Slate and Parchment), accent
+  colour, window opacity and scale, row height (compact, normal, roomy), a switch for each loot
+  list effect, and a two-click "Reset appearance". Changes apply to open windows straight away;
+  only switching to or from ElvUI needs a `/reload`.
 
 ## [1.2.1] - 2026-10-18
 

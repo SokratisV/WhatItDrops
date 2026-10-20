@@ -77,6 +77,8 @@ packs that load on demand:
 > are separate `LoadOnDemand` addons that the main addon loads via `LoadAddOn`, so they
 > can't be nested inside one folder.
 
+The settings window is in the style of FlareUI by Malkkav (MIT).
+
 ## Data & accuracy
 
 Loot **rates, items, world‑drop flags, names, and quality** come from the
