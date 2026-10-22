@@ -22,8 +22,8 @@ All notable changes to this project are documented here. The format is based on
 - **Item and creature names in your language on non-English clients.** Searching items in the
   browser and the quest view (which matches a quest's "collect" objectives to items) now work in
   the client's language on Classic and WoW: Forever; before, both only understood English. The first
-  search starts collecting the item names in the background (a few per tick, quest items first,
-  paused in combat), says how far it has got, refreshes the results as names arrive, and remembers
+  search starts collecting the item names in the background (about 50 server requests a second,
+  so a cold cache takes around ten minutes; quest items first; paused in combat), says how far it has got, refreshes the results as names arrive, and remembers
   them for next time (roughly 1 MB of saved variables for one language). Searching in English still
   works. Creature names are asked of the client one at a time as they appear (the browser's
   results, the loot window title) and the name of every creature you target is kept; where the client

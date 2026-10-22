@@ -216,7 +216,7 @@ local function localNames() return LOCALNAME[LOCALE] or LOCALNAME.default end
 REQUESTED, LOADED = {}, {}
 C_Item.GetItemNameByID = function(id)
 	CALLS.name = CALLS.name + 1
-	if LOADED[id] then return localNames()[id] end
+	if LOADED[id] then return localNames()[id] or (id >= 5000 and id < 6000 and ("F\195\188ller " .. id)) or nil end
 end
 C_Item.RequestLoadItemDataByID = function(id) CALLS.request = CALLS.request + 1; REQUESTED[id] = true end
 -- creature names: C_TooltipInfo answers a unit link with the creature's name in the client's language
@@ -696,6 +696,82 @@ local function nameTests()
 		return
 	end
 
+	-- Item names on a cold cache: the server is asked at a polite rate, later sessions ask only for
+	-- what is still missing, and a session that learns nothing new stops asking until the game updates.
+	local function coldCacheTests()
+		local realGetLocale, realBuild = GetLocale, GetBuildInfo
+		local savedNames, savedQuest = WhatItDropsItemName, WhatItDropsQuestItem
+		WhatItDropsItemName, WhatItDropsQuestItem = {}, {}
+		for id = 5000, 5299 do WhatItDropsItemName[id] = "Filler " .. id end
+		for id = 5000, 5009 do WhatItDropsQuestItem[id] = true end
+		local function session(locale)
+			GetLocale = function() return locale end
+			local M = {}
+			assert(loadstring(readfile(ADDON_DIR .. "/Names.lua"), "@Names.lua"))("WhatItDrops", M)
+			return M.Names
+		end
+		local function drive(M, seconds)       -- run one session's index; returns requests made, busiest tick, requests
+			local before, busiest = CALLS.request, 0
+			M.StartItemIndex()
+			busiest = CALLS.request - before         -- the first tick runs inside StartItemIndex
+			for _ = 1, seconds * 4 do
+				local b = CALLS.request
+				runTimers(0.25)
+				busiest = math.max(busiest, CALLS.request - b)
+			end
+			return CALLS.request - before, busiest
+		end
+		local function deliver(M, from, to) for id = from, to do LOADED[id] = true; M.OnItemInfo(id) end end
+		local function saved(loc) return WhatItDropsDB.l10n and WhatItDropsDB.l10n[loc] end
+
+		-- session 1, nothing cached: all 300 are asked for, never more than 12 in a tick (50 a second)
+		local M1 = session("xxXX")
+		runTimers(0.1)
+		local n, busiest = drive(M1, 8)
+		check(n == 300, "a cold pass asked for " .. n .. " of 300 items")
+		check(busiest <= 12, "a cold pass made " .. busiest .. " requests in one tick (limit 12, about 50 a second)")
+		deliver(M1, 5000, 5149)                 -- the client answers for half of them
+		runTimers(16)
+		check(saved("xxXX").missingLast == 150 and not saved("xxXX").settled, "pass 1 did not record 150 still missing")
+		-- session 2: only the 150 that are still missing are asked for again, and 50 more arrive
+		local M2 = session("xxXX")
+		n, busiest = drive(M2, 8)
+		check(n == 150, "the next session asked for " .. n .. " items, not the 150 still missing")
+		check(busiest <= 12, "the retry pass made " .. busiest .. " requests in one tick")
+		deliver(M2, 5150, 5199)
+		runTimers(16)
+		check(saved("xxXX").missingLast == 100 and not saved("xxXX").settled, "pass 2 made progress and must not settle")
+		-- session 3: nothing new arrives, so this pass settles
+		local M3 = session("xxXX")
+		n = drive(M3, 8)
+		check(n == 100, "session 3 asked for " .. n .. " items, not the 100 still missing")
+		runTimers(16)
+		check(saved("xxXX").settled, "a pass that added nothing did not settle")
+		-- session 4: settled, so the server is left alone (the client's cache is still read)
+		local M4 = session("xxXX")
+		n = drive(M4, 8)
+		check(n == 0, "a settled index still made " .. n .. " requests")
+		-- a new game build starts over
+		GetBuildInfo = function() return "12.1.5", "70000", "x", 120105 end
+		local M5 = session("xxXX")
+		n = drive(M5, 8)
+		check(n == 100, "after a game update the index asked for " .. n .. " items, not the 100 missing")
+		check(not saved("xxXX").settled and saved("xxXX").build == "12.1.5-70000", "a game update did not reset the pass bookkeeping")
+		GetBuildInfo = realBuild
+
+		-- a warm cache is scanned freely: no requests, done in one tick
+		for id = 5000, 5299 do LOADED[id] = true end
+		local M6 = session("yyYY")
+		n = drive(M6, 2)
+		local have, total = M6.Progress()
+		check(n == 0 and have == 300 and total == 300, "a warm cache made " .. n .. " requests and read " .. have .. "/" .. total)
+
+		-- put everything back
+		GetLocale, WhatItDropsItemName, WhatItDropsQuestItem = realGetLocale, savedNames, savedQuest
+		for id = 5000, 5299 do LOADED[id], REQUESTED[id] = nil, nil end
+		WhatItDropsDB.l10n.xxXX, WhatItDropsDB.l10n.yyYY = nil, nil
+	end
+
 	local function creatureTests()   -- run after the item tests on Classic: those need the index still unfinished
 	local t0 = CALLS.tip
 	check(Names.Npc(5555) == "Kobold-LOC", "the client's creature name was not taken from the tooltip")
@@ -730,7 +806,7 @@ local function nameTests()
 	check(said("Moroes-LOC |"), "/loot names did not report what the client answered for the target")
 
 	end
-	if CLIENT ~= "forever" then creatureTests(); return end
+	if CLIENT ~= "forever" then creatureTests(); coldCacheTests(); return end
 
 	-- ---- items (Classic data on a non-English client)
 	local lang = LOCALNAME[LOCALE]
@@ -767,7 +843,7 @@ local function nameTests()
 	check(done and have == 5 and total == 8, "index progress is " .. tostring(have) .. "/" .. tostring(total) .. " done=" .. tostring(done))
 	check(not textHas("|cff888888" .. NS.L["Item names: %d of %d"]:format(have, total)), "the progress note stayed after the index finished")
 	check(save().items[1001] == lang[1001] and save().items[1004] == lang[1004], "the item names were not saved")
-	check(save().passed, "a finished pass was not recorded")
+	check(save().missingLast == 3 and save().build, "a finished pass did not record how many names were still missing")
 	-- the English name still finds it, once (not twice, though the localized name matches too)
 	SlashCmdList.WHATITDROPS("browse wolf"); runTimers(1.5)
 	check(rowCount(brWin, 1001) == 1, "an English search on a non-English client listed the item " .. rowCount(brWin, 1001) .. " times")
@@ -775,6 +851,7 @@ local function nameTests()
 	SlashCmdList.WHATITDROPS("browse moroes"); runTimers(1.5)
 	check(browserHas("Moroes"), "an English creature search stopped working on a non-English client")
 	creatureTests()
+	coldCacheTests()
 end
 
 if WhatItDropsDB then

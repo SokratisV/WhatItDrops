@@ -106,31 +106,42 @@ local function Record(id)
     return false
 end
 
-local BATCH, DELAY = 40, 0.25          -- about 160 requests a second at the very most
+-- Two different limits. Reading a name the client already has is free, so a warm cache is
+-- scanned quickly; asking the server (RequestLoadItemDataByID) is what the client throttles, so
+-- only those calls are counted: about 50 a second.
+local DELAY, SCAN_PER_TICK, REQUESTS_PER_TICK = 0.25, 400, 12
+local mayRequest = true                -- false once a pass has stopped finding anything new (see below)
 
 local function Pump()
     if not queue then return end
     if InCombatLockdown and InCombatLockdown() then C_Timer.After(2, Pump); return end
     local t = Store()
     if not t then C_Timer.After(2, Pump); return end
-    local n = 0
-    while qpos <= #queue and n < BATCH do
+    local scanned, asked = 0, 0
+    while qpos <= #queue and scanned < SCAN_PER_TICK and asked < REQUESTS_PER_TICK do
         local id = queue[qpos]
         qpos = qpos + 1
-        if not t.items[id] and not Record(id) and not t.passed and requestLoad then
+        scanned = scanned + 1
+        if not t.items[id] and not Record(id) and mayRequest and requestLoad then
             requestLoad(id)
+            asked = asked + 1
         end
-        n = n + 1
     end
     Notify()
     if qpos <= #queue then
         C_Timer.After(DELAY, Pump)
     else
-        -- everything has been asked for; give the stragglers a moment, then call it done
+        -- everything has been asked for; give the stragglers a moment, then close the pass
         C_Timer.After(15, function()
             complete = true
             local s = Store()
-            if s then s.passed = true end     -- a whole pass is done: later sessions only read the client's cache
+            if s and mayRequest then
+                -- A pass that left as many names missing as the one before added nothing new:
+                -- those items have no name to give, so later sessions stop asking for them.
+                local missing = total - have
+                if s.missingLast ~= nil and missing >= s.missingLast then s.settled = true end
+                s.missingLast = missing
+            end
             Notify()
         end)
     end
@@ -143,6 +154,11 @@ function Names.StartItemIndex()
     local t = Store()
     if not t then return end
     started = true
+    -- A new game build can change what the client has cached: start the bookkeeping over.
+    local version_, build_ = GetBuildInfo()
+    local build = tostring(version_) .. "-" .. tostring(build_)
+    if t.build ~= build then t.build, t.missingLast, t.settled = build, nil, nil end
+    mayRequest = not t.settled
     local order, seen = {}, {}
     for id in pairs(_G.WhatItDropsQuestItem or {}) do
         if baked[id] then order[#order + 1] = id; seen[id] = true end
