@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-22
+
 - **Profile export and import.** A new **Profile** page in the settings window (and `/wid export`,
   `/wid import`) turns your whole setup into one line of text, `WID1:...`, and restores it on
   another character or install. It covers every setting, the loot window, browser and settings
@@ -149,6 +151,7 @@ Initial release as **WhatItDrops**. This is the addon previously published as
 Commands: `/loot` (target lookup), `/loot config`, `/loot browse`, `/fullloot`, and
 `/whatitdrops`.
 
+[1.4.0]: https://github.com/SokratisV/WhatItDrops/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/SokratisV/WhatItDrops/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/SokratisV/WhatItDrops/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/SokratisV/WhatItDrops/compare/v1.2.0...v1.2.1

@@ -21,7 +21,7 @@
 ## Notes-zhTW: 東部王國的 Wowhead 戰利品（來自 LootCodex，GPLv3）。由 WhatItDrops 按需載入。
 ## Title-itIT: WhatItDrops |cff66ccffRegni Orientali Dati|r
 ## Notes-itIT: Bottino di Wowhead per Regni Orientali (tramite LootCodex, GPLv3). Caricato su richiesta da WhatItDrops.
-## Version: 1.3.1
+## Version: 1.4.0
 ## IconTexture: Interface\AddOns\WhatItDrops\icon.tga
 ## Group: WhatItDrops
 ## X-Part-Of: WhatItDrops
