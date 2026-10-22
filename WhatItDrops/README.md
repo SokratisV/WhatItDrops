@@ -141,6 +141,10 @@ no player-visible string is left unwrapped, and that every file compiles (with `
 folder>` writes them into all seven TOCs. Slash-command words, saved-variable names and the
 profile format are never translated.
 
+A literal `%` is fine in a key that is only ever passed to `SetText`; in a key that goes through
+`:format` write `%%` (the check enforces both, and translations use each language's own
+percentage style, such as `1,8 %` or `1.8%`).
+
 ### Offline test
 
 `tools/offline-test/` loads the addon against a stub WoW client in a real Lua 5.1 runtime and

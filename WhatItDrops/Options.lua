@@ -778,11 +778,11 @@ local function definePages()
                 { title = L["Loot list effects"], key = "fx", rows = {
                     Flag("fxBars", L["Drop-rate bars"],
                         L["A bar behind each row, as wide as that item's drop chance and tinted by its quality."], true,
-                        { apply = ApplyLook, tip = L["A drop chance of 1.8 percent gets a very thin bar. That is the real chance."] }),
+                        { apply = ApplyLook, tip = L["A 1.8% drop gets a very thin bar. That is the real chance."] }),
                     Flag("fxBorders", L["Quality-coloured icon borders"],
                         L["A thin border around each icon in the item's quality colour."], true, { apply = ApplyLook }),
                     Flag("fxSparkle", L["Sparkle on rare drops"],
-                        L["A sparkle beside rare-or-better items that drop less than 2 percent of the time."], true,
+                        L["A sparkle beside rare-or-better items that drop less than 2% of the time."], true,
                         { apply = ApplyLook }),
                     Flag("fxFade", L["Rows fade in"],
                         L["Rows ease in when a list opens, instead of appearing all at once."], true),

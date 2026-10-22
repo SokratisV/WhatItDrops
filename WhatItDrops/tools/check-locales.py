@@ -72,14 +72,24 @@ def unescape(s):
 
 
 STR = r'"((?:[^"\\\n]|\\.)*)"'
-KEY_USE = re.compile(r"\bL\[" + STR + r"\]")
+KEY_USE = re.compile(r"\bL\[" + STR + r"\](\s*:\s*format\()?")
 ENTRY = re.compile(r"^L\[" + STR + r"\]\s*=\s*" + STR + r"\s*$")
-PLACEHOLDER = re.compile(r"%(?!%)[-+ #0]*\d*(?:\.\d+)?[sdioxXcfgeEu]")
+# A printf placeholder: %s %d %.1f %02x ... The space flag is deliberately NOT recognised: no
+# string here uses it, and "1.8% drop" / "2 % of" are percentages, not "% d" / "% o". A literal
+# percent sign is therefore fine in any key that never goes through :format, and must be written
+# %% in one that does (see stray_percent).
+PLACEHOLDER = re.compile(r"%(?!%)[-+#0]*\d*(?:\.\d+)?[sdioxXcfgeEu]")
 MARKUP = re.compile(r"\|c[0-9a-fA-F]{8}|\|r|\|T[^|]*\|t|\|n")
+FORMATTED = set()      # keys the code runs through :format
 
 
 def placeholders(s):
     return PLACEHOLDER.findall(s.replace("%%", ""))
+
+
+def stray_percent(s):
+    """A % that is neither a placeholder nor %% -- a crash waiting in a formatted string."""
+    return PLACEHOLDER.sub("", s.replace("%%", "")).count("%")
 
 
 def markup(s):
@@ -97,7 +107,10 @@ def used_keys():
             if line.lstrip().startswith("--"):
                 continue
             for m in KEY_USE.finditer(line):
-                keys.setdefault(unescape(m.group(1)), (name, no))
+                key = unescape(m.group(1))
+                keys.setdefault(key, (name, no))
+                if m.group(2):
+                    FORMATTED.add(key)
     return keys
 
 
@@ -144,6 +157,8 @@ for loc in LOCALES:
             err("%s: translation identical to English for %r" % (loc, k[:50]))
         if placeholders(k) != placeholders(v):
             err("%s: placeholders %s -> %s for %r" % (loc, placeholders(k), placeholders(v), k[:50]))
+        if k in FORMATTED and (stray_percent(k) or stray_percent(v)):
+            err("%s: a bare %% in a string that goes through :format (write %%%%) for %r" % (loc, k[:50]))
         if markup(k) != markup(v):
             err("%s: markup differs for %r" % (loc, k[:50]))
         if k.count("\n") != v.count("\n"):

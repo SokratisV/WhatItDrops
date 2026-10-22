@@ -170,7 +170,11 @@ function CloseDropDownMenus() end
 -- ---------------------------------------------------------------- client globals
 local chat = {}
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, m) chat[#chat + 1] = m end }
-print = function() end
+print = function(...)                       -- collected, so the tests can read what /loot help prints
+	local parts = {}
+	for i = 1, select("#", ...) do parts[#parts + 1] = tostring((select(i, ...))) end
+	chat[#chat + 1] = table.concat(parts, " ")
+end
 UIParent = newObject("Frame")
 GameTooltip = newObject("GameTooltip")
 SlashCmdList, UISpecialFrames = {}, {}
@@ -304,6 +308,15 @@ local function lootWindow()
 	try("/loot browse", SlashCmdList.WHATITDROPS, "browse moro")
 	runTimers(1)
 	try("/loot journal", SlashCmdList.WHATITDROPS, "journal moroes")
+	-- /loot help runs the help text through :format, which is where a bare % would crash
+	local before = #chat
+	try("/loot help", SlashCmdList.WHATITDROPS, "help")
+	if #chat <= before then fails = fails + 1; note("FAIL [l10n] /loot help printed nothing") end
+	if LOCALE == "enUS" then
+		local sawPercent = false
+		for i = before + 1, #chat do if chat[i]:find("(Wowhead %, via LootCodex data)", 1, true) then sawPercent = true end end
+		if not sawPercent then fails = fails + 1; note("FAIL [l10n] the help line lost its literal 'Wowhead %'") end
+	end
 end
 
 -- ---------------------------------------------------------------- the options window
