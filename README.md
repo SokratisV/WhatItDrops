@@ -17,7 +17,7 @@
 > from the Midnight 12.x client, so it reports a Classic project id but only exposes the modern
 > namespaced API; every call that moved is feature-detected rather than switched on project id.
 
-> **Languages.** The interface is translated into English, Deutsch, Español (España and México), Français, Italiano, Português (Brasil), Русский, 한국어, 简体中文 and 繁體中文; the game client's own language is used automatically. Item names follow your client; creature names in the browser still come from the bundled English data (search them in English).
+> **Languages.** The interface is translated into English, Deutsch, Español (España and México), Français, Italiano, Português (Brasil), Русский, 한국어, 简体中文 and 繁體中文; the game client's own language is used automatically. Item and creature names follow your client too, where the client can tell us them: on a non-English Classic client the browser's search and the quest view work in your language (the first search collects the item names in the background, a few at a time, and remembers them), and creature names are asked of the client one at a time as they are shown. Anything the client can't name stays in English, and searching in English always works. Check what your client gives with `/loot names`.
 
 WhatItDrops shows you what whatever you are looking at drops, with no website and no alt-tab.
 Target a mob, open the window, and see its loot and how often it drops. Search items or creatures
@@ -62,6 +62,7 @@ Screenshots: drop images into docs/ and reference them here, e.g.
 | `/loot browse [text]` | Search items **or** creatures by name. |
 | `/loot bosses` | The bosses of the instance you are in. |
 | `/loot quest` | Items the selected quest needs, and where they drop. |
+| `/loot names` | Non-English clients: how many item and creature names your client has given us, and whether it names the creature you are targeting. |
 | `/loot auto` | Toggle auto-show on target. |
 | `/wid` (or `/loot config`) | Open the settings window. |
 | `/wid appearance` | Open it on the Appearance page. |

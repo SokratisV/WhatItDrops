@@ -201,6 +201,51 @@ C_Item = {
 	RequestLoadItemDataByID = function() end,
 	GetItemInfoInstant = function(id) return id, "Armor", "Cloth", "INVTYPE_HEAD", 134400, 4, 1 end,
 }
+-- What a non-English client knows: item names in its own language, handed out only once an item
+-- has been requested and "loaded" (the test decides when). CALLS counts every use of those APIs,
+-- so an English client can be shown never to touch them.
+CALLS = { name = 0, request = 0, tip = 0 }
+LOCALNAME = {
+	deDE = { [1000] = "Wolfspelz", [1001] = "Wolfspelz", [1002] = "Eberhauer", [1003] = "Leichtes Leder", [1004] = "Ärztliche Kräuter" },
+	ruRU = { [1000] = "Волчья шкура", [1001] = "Волчья шкура", [1002] = "Клык кабана", [1003] = "Тонкая кожа", [1004] = "Целебные травы" },
+	koKR = { [1000] = "늑대 가죽", [1001] = "늑대 가죽", [1002] = "멧돼지 엄니", [1003] = "가벼운 가죽", [1004] = "치유 약초" },
+	zhCN = { [1000] = "狼皮", [1001] = "狼皮", [1002] = "野猪獠牙", [1003] = "轻皮", [1004] = "治疗草药" },
+}
+LOCALNAME.default = LOCALNAME.deDE
+local function localNames() return LOCALNAME[LOCALE] or LOCALNAME.default end
+REQUESTED, LOADED = {}, {}
+C_Item.GetItemNameByID = function(id)
+	CALLS.name = CALLS.name + 1
+	if LOADED[id] then return localNames()[id] end
+end
+C_Item.RequestLoadItemDataByID = function(id) CALLS.request = CALLS.request + 1; REQUESTED[id] = true end
+-- creature names: C_TooltipInfo answers a unit link with the creature's name in the client's language
+LOCALNPC = { [1234] = "Moroes-LOC", [5555] = "Kobold-LOC" }
+UNKNOWNOBJECT = "Unbekanntes Objekt"
+TIP_MODE = "normal"
+C_TooltipInfo = { GetHyperlink = function(link)
+	CALLS.tip = CALLS.tip + 1
+	local id = tonumber(link:match("^unit:Creature%-0%-0%-0%-0%-(%d+)%-0$"))
+	if not id then return nil end
+	if TIP_MODE == "secret" then return { lines = { { leftText = "<<secret>>" } } } end
+	if TIP_MODE == "error" then error("tooltip data unavailable") end
+	if id == 9999 then return { lines = { { leftText = UNKNOWNOBJECT } } } end
+	local n = LOCALNPC[id]
+	return n and { lines = { { leftText = n } } } or { lines = {} }
+end }
+-- a quest log with one quest that needs 3 of item 1001 (a quest-class item) and 3 of item 1003 (an
+-- ordinary one); the objective text is in the client's language
+C_QuestLog = {
+	GetSelectedQuest = function() return 77 end,
+	GetNumQuestObjectives = function() return 2 end,
+	GetTitleForQuestID = function() return "Wolf Hunt" end,
+}
+function GetQuestObjectiveInfo(_, i)
+	local english = (LOCALE == "enUS" or QUEST_ENGLISH)
+	local id = (i == 2) and 1003 or 1001
+	local name = english and ((i == 2) and "Light Leather" or "Wolf Pelt") or localNames()[id]
+	return "0/3 " .. name, "item", false, 0, 3
+end
 C_AddOns = { LoadAddOn = function() return true end, GetAddOnMetadata = function() return "9.9.9" end }
 GetBuildInfo = function()
 	if CLIENT == "forever" then return "1.60.1", "70291", "x", 16001 end
@@ -208,7 +253,7 @@ GetBuildInfo = function()
 end
 WOW_PROJECT_MAINLINE, WOW_PROJECT_CLASSIC = 1, 2
 WOW_PROJECT_ID = (CLIENT == "forever") and WOW_PROJECT_CLASSIC or WOW_PROJECT_MAINLINE
-issecretvalue = function() return false end
+issecretvalue = function(v) return v == "<<secret>>" end
 function GetInstanceInfo() return "World", "none", 0, "", 0, 0, false, 530 end
 function IsInInstance() return false end
 local boundKey = {}
@@ -269,8 +314,13 @@ end
 -- a small fake database for the loot window
 WhatItDropsFull = { [1234] = { 5, 1001, 1.8, 1002, 6.5, 1003, 22, 1004, 54, 1005, 100, 1006, 0.5 } }
 WhatItDropsNpcName = { [1234] = "Moroes" }
+if CLIENT == "forever" then      -- the bundled Classic tables (Retail has none of these)
+	WhatItDropsItemName = { [1000] = "Wolf Pelt Copy", [1001] = "Wolf Pelt", [1002] = "Boar Tusk", [1003] = "Light Leather", [1004] = "Healing Herbs",
+		[1005] = "Plain Cloth", [1006] = "Strange Gem", [1007] = "Distant Trinket" }   -- 1007 is on no loot table
+	WhatItDropsQuestItem = { [1001] = true, [1002] = true }
+end
 
-for _, rel in ipairs({ "Locales/Locale.lua", "Locales/deDE.lua", "Locales/frFR.lua", "Locales/esES.lua", "Locales/esMX.lua", "Locales/ptBR.lua", "Locales/ruRU.lua", "Locales/koKR.lua", "Locales/zhCN.lua", "Locales/zhTW.lua", "Locales/itIT.lua", "Theme.lua", "WhatItDrops.lua", "Profile.lua", "Options.lua", "Settings.lua" }) do
+for _, rel in ipairs({ "Locales/Locale.lua", "Locales/deDE.lua", "Locales/frFR.lua", "Locales/esES.lua", "Locales/esMX.lua", "Locales/ptBR.lua", "Locales/ruRU.lua", "Locales/koKR.lua", "Locales/zhCN.lua", "Locales/zhTW.lua", "Locales/itIT.lua", "Names.lua", "Theme.lua", "WhatItDrops.lua", "Profile.lua", "Options.lua", "Settings.lua" }) do
 	try("load " .. rel, loadAddonFile, rel)
 end
 WhatItDropsDB = nil                      -- first login: nothing saved
@@ -588,8 +638,148 @@ local function optionsWindow()
 	if not win.__shown then note("FAIL second /wid did not reopen"); fails = fails + 1 end
 end
 
+-- ---------------------------------------------------------------- names in the client's language
+local function nameTests()
+	local function check(cond, msg) if not cond then fails = fails + 1; note("FAIL [names] " .. msg) end end
+	local Names = NS.Names
+	local ENGLISH = (LOCALE == "enUS")
+	local requests0 = CALLS.request
+	local function rowCount(win, id)
+		local n = 0
+		for _, f in ipairs(frames) do
+			if f.__kind == "Button" and f.__parent == win.content and f.__shown and rawget(f, "itemID") == id then n = n + 1 end
+		end
+		return n
+	end
+	local function textHas(sub)
+		for _, f in ipairs(frames) do
+			if f.__kind == "FontString" and f.__shown ~= false and type(f.__text) == "string" and f.__text:find(sub, 1, true) then return true end
+		end
+		return false
+	end
+	local function browserHas(sub)
+		local win = _G.WhatItDropsBrowserFrame
+		for _, f in ipairs(frames) do
+			if f.__kind == "FontString" and win and f.__parent and f.__parent.__parent == win.content and type(f.__text) == "string" and f.__text:find(sub, 1, true) then return true end
+		end
+		return false
+	end
+	local function said(sub)
+		for _, m in ipairs(chat) do if tostring(m):find(sub, 1, true) then return true end end
+		return false
+	end
+	local function save() return (WhatItDropsDB.l10n or {})[LOCALE] end
+
+	-- case folding that goes beyond ASCII
+	check(Names.Fold("ÄRZTLICHE KRÄUTER") == "ärztliche kräuter", "Fold does not lower Latin-1 capitals")
+	check(Names.Fold("ВОЛЧЬЯ ШКУРА Ёж ЯЩИК") == "волчья шкура ёж ящик", "Fold does not lower Cyrillic capitals")
+	check(Names.Fold("A×B Straße") == "a×b straße", "Fold changed the multiplication sign or the sharp s")
+	check(Names.Fold("狼皮 늑대") == "狼皮 늑대", "Fold altered text that has no case")
+
+	if ENGLISH then
+		-- an English client must behave exactly as it always did: none of the new machinery runs
+		if CLIENT == "forever" then
+			QUEST_ENGLISH = nil
+			WhatItDrops_ShowQuest(); runTimers(0.1)
+			check(rowCount(_G.WhatItDropsFrame, 1001) == 1, "English quest view lost its item")
+			SlashCmdList.WHATITDROPS("browse wolf"); runTimers(1.5)
+			check(rowCount(_G.WhatItDropsBrowserFrame, 1001) == 1, "English search lost an item")
+			SlashCmdList.WHATITDROPS("browse pelt"); runTimers(1.5)
+			check(rowCount(_G.WhatItDropsBrowserFrame, 1001) == 1, "English search for 'pelt' lost an item")
+			check(CALLS.request == requests0, "an English client asked for item data (" .. (CALLS.request - requests0) .. " requests)")
+		end
+		SlashCmdList.WHATITDROPS("names")
+		check(said(NS.L["Your client is English: the bundled names are used as they are."]), "/loot names said nothing on an English client")
+		check(CALLS.name == 0 and CALLS.tip == 0, "an English client used the name APIs (name=" .. CALLS.name .. " tip=" .. CALLS.tip .. ")")
+		check(WhatItDropsDB.l10n == nil, "an English client wrote a language cache")
+		check(Names.Npc(1234) == nil and Names.Item(1001) == nil and Names.Progress() == 0, "Names answered on an English client")
+		return
+	end
+
+	local function creatureTests()   -- run after the item tests on Classic: those need the index still unfinished
+	local t0 = CALLS.tip
+	check(Names.Npc(5555) == "Kobold-LOC", "the client's creature name was not taken from the tooltip")
+	check(CALLS.tip == t0 + 1, "one creature cost " .. (CALLS.tip - t0) .. " lookups")
+	check(Names.Npc(5555) == "Kobold-LOC" and CALLS.tip == t0 + 1, "a known creature was asked for again")
+	check(save() and save().npc[5555] == "Kobold-LOC", "the creature name was not saved")
+	t0 = CALLS.tip
+	check(Names.Npc(9999) == nil and (save().npc[9999] == nil), "a placeholder word was taken as a creature name")
+	check(Names.Npc(9999) == nil and CALLS.tip == t0 + 1, "a failed creature lookup was repeated at once")
+	runTimers(31)
+	Names.Npc(9999)
+	check(CALLS.tip == t0 + 2, "a failed creature lookup was never retried")
+	check(Names.Npc(8888) == nil and save().npc[8888] == nil, "an empty tooltip answer produced a name")
+	TIP_MODE = "secret"
+	check(Names.Npc(7777) == nil and save().npc[7777] == nil, "a secret value was stored as a creature name")
+	TIP_MODE = "error"
+	check(pcall(Names.Npc, 7778), "an error from C_TooltipInfo escaped")
+	TIP_MODE = "normal"
+	runTimers(2)
+	local t1 = CALLS.tip
+	for id = 20000, 20039 do Names.Npc(id) end
+	check(CALLS.tip - t1 <= 20, "a page of creatures made " .. (CALLS.tip - t1) .. " lookups in one second")
+	runTimers(2)
+	-- a name the client reports for free (the target's own name) is kept
+	unit.name = "Moroes-DE"
+	try("/loot (creature, localized name)", SlashCmdList.WHATITDROPS, "")
+	unit.name = "Moroes"
+	check(save().npc[1234] == "Moroes-DE", "the target's own name was not remembered")
+	SlashCmdList.WHATITDROPS("browse moroes-de"); runTimers(1.5)
+	check(browserHas("Moroes-DE"), "a creature known by its client name could not be found by it")
+	SlashCmdList.WHATITDROPS("names")
+	check(said("Moroes-LOC |"), "/loot names did not report what the client answered for the target")
+
+	end
+	if CLIENT ~= "forever" then creatureTests(); return end
+
+	-- ---- items (Classic data on a non-English client)
+	local lang = LOCALNAME[LOCALE]
+	local queryFor = { deDE = "ÄRZT", ruRU = "ВОЛЧЬЯ", koKR = "늑대", zhCN = "狼皮" }
+	local wantId = { deDE = 1004, ruRU = 1001, koKR = 1001, zhCN = 1001 }
+	local query, want = queryFor[LOCALE], wantId[LOCALE]
+	local lootWin, brWin
+	check(Names.Item(1001) == nil, "an item the client has not loaded already had a name")
+	check(REQUESTED[1001], "an item on screen was never requested from the client")
+	-- searching starts collecting the client's item names, and says how far that has got
+	SlashCmdList.WHATITDROPS("browse " .. query); runTimers(0.1)
+	brWin = _G.WhatItDropsBrowserFrame
+	check(REQUESTED[1007], "a search did not start collecting the item names")
+	check(rowCount(brWin, want) == 0, "a localized search matched before any name was known")
+	check(textHas(NS.L["Item names: %d of %d"]:format(0, 8)), "the browser did not show the name-collecting progress")
+	-- an objective written in English still resolves on a non-English client (an English quest log)
+	QUEST_ENGLISH = true
+	WhatItDrops_ShowQuest(); runTimers(0.1)
+	lootWin = _G.WhatItDropsFrame
+	check(rowCount(lootWin, 1001) == 1 and rowCount(lootWin, 1003) == 1, "an English objective on a non-English client no longer resolves")
+	QUEST_ENGLISH = nil
+	-- a localized objective cannot resolve until the client has told us the names
+	WhatItDrops_ShowQuest(); runTimers(0.1)
+	check(rowCount(lootWin, 1001) == 0 and rowCount(lootWin, 1003) == 0, "a localized quest item resolved before any name was known")
+	-- the client delivers
+	for id in pairs(REQUESTED) do LOADED[id] = true; fire("GET_ITEM_INFO_RECEIVED", id, true) end
+	fire("ITEM_DATA_LOAD_RESULT", 1001, true)
+	runTimers(1.5)
+	check(rowCount(lootWin, 1001) == 1, "the quest view did not fill in the quest item when the names arrived (the duplicate name must pick the quest-class item)")
+	check(rowCount(lootWin, 1003) == 1, "the quest view did not fill in an ordinary item when the names arrived")
+	check(rowCount(brWin, want) == 1, "the localized search did not find the item once the names arrived (" .. tostring(query) .. ")")
+	runTimers(20); runTimers(2)       -- the pass is called done after 15 s; the redraw follows a second later
+	local have, total, done = Names.Progress()
+	check(done and have == 5 and total == 8, "index progress is " .. tostring(have) .. "/" .. tostring(total) .. " done=" .. tostring(done))
+	check(not textHas("|cff888888" .. NS.L["Item names: %d of %d"]:format(have, total)), "the progress note stayed after the index finished")
+	check(save().items[1001] == lang[1001] and save().items[1004] == lang[1004], "the item names were not saved")
+	check(save().passed, "a finished pass was not recorded")
+	-- the English name still finds it, once (not twice, though the localized name matches too)
+	SlashCmdList.WHATITDROPS("browse wolf"); runTimers(1.5)
+	check(rowCount(brWin, 1001) == 1, "an English search on a non-English client listed the item " .. rowCount(brWin, 1001) .. " times")
+	-- a creature name typed in English still works
+	SlashCmdList.WHATITDROPS("browse moroes"); runTimers(1.5)
+	check(browserHas("Moroes"), "an English creature search stopped working on a non-English client")
+	creatureTests()
+end
+
 if WhatItDropsDB then
 	try("loot window", lootWindow)
+	try("names", nameTests)
 	try("profile engine", profileTests)
 	try("options window", optionsWindow)
 	try("profile UI", profileUI)

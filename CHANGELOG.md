@@ -18,8 +18,18 @@ All notable changes to this project are documented here. The format is based on
   messages, tooltips and key-binding names are translated; gear slot names and the "Search" and
   "Settings" labels use the client's own words. Item names in the loot list now come from the game
   first, so they follow your language. Layouts were loosened for longer languages (labels stop short
-  of their controls, buttons widen to fit). Creature names in the browser, and searching items on
-  Classic clients, still use the bundled English names.
+  of their controls, buttons widen to fit).
+- **Item and creature names in your language on non-English clients.** Searching items in the
+  browser and the quest view (which matches a quest's "collect" objectives to items) now work in
+  the client's language on Classic and WoW: Forever; before, both only understood English. The first
+  search starts collecting the item names in the background (a few per tick, quest items first,
+  paused in combat), says how far it has got, refreshes the results as names arrive, and remembers
+  them for next time (roughly 1 MB of saved variables for one language). Searching in English still
+  works. Creature names are asked of the client one at a time as they appear (the browser's
+  results, the loot window title) and the name of every creature you target is kept; where the client
+  can't name a creature it stays English. English clients are untouched. `/loot names` shows what
+  your client has given so far. Case-insensitive search now understands accented and Cyrillic
+  capitals, not just A-Z.
 - **The settings window now remembers where you left it**, like the loot window and browser do.
 
 ## [1.3.1] - 2026-10-20

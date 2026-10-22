@@ -124,9 +124,13 @@ local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 
 -- Names/quality are baked (WhatItDropsItems.lua); fall back to GetItemInfo when an
 -- item/npc isn't in our tables (e.g. items not present in the CMaNGOS DB).
+local Names = ns.Names
+
+-- On a non-English client Names.Item gives the client's own spelling once it knows it
+-- (nil on English clients and on Retail, where the table already holds client names).
 local function ItemName(id)
 	if not id then return nil end
-	return (WhatItDropsItemName and WhatItDropsItemName[id]) or GetItemInfo(id) or ("item:" .. id)
+	return Names.Item(id) or (WhatItDropsItemName and WhatItDropsItemName[id]) or GetItemInfo(id) or ("item:" .. id)
 end
 local function ItemQuality(id)
 	if not id then return nil end
@@ -134,8 +138,10 @@ local function ItemQuality(id)
 	if q ~= nil then return q end
 	return select(3, GetItemInfo(id))
 end
+-- The creature's name in the client's language when it can say (Names.Npc asks for it,
+-- a few at a time); otherwise the bundled English name.
 local function NpcName(id)
-	return (WhatItDropsNpcName and WhatItDropsNpcName[id]) or (L["NPC %s"]:format(id))
+	return Names.Npc(id) or (WhatItDropsNpcName and WhatItDropsNpcName[id]) or (L["NPC %s"]:format(id))
 end
 
 -- Quest-class drops: the baked table on Classic; on Retail ask the client for the
@@ -908,7 +914,7 @@ local function ShowNPC(npcID, npcName)
 		end
 	end
 	local f = GetWindow()
-	current.id, current.name = npcID, npcName
+	current.id, current.name, current.questKey = npcID, npcName, nil
 	current.player, current.unit, current.inspectGUID = false, nil, nil
 	current.items = BuildList(npcID)
 	f.source:SetText(L["Loot: Wowhead %  (data via LootCodex)"])
@@ -924,7 +930,7 @@ end
 
 ShowJournal = function(rec)
 	local f = GetWindow()
-	current.id, current.name = nil, rec.name
+	current.id, current.name, current.questKey = nil, rec.name, nil
 	current.player, current.unit, current.inspectGUID = false, nil, nil
 	current.journal = rec
 	JournalSelect(rec)
@@ -994,7 +1000,7 @@ end
 -- request an inspect and refresh when the data arrives (INSPECT_READY).
 local function ShowPlayer(unit)
 	local f = GetWindow()
-	current.id, current.name = nil, UnitName(unit)
+	current.id, current.name, current.questKey = nil, UnitName(unit), nil
 	current.player, current.unit, current.inspectGUID = true, unit, UnitGUID(unit)
 	current.items = CollectGear(unit)
 	f.source:SetText(L["Equipped gear"] .. "  |cff888888(" .. L["click = source, Ctrl-click = preview"] .. ")|r")
@@ -1019,6 +1025,11 @@ end
 local itemNameIndex
 local function ItemIDByName(name)
 	if not name or name == "" then return nil end
+	-- A non-English client writes the objective in its own language, which the English
+	-- table below can't match: look it up among the client's names first. Falls through
+	-- to the English table (a quest log in English, or names not learned yet).
+	local found = Names.QuestItemByName(name)
+	if found then return found end
 	EnsureRetailData()
 	-- Retail names stream in from the client, so an index built once would stay
 	-- permanently incomplete; rebuild it each time there.
@@ -1121,6 +1132,7 @@ function WhatItDrops_ShowQuest()
 	current.id, current.name = nil, title
 	current.player, current.unit, current.inspectGUID = false, nil, nil
 	current.items = (idx and not isHeader) and CollectQuestItems(idx) or nil
+	current.questKey = (idx and not isHeader) and idx or nil     -- lets the view fill in as item names arrive
 	f.source:SetText(L["Items this quest needs"] .. "  |cff888888(" .. L["click = who drops it"] .. ")|r")
 	f.title:SetText((title or L["Quest"]) .. "  |cff888888(" .. L["quest"] .. ")|r")
 	if not idx or isHeader then
@@ -1233,6 +1245,7 @@ end
 local bWin, bRows = nil, {}
 local bState, bSelItem, bResults = "items", nil, nil
 local bContext                      -- when set, a custom title for the items list (e.g. "Bosses — …")
+local bQuery                        -- the text last searched, so the list can be redone as names arrive
 local reverseIndex                  -- itemID -> { {npc=, pct=}, ... }, built lazily
 local RenderBrowser, DoBrowserSearch
 
@@ -1289,7 +1302,13 @@ RenderBrowser = function()
 		if bContext then
 			f.status:SetText(L["Bosses: %d"]:format(#res))
 		else
-			f.status:SetText(L["Results: %d"]:format(#res))
+			local text = L["Results: %d"]:format(#res)
+			-- While the client's item names are still being collected, say how far along that is.
+			local have, total, done = Names.Progress()
+			if not Names.english and not done and total > 0 then
+				text = text .. "  |cff888888" .. L["Item names: %d of %d"]:format(have, total) .. "|r"
+			end
+			f.status:SetText(text)
 		end
 		for i = 1, math.min(#res, 300) do list[i] = res[i] end
 	else
@@ -1350,33 +1369,57 @@ end
 
 DoBrowserSearch = function(query)
 	bState, bSelItem, bContext = "items", nil, nil
-	local q = (query or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+	bQuery = query
+	-- Names.Fold lowers non-ASCII letters too (string.lower leaves "Ä" and "Д" alone).
+	local fold = Names.english and string.lower or Names.Fold      -- English clients keep the plain lower()
+	local q = fold((((query or ""):gsub("^%s+", "")):gsub("%s+$", "")))
 	local res = {}
 	EnsureRetailData()
 	if #q >= 2 then
+		-- Non-English client: start collecting the client's item names (once, a few per
+		-- tick). What has arrived so far is searched now; the list refreshes as more comes in.
+		if not Names.english then Names.StartItemIndex() end
 		-- Targets (NPCs) first, then item drops; each sorted by name.
 		local npcs, items = {}, {}
+		local seenNpc, seenItem = {}, {}
+		if not Names.english then
+			for _, m in ipairs(Names.MatchNpcs(q)) do
+				seenNpc[m.id] = true
+				npcs[#npcs + 1] = { kind = "npc", id = m.id, name = m.name }
+			end
+		end
 		if WhatItDropsNpcName then
 			for id, nm in pairs(WhatItDropsNpcName) do
-				if nm:lower():find(q, 1, true) then npcs[#npcs + 1] = { kind = "npc", id = id, name = nm } end
+				if not seenNpc[id] and fold(nm):find(q, 1, true) then
+					npcs[#npcs + 1] = { kind = "npc", id = id, name = Names.NpcCached(id) or nm }
+				end
 			end
 		end
 		-- Retail: current dungeon/raid bosses from the Encounter Journal.
 		if EJAvailable() then
 			EnsureJournalIndex()
 			for _, rec in ipairs(ejAll or {}) do
-				if rec.name:lower():find(q, 1, true) then
+				if fold(rec.name):find(q, 1, true) then
 					npcs[#npcs + 1] = { kind = "boss", name = rec.name .. "  (" .. (rec.instName or "?") .. ")", rec = rec }
 				end
 			end
 		end
 		table.sort(npcs, function(a, b) return a.name < b.name end)
+		if not Names.english then
+			for _, m in ipairs(Names.MatchItems(q)) do
+				seenItem[m.id] = true
+				items[#items + 1] = { kind = "item", id = m.id, name = m.name }
+			end
+		end
 		if WhatItDropsItemName then
 			for id, nm in pairs(WhatItDropsItemName) do
-				if nm:lower():find(q, 1, true) then items[#items + 1] = { kind = "item", id = id, name = nm } end
+				if not seenItem[id] and fold(nm):find(q, 1, true) then
+					-- an English match still shows the client's spelling once it is known
+					items[#items + 1] = { kind = "item", id = id, name = Names.ItemCached(id) or nm }
+				end
 			end
-			table.sort(items, function(a, b) return a.name < b.name end)
 		end
+		table.sort(items, function(a, b) return a.name < b.name end)
 		for i = 1, math.min(#npcs, 150) do res[#res + 1] = npcs[i] end
 		for i = 1, math.min(#items, 150) do res[#res + 1] = items[i] end
 	end
@@ -1544,7 +1587,9 @@ local function LinkUnit(unit)
 	local npcID = GetNpcID(unit)
 	if not npcID then return end
 	EnsureFull(npcID)
-	ShowNPC(npcID, UnitName(unit))
+	local name = UnitName(unit)
+	Names.RememberNpc(npcID, name)            -- the client just told us this creature's name in its language
+	ShowNPC(npcID, name)
 end
 
 ----------------------------------------------------------------------
@@ -1632,6 +1677,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		self:RegisterEvent("PLAYER_LOGIN")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")
 		self:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+		pcall(self.RegisterEvent, self, "ITEM_DATA_LOAD_RESULT")      -- what RequestLoadItemDataByID answers with (older clients lack it)
 		self:RegisterEvent("INSPECT_READY")
 		-- Journal loot streams in after EJ_SelectEncounter (the client's own spelling
 		-- of the event); only Retail has it, so don't let an unknown name raise.
@@ -1668,13 +1714,19 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "PLAYER_TARGET_CHANGED" then
 		if WhatItDropsDB.auto and UnitExists("target") and UnitCanAttack("player", "target") and not UnitIsPlayer("target") then
 			local npcID = GetNpcID("target")
-			if npcID then EnsureFull(npcID); ShowNPC(npcID, UnitName("target")) end
+			if npcID then
+				local name = UnitName("target")
+				EnsureFull(npcID)
+				Names.RememberNpc(npcID, name)
+				ShowNPC(npcID, name)
+			end
 		end
-	elseif event == "GET_ITEM_INFO_RECEIVED" then
+	elseif event == "GET_ITEM_INFO_RECEIVED" or event == "ITEM_DATA_LOAD_RESULT" then
 		-- Retail streams thousands of these while the browser index fills; redraw
 		-- once per burst instead of once per item.
 		if IS_RETAIL and retailNamesStarted then RecordItemName(arg1) end
-		if win and win:IsShown() and (current.waiting or current.player) and not renderQueued then
+		local learned = Names.OnItemInfo(arg1)      -- a client-language name somebody on screen was waiting for
+		if win and win:IsShown() and (current.waiting or current.player or (learned and current.items)) and not renderQueued then
 			renderQueued = true
 			C_Timer.After(0.2, function()
 				renderQueued = false
@@ -1716,6 +1768,64 @@ function WhatItDrops_ApplyAppearance()
 end
 
 ----------------------------------------------------------------------
+-- Names in the client's language arriving: redraw what is showing them
+----------------------------------------------------------------------
+Names.onProgress = function()
+	-- the browser's search results, redone with the names that have arrived since
+	if bWin and bWin:IsShown() and bState == "items" and not bContext and bQuery and bQuery ~= "" then
+		DoBrowserSearch(bQuery)
+	end
+	-- the quest view: objectives that could not be matched to an item yet
+	if win and win:IsShown() and current.questKey and current.items then
+		local unresolved = false
+		for _, it in ipairs(current.items) do
+			if not it.id then unresolved = true; break end
+		end
+		-- only while that quest is still the selected one (reading it re-selects it on the older clients)
+		if unresolved and (SelectedQuestInfo()) == current.questKey then
+			current.items = CollectQuestItems(current.questKey) or current.items
+			WhatItDrops_Render()
+		end
+	end
+end
+
+Names.onNpcName = function()
+	if bWin and bWin:IsShown() and bState == "npcs" then RenderBrowser() end
+	if win and win:IsShown() and current.id and not current.player then
+		local known = Names.NpcCached(current.id)
+		if known and known ~= current.name then
+			current.name = known
+			local idTag = "  |cff888888(" .. current.id .. ")|r"
+			win.title:SetText(known .. idTag)
+		end
+	end
+end
+
+-- /loot names: say what the client has given us, and whether it will name a creature.
+local function ReportNames()
+	local function say(s) print("|cff66ccffWhatItDrops|r: " .. s) end
+	if Names.english then
+		say(L["Your client is English: the bundled names are used as they are."])
+		return
+	end
+	Names.StartItemIndex()
+	local items, total, npcs = Names.Stats()
+	say(L["Item names: %d of %d"]:format(items, total))
+	say(L["Creature names learned: %d"]:format(npcs))
+	if not Names.HasTooltipAPI() then
+		say(L["Creature lookup is not available on this client."])
+		return
+	end
+	local npcID = UnitExists("target") and not UnitIsPlayer("target") and GetNpcID("target")
+	if npcID then
+		local asked = Names.AskClientForNpc(npcID)
+		local own = UnitName("target")
+		if IsSecret(own) then own = nil end
+		say(L["Creature lookup for your target: %s"]:format((asked or L["no answer"]) .. " | " .. (own or "?")))
+	end
+end
+
+----------------------------------------------------------------------
 -- Slash command
 ----------------------------------------------------------------------
 SLASH_WHATITDROPS1 = "/loot"
@@ -1730,6 +1840,8 @@ SlashCmdList.WHATITDROPS = function(msg)
 		WhatItDrops_OpenBrowser(msg:match("^browse%s+(.+)$") or "")
 	elseif msg == "quest" then
 		WhatItDrops_ShowQuest()
+	elseif msg == "names" then
+		ReportNames()
 	elseif msg == "bosses" then
 		if not WhatItDrops_ShowInstanceBosses() then
 			print("|cff66ccffWhatItDrops|r: " .. L["no boss list — you're not in a dungeon/raid we have data for."])
@@ -1742,6 +1854,7 @@ SlashCmdList.WHATITDROPS = function(msg)
 		print("  " .. L["%s — search items or creatures by name"]:format("|cffffd100/loot browse [text]|r"))
 		print("  " .. L["%s — list the bosses of the instance you're in"]:format("|cffffd100/loot bosses|r"))
 		print("  " .. L["%s — items the selected quest needs, and where they drop"]:format("|cffffd100/loot quest|r"))
+		print("  " .. L["%s — check the item and creature names in your language"]:format("|cffffd100/loot names|r"))
 		print("  " .. L["%s — toggle auto-showing on target"]:format("|cffffd100/loot auto|r"))
 		print("  " .. L["%s (or %s) — open the settings window"]:format("|cffffd100/loot config|r", "|cffffd100/wid|r"))
 		print("  " .. L["%s, %s — copy your whole setup as text, or paste one back"]:format("|cffffd100/wid export|r", "|cffffd100/wid import|r"))

@@ -45,6 +45,7 @@ Locales\itIT.lua
 Data\WhatItDropsItems.lua
 Data\WhatItDropsBosses.lua
 Data\WhatItDropsQuestItems.lua
+Names.lua
 Theme.lua
 WhatItDrops.lua
 Profile.lua

@@ -12,3 +12,13 @@ mid-generation ones, Forever with only the legacy ones).
 Exit code 0 means no Lua errors. It checks that code *runs*, not that it *looks right*: layout and
 art still need the real game. To confirm it can fail, plant a typo (for example call a function that
 doesn't exist inside a click handler) and rerun; it should report it.
+
+## The non-English names scenario
+
+On a non-English run the harness also plays a client that knows item names in its own language
+(only after an item has been requested and "loaded") and creature names via `C_TooltipInfo`. It checks
+that a search and a quest objective in that language resolve once the names arrive and not before,
+that the progress note comes and goes, that creature lookups are throttled, retried, and refuse
+placeholders, secret values and errors, and that an English client never touches any of it. The
+runner pins the C locale because Python's own locale (cp1252 on a Western Windows) makes the embedded
+Lua's `string.lower` corrupt UTF-8, which WoW's Lua does not do.

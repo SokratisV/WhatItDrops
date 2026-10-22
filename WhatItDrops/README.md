@@ -15,7 +15,7 @@ Target any enemy in World of Warcraft (Retail, WoW: Forever or TBC Classic) and 
 > Classic project id but only exposes the modern namespaced API; every call that moved is
 > feature-detected rather than switched on project id.
 
-> **Languages.** The interface is translated into English, Deutsch, Español (España and México), Français, Italiano, Português (Brasil), Русский, 한국어, 简体中文 and 繁體中文; the game client's own language is used automatically.
+> **Languages.** The interface is translated into English, Deutsch, Español (España and México), Français, Italiano, Português (Brasil), Русский, 한국어, 简体中文 and 繁體中文; the game client's own language is used automatically. On a non-English Classic client the browser's search and the quest view also work in the client's language, and creature names follow it where the client can give them (see `Names.lua`); searching in English still works.
 
 ## Addons in this repo
 
@@ -33,6 +33,7 @@ All the folders must sit directly under `Interface/AddOns/`.
 - `/loot browse [text]`: **browser**. Search **items or NPCs** by name. Click an item to see which NPCs drop it; click an NPC to open its loot table.
 - `/loot bosses`: list the **bosses of the instance you are in** (each clickable to its loot). This is also what the loot keybind does with no target inside a dungeon or raid.
 - `/loot quest`: items the **selected quest** needs, and where they drop. Also a **"Loot Needed"** button in the quest log.
+- `/loot names`: non-English clients: how many item and creature names the client has given us so far, and what it answers for your target.
 - `/loot auto`: toggle auto-show on target.
 - `/wid` (or `/loot config`): open the settings window. `/wid appearance` opens it on the Appearance page.
 - `/wid export` / `/wid import`: copy your whole setup (every setting, window positions, the minimap button and your two keybinds) as one line of text, or paste one back. Also on the settings window's **Profile** page.
@@ -144,6 +145,10 @@ profile format are never translated.
 A literal `%` is fine in a key that is only ever passed to `SetText`; in a key that goes through
 `:format` write `%%` (the check enforces both, and translations use each language's own
 percentage style, such as `1,8 %` or `1.8%`).
+
+### Names in the player's language
+
+The bundled data is English. `Names.lua` is inert on English clients (and on Retail items, which already come from the game). On any other language it asks the client: item names through `C_Item.GetItemNameByID` / `RequestLoadItemDataByID` (started by the first browser search or quest view, quest-class items first, in throttled batches, paused in combat) and creature names through `C_TooltipInfo.GetHyperlink("unit:Creature-0-0-0-0-<id>-0")` (one lazy lookup per creature shown, at most 20 a second, never a hidden tooltip), plus the name of every creature you target. Results are kept per language in `WhatItDropsDB.l10n`, and a name the client cannot give stays English. Search text is folded with a UTF-8 aware lower-casing, because `string.lower` only handles ASCII.
 
 ### Offline test
 

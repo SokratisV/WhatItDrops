@@ -1,7 +1,13 @@
 import io
+import locale
 import sys
 
 from lupa.lua51 import LuaRuntime
+
+# Python adopts the machine's locale (cp1252 on a Western Windows), and the embedded Lua's
+# string.lower follows it: "Ä" (C3 84) would come back as E3 84, corrupting UTF-8. WoW's Lua
+# runs in the C locale, where lower() only touches A-Z, so the tests must too.
+locale.setlocale(locale.LC_CTYPE, "C")
 
 addon_dir = sys.argv[1]
 harness = sys.argv[2]

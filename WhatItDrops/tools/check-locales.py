@@ -22,7 +22,7 @@ import re
 import sys
 
 LOCALES = ["deDE", "frFR", "esES", "esMX", "ptBR", "ruRU", "koKR", "zhCN", "zhTW", "itIT"]
-CODE = ["WhatItDrops.lua", "Options.lua", "Profile.lua", "Settings.lua", "Theme.lua"]
+CODE = ["WhatItDrops.lua", "Names.lua", "Options.lua", "Profile.lua", "Settings.lua", "Theme.lua"]
 # Words that are legitimately the same in a language (proper nouns, loanwords, or just the same
 # word). Each is a deliberate decision: anything else equal to the English text is reported as
 # an untranslated leftover.
