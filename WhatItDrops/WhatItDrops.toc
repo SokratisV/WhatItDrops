@@ -16,6 +16,7 @@ Data\WhatItDropsBosses.lua
 Data\WhatItDropsQuestItems.lua
 Theme.lua
 WhatItDrops.lua
+Profile.lua
 Options.lua
 Settings.lua
 # Bindings.xml is intentionally NOT listed here — the client auto-loads it from

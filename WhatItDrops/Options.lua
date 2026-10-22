@@ -578,6 +578,57 @@ local function BuildAccentRow(content)
 end
 
 --------------------------------------------------------------------------
+-- 5b. THE PROFILE BOX (custom row): a multi-line text box and a status line
+--------------------------------------------------------------------------
+local function BuildProfileBox(content)
+    local f = CreateFrame("Frame", nil, content)
+    f:SetHeight(176)
+    local bg = CreateFrame("Frame", nil, f, "BackdropTemplate")
+    bg:SetPoint("TOPLEFT", 4, -4)
+    bg:SetPoint("BOTTOMRIGHT", -4, 40)
+    bg:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+    bg:SetBackdropColor(0, 0, 0, 0.45)
+    bg:SetBackdropBorderColor(BRONZE[1], BRONZE[2], BRONZE[3], 0.8)
+    local scroll = CreateFrame("ScrollFrame", nil, bg)
+    scroll:SetPoint("TOPLEFT", 6, -6)
+    scroll:SetPoint("BOTTOMRIGHT", -6, 6)
+    local edit = CreateFrame("EditBox", nil, scroll)
+    edit:SetMultiLine(true)
+    edit:SetAutoFocus(false)
+    edit:SetFontObject(ChatFontNormal)
+    edit:SetWidth(CONTENT_W - 28)
+    edit:SetHeight(126)
+    edit:SetMaxLetters(20000)
+    scroll:SetScrollChild(edit)
+    scroll:EnableMouseWheel(true)
+    scroll:SetScript("OnMouseWheel", function(self, delta)
+        local range = self:GetVerticalScrollRange() or 0
+        self:SetVerticalScroll(math.max(0, math.min(range, (self:GetVerticalScroll() or 0) - delta * 30)))
+    end)
+    edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    edit:SetScript("OnEnter", function()
+        ShowInfo("Profile text",
+            "Export fills this box. To import, paste a profile here first, then use Import.",
+            "It holds every setting, the window and minimap positions, and your two keybinds.")
+    end)
+    edit:SetScript("OnLeave", ShowPageInfo)
+
+    local status = Text(f, "GameFontHighlightSmall")
+    status:SetPoint("TOPLEFT", bg, "BOTTOMLEFT", 2, -6)
+    status:SetPoint("RIGHT", f, "RIGHT", -6, 0)
+    status:SetWordWrap(true)
+    status:SetJustifyV("TOP")
+    status:SetHeight(28)
+
+    f.edit = edit
+    f.status = status
+    f.setStatus = function(text, ok)
+        status:SetText((ok and "|cff66dd66" or "|cffff6666") .. (text or "") .. "|r")
+    end
+    return f, function() return f:GetHeight() end
+end
+
+--------------------------------------------------------------------------
 -- 6. THE PAGES
 --------------------------------------------------------------------------
 local function ResetAppearance()
@@ -614,6 +665,45 @@ local function definePages()
     end
 
     local function pct(v) return v .. "%" end
+
+    -- Profile: export fills the box; import checks it first, then asks for a second click
+    local box, renderBox = BuildProfileBox(page.content)
+    local importArmed, importToken = false, 0
+    local function doExport()
+        local s = WhatItDrops_ExportProfile()
+        box.edit:SetText(s)
+        box.edit:SetFocus()
+        box.edit:HighlightText()
+        importArmed = false
+        box.setStatus("Exported " .. #s .. " characters. Press Ctrl+C to copy, then paste it into the other install's Profile page.", true)
+    end
+    local function importClick()
+        local text = box.edit:GetText()
+        if importArmed then
+            importArmed = false
+            local before = db().theme or "blizzard"
+            local ok, msg = WhatItDrops_ImportProfile(text)
+            if ok and (before == "elvui") ~= ((db().theme or "blizzard") == "elvui") then needReload = true end
+            box.setStatus(msg, ok)
+            return
+        end
+        local ok, msg = WhatItDrops_CheckProfile(text)
+        if not ok then box.setStatus(msg, false) return end
+        importArmed = true
+        importToken = importToken + 1
+        local mine = importToken
+        box.setStatus(msg .. " Click Import again to replace your current settings.", true)
+        C_Timer.After(8, function()
+            if importToken == mine and importArmed then
+                importArmed = false
+                if frame and frame:IsShown() then Panel.Refresh() end
+            end
+        end)
+    end
+    Panel.profile = {
+        export = doExport,
+        focus = function() box.edit:SetFocus() end,
+    }
 
     pages = {
         {
@@ -707,6 +797,24 @@ local function definePages()
                       tip = "These also appear under Esc > Key Bindings > WhatItDrops." },
                     { kind = "keybind", label = "Item browser", binding = "WHATITDROPS_LOOKUP",
                       desc = "Open the item and creature browser: search by name, see who drops an item." },
+                } },
+            },
+        },
+        {
+            key = "profile", title = "Profile",
+            desc = "Copy your whole setup as one line of text and paste it back on another character or install. Settings are already shared by every character on this account.",
+            sections = {
+                { title = "Share your setup", key = "share", rows = {
+                    { kind = "custom", frame = box, render = renderBox },
+                    Button("Export",
+                        "Build a profile from your current settings and put it in the box, selected, ready to copy with Ctrl+C.",
+                        "Export current settings", doExport,
+                        { tip = "Covers every setting, window and minimap positions, and your two keybinds." }),
+                    Button("Import",
+                        "Replace your settings with the profile in the box. It is checked first, and nothing changes unless it is valid.",
+                        function() return importArmed and "Click again to replace" or "Import from the box" end,
+                        importClick,
+                        { tip = "Anything the profile leaves out goes back to its default." }),
                 } },
             },
         },
@@ -868,10 +976,28 @@ local function AttachScrollLine(scroll, parent)
     return line
 end
 
+-- The window remembers where you left it, like the loot window and the browser do.
+local function SaveWindowPos(f)
+    local left, bottom = f:GetLeft(), f:GetBottom()
+    if not left or not bottom then return end
+    local d = db()
+    d.pos = d.pos or {}
+    d.pos.options = { left, bottom }
+end
+local function RestoreWindowPos(f)
+    local s = db().pos and db().pos.options
+    if type(s) == "table" and type(s[1]) == "number" and type(s[2]) == "number" then
+        f:ClearAllPoints()
+        f:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", s[1], s[2])
+        return true
+    end
+    return false
+end
+
 local function BuildWindow()
     frame = CreateFrame("Frame", "WhatItDropsOptions", UIParent, "BackdropTemplate")
     frame:SetSize(WIDTH, HEIGHT)
-    frame:SetPoint("CENTER")
+    if not RestoreWindowPos(frame) then frame:SetPoint("CENTER") end
     frame:SetFrameStrata("DIALOG")
     frame:SetToplevel(true)
     frame:SetClampedToScreen(true)
@@ -879,7 +1005,7 @@ local function BuildWindow()
     frame:SetMovable(true)
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); SaveWindowPos(self) end)
     frame:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 16 })
     frame:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3], 1)
     -- a dark base, Blizzard's Collections tile over it, and a black wash (FlareUI's)
@@ -1024,6 +1150,14 @@ function WhatItDrops_ShowOptionsPage(key)
     if not frame then BuildWindow() end
     frame:Show()
     if key then Panel.Select(key) end
+end
+
+-- /wid export and /wid import: open the Profile page; "export" also fills the box, "import" focuses it.
+function WhatItDrops_OpenProfile(mode)
+    WhatItDrops_ShowOptionsPage("profile")
+    local p = Panel.profile
+    if not p then return end
+    if mode == "export" then p.export() elseif mode == "import" then p.focus() end
 end
 
 -- Something outside the window changed a setting: redraw it.

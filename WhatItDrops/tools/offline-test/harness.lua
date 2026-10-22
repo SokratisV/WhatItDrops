@@ -175,7 +175,7 @@ UIParent = newObject("Frame")
 GameTooltip = newObject("GameTooltip")
 SlashCmdList, UISpecialFrames = {}, {}
 function ReloadUI() RELOADED = true end
-function InCombatLockdown() return false end
+function InCombatLockdown() return IN_COMBAT and true or false end
 function IsAltKeyDown() return false end
 function IsControlKeyDown() return false end
 function IsShiftKeyDown() return false end
@@ -253,7 +253,7 @@ end
 WhatItDropsFull = { [1234] = { 5, 1001, 1.8, 1002, 6.5, 1003, 22, 1004, 54, 1005, 100, 1006, 0.5 } }
 WhatItDropsNpcName = { [1234] = "Moroes" }
 
-for _, rel in ipairs({ "Theme.lua", "WhatItDrops.lua", "Options.lua", "Settings.lua" }) do
+for _, rel in ipairs({ "Theme.lua", "WhatItDrops.lua", "Profile.lua", "Options.lua", "Settings.lua" }) do
 	try("load " .. rel, loadAddonFile, rel)
 end
 WhatItDropsDB = nil                      -- first login: nothing saved
@@ -337,13 +337,200 @@ local function interact()
 	runTimers(0.3)
 end
 
+
+-- ---------------------------------------------------------------- profile export / import
+-- An independent base64 + checksum (so a symmetric mistake in the addon's own copy is caught).
+local B = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local function tb64(s)
+	local out = {}
+	for i = 1, #s, 3 do
+		local a, b, c = s:byte(i), s:byte(i + 1), s:byte(i + 2)
+		local n = a * 65536 + (b or 0) * 256 + (c or 0)
+		local q = { math.floor(n / 262144) % 64, math.floor(n / 4096) % 64, math.floor(n / 64) % 64, n % 64 }
+		local chunk = ""
+		for k = 1, 4 do
+			local use = (k == 1) or (k == 2) or (k == 3 and b) or (k == 4 and c)
+			chunk = chunk .. (use and B:sub(q[k] + 1, q[k] + 1) or "=")
+		end
+		out[#out + 1] = chunk
+	end
+	return table.concat(out)
+end
+local function tb64d(s)
+	local out = {}
+	local rev = {}
+	for i = 1, 64 do rev[B:sub(i, i)] = i - 1 end
+	s = s:gsub("=", "")
+	local bits, nb = 0, 0
+	for i = 1, #s do
+		bits = bits * 64 + rev[s:sub(i, i)]; nb = nb + 6
+		if nb >= 8 then
+			nb = nb - 8
+			local div = 2 ^ nb
+			out[#out + 1] = string.char(math.floor(bits / div) % 256)
+			bits = bits % div
+		end
+	end
+	return table.concat(out)
+end
+local function tsum(s)
+	local h = 5381
+	for i = 1, #s do h = (h * 33 + s:byte(i)) % 4294967291 end
+	return string.format("%08x", h)
+end
+local function wrap(payload) return "WID1:" .. tb64(payload) .. ":" .. tsum(payload) end
+local function expect(cond, msg) if not cond then fails = fails + 1; note("FAIL [profile] " .. msg) end end
+local function approx(a, b) return a == b or (type(a) == "number" and type(b) == "number" and math.abs(a - b) <= 1e-4 * math.max(1, math.abs(a))) end
+
+local function profileTests()
+	-- standard base64 vectors, to prove the test's own encoder before relying on it
+	expect(tb64("Man") == "TWFu" and tb64("Ma") == "TWE=" and tb64("M") == "TQ==", "test base64 encoder is wrong")
+	expect(tb64d("TWFu") == "Man" and tb64d("TWE=") == "Ma", "test base64 decoder is wrong")
+
+	local d = WhatItDropsDB
+	d.theme, d.accent, d.opacity, d.uiScale, d.rowSize = "slate", "violet", 0.6, 1.2, "roomy"
+	d.fxBars, d.fxFade, d.hideJunk, d.auto, d.fxModel = false, false, true, true, true
+	d.pos = { loot = { 100.5, 200.25 }, browser = { 300, 400 }, options = { 50, 60 } }
+	d.minimap = { hide = true, minimapPos = 123.456 }
+	d.optionsPage, d.defaultBindApplied = "profile", true
+	boundKey.WHATITDROPS_FULLLOOKUP, boundKey.WHATITDROPS_LOOKUP = "CTRL-SHIFT-K", "ALT-F9"
+
+	local s = WhatItDrops_ExportProfile()
+	expect(type(s) == "string" and s:sub(1, 5) == "WID1:", "export does not start with WID1:")
+	expect(not s:find("[\r\n ]"), "export contains whitespace")
+	expect(#s < 1500, "export is unexpectedly long: " .. #s)
+	local body = s:match("^WID1:([^:]+):%x+$")
+	local payload = body and tb64d(body) or ""
+	for _, want in ipairs({ "theme=sslate", "accent=sviolet", "fxBars=b0", "hideJunk=b1", "minimap.hide=b1",
+		"pos.loot.1=n100.5", "pos.options.2=n60", "bind.FULLLOOKUP=kCTRL-SHIFT-K", "bind.LOOKUP=kALT-F9", "v=1" }) do
+		expect(payload:find(want, 1, true), "payload is missing " .. want)
+	end
+	expect(not payload:find("optionsPage") and not payload:find("defaultBindApplied"), "internal state leaked into the profile")
+
+	-- wreck everything, then import
+	d.theme, d.accent, d.opacity, d.uiScale, d.rowSize = "blizzard", "gold", 1, 1, "compact"
+	d.fxBars, d.fxFade, d.hideJunk, d.auto, d.fxModel = true, true, false, false, false
+	d.pos = { loot = { 1, 2 } }
+	d.minimap = { hide = false, minimapPos = 5 }
+	boundKey.WHATITDROPS_FULLLOOKUP, boundKey.WHATITDROPS_LOOKUP = "F1", nil
+	local ok, msg = WhatItDrops_ImportProfile(s)
+	expect(ok, "round-trip import failed: " .. tostring(msg))
+	d = WhatItDropsDB
+	expect(d.theme == "slate" and d.accent == "violet" and d.rowSize == "roomy", "enums did not round-trip")
+	expect(approx(d.opacity, 0.6) and approx(d.uiScale, 1.2), "numbers did not round-trip")
+	expect(d.fxBars == false and d.fxFade == false and d.hideJunk == true and d.auto == true and d.fxModel == true, "booleans did not round-trip")
+	expect(d.pos and d.pos.loot and approx(d.pos.loot[1], 100.5) and approx(d.pos.loot[2], 200.25), "loot position did not round-trip")
+	expect(d.pos and d.pos.browser and approx(d.pos.browser[1], 300) and d.pos.options and approx(d.pos.options[2], 60), "other positions did not round-trip")
+	expect(d.minimap.hide == true and approx(d.minimap.minimapPos, 123.456), "minimap did not round-trip")
+	expect(boundKey.WHATITDROPS_FULLLOOKUP == "CTRL-SHIFT-K" and boundKey.WHATITDROPS_LOOKUP == "ALT-F9", "keybinds did not round-trip")
+	expect(d.optionsPage == "profile" and d.defaultBindApplied == true, "internal state was disturbed by an import")
+
+	-- a profile with few keys: everything else must fall back to defaults, not keep the old value
+	WhatItDropsDB.theme, WhatItDropsDB.fxBars, WhatItDropsDB.accent = "blizzard", false, "red"
+	local ok2, msg2 = WhatItDrops_ImportProfile(wrap("v=1;theme=sparchment"))
+	expect(ok2, "small profile rejected: " .. tostring(msg2))
+	expect(WhatItDropsDB.theme == "parchment" and WhatItDropsDB.fxBars == true and WhatItDropsDB.accent == "gold",
+		"keys missing from a profile were not reset to defaults")
+
+	-- text pasted with line wrapping still imports
+	local mid = math.floor(#s / 2)
+	local wrapped = s:sub(1, mid) .. "\n  " .. s:sub(mid + 1)
+	local okw = WhatItDrops_ImportProfile(wrapped)
+	expect(okw, "a wrapped profile was rejected")
+
+	-- things that must be refused, with a message and no Lua error
+	local longJunk = string.rep("A", 30000)
+	local tampered = s:sub(1, 12) .. (s:sub(13, 13) == "A" and "B" or "A") .. s:sub(14)
+	local bad = {
+		{ "empty", "" }, { "spaces", "   \n  " }, { "plain text", "hello world" },
+		{ "tag only", "WID1:" }, { "no checksum", "WID1:abc" }, { "garbage body", "WID1:!!!!:00000000" },
+		{ "wrong checksum", "WID1:" .. tb64("v=1;auto=b1") .. ":00000000" },
+		{ "tampered body", tampered }, { "trailing junk", s .. "xyz" }, { "huge", longJunk },
+		{ "newer tag", "WID2:" .. tb64("v=1;auto=b1") .. ":" .. tsum("v=1;auto=b1") },
+		{ "no version", wrap("auto=b1") }, { "newer version", wrap("v=2;auto=b1") },
+		{ "nothing recognised", wrap("v=1;evil=s1;theme=sevil;opacity=n99") },
+		{ "only separators", wrap("v=1;;;;=;=") },
+	}
+	for _, c in ipairs(bad) do
+		local before = WhatItDropsDB.theme
+		local okb, mb = WhatItDrops_ImportProfile(c[2])
+		expect(okb == false and type(mb) == "string" and #mb > 10, "should refuse '" .. c[1] .. "' with a message, got ok=" .. tostring(okb))
+		expect(WhatItDropsDB.theme == before, "a refused import ('" .. c[1] .. "') still changed settings")
+		local okc = WhatItDrops_CheckProfile(c[2])
+		expect(okc == false, "CheckProfile accepted '" .. c[1] .. "'")
+	end
+	-- not even a string
+	local okn, mn = WhatItDrops_ImportProfile(nil)
+	expect(okn == false and type(mn) == "string", "a nil paste was not refused cleanly")
+
+	-- a profile mixing good and hostile entries: take the good, skip the rest
+	local mixed = wrap('v=1;auto=b1;theme=s");os.execute("x");--;opacity=nnan;uiScale=ninf;rowSize=sroomy;'
+		.. 'pos.loot.1=n99999999;pos.browser.1=n10;fxBars=bmaybe;__index=s1;bind.LOOKUP=kctrl-x;minimap.minimapPos=n999')
+	WhatItDropsDB.theme, WhatItDropsDB.auto, WhatItDropsDB.rowSize = "blizzard", false, "compact"
+	local okm, mm = WhatItDrops_ImportProfile(mixed)
+	expect(okm, "mixed profile rejected: " .. tostring(mm))
+	expect(WhatItDropsDB.auto == true and WhatItDropsDB.rowSize == "roomy", "valid entries in a mixed profile were not applied")
+	expect(WhatItDropsDB.theme == "blizzard", "a hostile theme value was applied")
+	expect(type(mm) == "string" and mm:find("skipped"), "a mixed profile did not report the skipped entries")
+	expect(WhatItDropsDB.pos == nil or WhatItDropsDB.pos.browser == nil, "a half-pair position was kept")
+	try("restore positions after half-pair", WhatItDrops_RestorePositions)
+
+	-- in combat: settings apply, keybinds are left alone and the user is told
+	IN_COMBAT = true
+	boundKey.WHATITDROPS_LOOKUP = "F2"
+	local okcb, mcb = WhatItDrops_ImportProfile(s)
+	IN_COMBAT = false
+	expect(okcb and boundKey.WHATITDROPS_LOOKUP == "F2", "keybinds changed during combat")
+	expect(mcb and mcb:find("Keybinds"), "no note about skipped keybinds in combat")
+
+	-- an import that crosses ElvUI says it needs a reload
+	WhatItDropsDB.theme = "blizzard"
+	local _, mel = WhatItDrops_ImportProfile(wrap("v=1;theme=selvui"))
+	expect(mel and mel:find("reload"), "no reload note when switching to ElvUI")
+end
+
+-- the same through the settings window and the slash command
+local function profileUI()
+	try("/wid export", SlashCmdList.WHATITDROPSWID, "export")
+	runTimers(0.2)
+	local box
+	for _, f in ipairs(frames) do
+		if f.__kind == "EditBox" and f.__text:sub(1, 5) == "WID1:" then box = f end
+	end
+	expect(box ~= nil, "/wid export did not fill the profile box")
+	if not box then return end
+	local exported = box.__text
+	-- rows are recycled on every redraw, so look the button up again at each click, as a user
+	-- clicking the spot where "Import" is would
+	local function rowButton(label)
+		for _, f in ipairs(frames) do
+			if rawget(f, "label") and f.label.__text == label and rawget(f, "button") and rawget(f, "row") then return f.button end
+		end
+	end
+	expect(rowButton("Import") ~= nil, "Import button not found")
+	if not rowButton("Import") then return end
+	WhatItDropsDB.theme = "blizzard"
+	box.__text = "not a profile"
+	press(rowButton("Import"), "OnClick", "LeftButton"); runTimers(0.2)
+	expect(WhatItDropsDB.theme == "blizzard", "a bad paste changed settings")
+	box.__text = exported
+	local armedBefore = WhatItDropsDB.accent
+	WhatItDropsDB.accent = "red"
+	press(rowButton("Import"), "OnClick", "LeftButton"); runTimers(0.2)   -- first click only checks
+	expect(WhatItDropsDB.accent == "red", "the first Import click already changed settings")
+	press(rowButton("Import"), "OnClick", "LeftButton"); runTimers(0.2)   -- second click applies
+	expect(WhatItDropsDB.accent == armedBefore, "the second Import click did not apply the profile")
+	try("/wid import", SlashCmdList.WHATITDROPSWID, "import")
+	try("/wid profile", SlashCmdList.WHATITDROPSWID, "profile")
+end
+
 local function optionsWindow()
 	try("/wid toggle", SlashCmdList.WHATITDROPSWID, "")
 	runTimers(0.1)
 	local win = _G.WhatItDropsOptions
 	if not win then note("FAIL options window was never built"); fails = fails + 1; return end
 	if not win.__shown then note("FAIL options window not shown after /wid"); fails = fails + 1 end
-	for _, key in ipairs({ "general", "appearance", "keybinds" }) do
+	for _, key in ipairs({ "general", "appearance", "keybinds", "profile" }) do
 		try("show page " .. key, WhatItDrops_ShowOptionsPage, key)
 		runTimers(0.2)
 		-- rebuild dropdown menus so radio entries exist before interacting
@@ -359,7 +546,9 @@ end
 
 if WhatItDropsDB then
 	try("loot window", lootWindow)
+	try("profile engine", profileTests)
 	try("options window", optionsWindow)
+	try("profile UI", profileUI)
 end
 
 -- settings must have landed in the saved table

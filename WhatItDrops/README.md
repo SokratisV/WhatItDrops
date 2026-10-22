@@ -33,6 +33,7 @@ All the folders must sit directly under `Interface/AddOns/`.
 - `/loot quest`: items the **selected quest** needs, and where they drop. Also a **"Loot Needed"** button in the quest log.
 - `/loot auto`: toggle auto-show on target.
 - `/wid` (or `/loot config`): open the settings window. `/wid appearance` opens it on the Appearance page.
+- `/wid export` / `/wid import`: copy your whole setup (every setting, window positions, the minimap button and your two keybinds) as one line of text, or paste one back. Also on the settings window's **Profile** page.
 - `/loot journal [boss]`: Retail only. Reports whether the Encounter Journal source works and what it indexed; with a name, which encounters match it.
 
 In the window: quest-item drops are flagged with a yellow **!**. **Hide common loot** drops greys and whites; **Show world drops** includes the generic world-drop pool (Classic data only). **Ctrl+C** reveals the Wowhead link, again copies and closes. **Ctrl-click** an item to preview it in the dressing room; **Shift-click** to link it in chat.

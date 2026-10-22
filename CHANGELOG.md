@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- **Profile export and import.** A new **Profile** page in the settings window (and `/wid export`,
+  `/wid import`) turns your whole setup into one line of text, `WID1:...`, and restores it on
+  another character or install. It covers every setting, the loot window, browser and settings
+  window positions, the minimap button's angle, and your two keybinds. Imports are checked first
+  (format, version, checksum, and every value's type and range), never run any code from the text,
+  skip anything they don't recognise and say so, and ask for a second click before replacing your
+  settings. Anything the profile leaves out goes back to its default.
+- **The settings window now remembers where you left it**, like the loot window and browser do.
+
 ## [1.3.1] - 2026-10-20
 
 Documentation only; the addon itself is unchanged.

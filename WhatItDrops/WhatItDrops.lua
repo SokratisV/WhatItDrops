@@ -1178,6 +1178,8 @@ function WhatItDrops_UpdateMinimapButton()   -- show/hide from settings
 	else
 		LDBIcon:Show("WhatItDrops")
 	end
+	-- Also put it back at its saved angle (a profile import can change it).
+	if LDBIcon.Refresh then pcall(LDBIcon.Refresh, LDBIcon, "WhatItDrops", WhatItDropsDB.minimap) end
 end
 
 local function CreateMinimapButton()
@@ -1592,6 +1594,13 @@ local function SeedDB()
 	if WhatItDropsDB.accent == nil then WhatItDropsDB.accent = "gold" end
 	ApplyRowHeight()
 end
+WhatItDrops_SeedDB = SeedDB        -- the profile importer refills defaults through this
+
+-- Put the loot window and the browser back at their saved positions (after a profile import).
+function WhatItDrops_RestorePositions()
+	if win then RestorePos(win, "loot") end
+	if bWin then RestorePos(bWin, "browser") end
+end
 
 ----------------------------------------------------------------------
 -- Events
@@ -1718,6 +1727,7 @@ SlashCmdList.WHATITDROPS = function(msg)
 		print("  |cffffd100/loot quest|r — items the selected quest needs, and where they drop")
 		print("  |cffffd100/loot auto|r — toggle auto-showing on target")
 		print("  |cffffd100/loot config|r (or |cffffd100/wid|r) — open settings & keybinds")
+		print("  |cffffd100/wid export|r, |cffffd100/wid import|r — copy your whole setup as text, or paste one back")
 		print("  Ctrl+C shows the Wowhead link; press again to copy & close.")
 		print("  Click an item to see what drops it; Ctrl-click previews; Shift-click links it.")
 	else
@@ -1728,6 +1738,12 @@ end
 -- /wid: straight to the settings panel.
 SLASH_WHATITDROPSWID1 = "/wid"
 SlashCmdList.WHATITDROPSWID = function(msg)
+	local mode = (msg or ""):lower():match("^%s*(export)") or (msg or ""):lower():match("^%s*(import)")
+		or (msg or ""):lower():match("^%s*(profile)")
+	if mode then
+		if WhatItDrops_OpenProfile then WhatItDrops_OpenProfile(mode) end
+		return
+	end
 	if WhatItDrops_OpenSettings then
 		WhatItDrops_OpenSettings((msg or ""):lower():match("^%s*appearance") and "appearance" or nil)
 	end

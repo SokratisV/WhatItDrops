@@ -63,6 +63,7 @@ Screenshots: drop images into docs/ and reference them here, e.g.
 | `/loot auto` | Toggle auto-show on target. |
 | `/wid` (or `/loot config`) | Open the settings window. |
 | `/wid appearance` | Open it on the Appearance page. |
+| `/wid export` / `/wid import` | Copy your whole setup as one line of text, or paste one back. |
 | `/loot journal [boss]` | Retail: say whether the Encounter Journal source is working and what it found. Useful when a boss is missing. |
 
 **Keybind** (default **CTRL-L**, set once and only if that key is free): looks up your target.
