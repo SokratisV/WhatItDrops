@@ -1,4 +1,5 @@
-local ADDON = ...
+local ADDON, ns = ...
+local L = ns.L
 
 -- The settings window (/wid, or the gear in either WhatItDrops window), in the visual language
 -- of FlareUI by Malkkav (MIT): bronze trim over Blizzard's Collections tile, the pages in a list
@@ -10,9 +11,9 @@ local ADDON = ...
 -- and write its value, and when it applies. The window is drawn from that data and drawn again
 -- after every change. Sliders are the exception: redrawing mid-drag would drop the drag.
 
-local WIDTH, HEIGHT = 780, 540
+local WIDTH, HEIGHT = 800, 540
 local HEADER_H = 34
-local LEFT_W, RIGHT_W = 130, 210
+local LEFT_W, RIGHT_W = 160, 210       -- wide enough for German and Russian page names
 local PAD = 12
 local ROW_H, SECTION_H = 26, 28
 local CONTENT_W = WIDTH - 12 - LEFT_W - RIGHT_W - 2 * PAD - 14
@@ -43,7 +44,7 @@ local navButtons = {}
 local uid = 0
 local needReload = false      -- the theme was switched to or from ElvUI
 
--- What "Reset appearance" puts back.
+-- What L["Reset appearance"] puts back.
 local APPEARANCE_DEFAULTS = {
     theme = "blizzard", accent = "gold", opacity = 1, uiScale = 1, rowSize = "normal",
     fxBars = true, fxBorders = true, fxSparkle = true, fxFade = true, fxModel = false,
@@ -124,12 +125,12 @@ local function ShowInfo(title, desc, tip)
     if not info.title then return end
     info.title:SetText(title or "")
     info.desc:SetText(desc or "")
-    info.tip:SetText(tip and ("|cffffd100Tip:|r " .. tip) or "")
+    info.tip:SetText(tip and ("|cffffd100" .. L["Tip:"] .. "|r " .. tip) or "")
 end
 
 local function ShowPageInfo()
     local p = pageByKey and pageByKey[current]
-    if p then ShowInfo(val(p.title), val(p.desc), "Hover any setting to see what it does.") end
+    if p then ShowInfo(val(p.title), val(p.desc), L["Hover any setting to see what it does."]) end
 end
 
 --------------------------------------------------------------------------
@@ -138,6 +139,9 @@ end
 -- One pool per kind. A row spans the page: its name on the left, its control on the right;
 -- hovering it fills the right column.
 local Build, Fill = {}, {}
+-- How much of a row's right side its control takes, so a long (translated) label stops short of
+-- it instead of running underneath. Buttons size themselves and set this when they are filled.
+local LABEL_INSET = { toggle = 40, choice = 232, slider = 232, keybind = 196 }
 
 local function RowEnter(self)
     if self.row then ShowInfo(val(self.row.label), val(self.row.desc), self.row.tip) end
@@ -165,8 +169,10 @@ local function NewRow(parent, kind)
     f.hover:Hide()
     f.label = Text(f, "GameFontHighlight")
     f.label:SetPoint("LEFT", 6, 0)
+    f.label:SetWordWrap(false)
     f.kind = kind
     Build[kind](f)
+    f.label:SetPoint("RIGHT", f, "RIGHT", -(LABEL_INSET[kind] or 40), 0)
     return f
 end
 
@@ -400,12 +406,13 @@ end
 Fill.button = function(f, row)
     f.button:SetText(val(row.buttonText) or "")
     f.button:SetWidth(math.max(90, (f.button:GetFontString() and f.button:GetFontString():GetStringWidth() or 60) + 28))
+    f.label:SetPoint("RIGHT", f, "RIGHT", -(f.button:GetWidth() + 14), 0)
 end
 
 -- keybind: click, then press the key; right-click clears. Binds straight to a Bindings.xml action.
 local function KeyText(binding)
     local k = binding and GetBindingKey(binding)
-    return k and ("|cff00ff00" .. k .. "|r") or "Click to set key"
+    return k and ("|cff00ff00" .. k .. "|r") or L["Click to set key"]
 end
 Build.keybind = function(f)
     local btn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
@@ -432,7 +439,7 @@ Build.keybind = function(f)
         -- SetPropagateKeyboardInput is protected; don't start key capture in combat.
         if InCombatLockdown() then return end
         self.listening = true
-        self:SetText("Press a key... (Esc cancels)")
+        self:SetText(L["Press a key... (Esc cancels)"])
         self:EnableKeyboard(true)
         self:SetPropagateKeyboardInput(false)
     end)
@@ -483,18 +490,18 @@ end
 -- 5. THEME AND ACCENT SWATCHES (custom rows)
 --------------------------------------------------------------------------
 local THEMES = {
-    { key = "blizzard",  text = "Blizzard",  r = 0.10, g = 0.09, b = 0.07,
-      desc = "The classic gold-bordered dialog look." },
-    { key = "elvui",     text = "ElvUI",     r = 0.11, g = 0.11, b = 0.11,
-      desc = "A flat dark skin. It uses ElvUI's own skinning when ElvUI is installed.",
-      tip = "Switching to or from this one needs a reload." },
-    { key = "slate",     text = "Slate",     r = 0.11, g = 0.14, b = 0.20,
-      desc = "A flat blue-grey window frame." },
-    { key = "parchment", text = "Parchment", r = 0.17, g = 0.14, b = 0.09,
-      desc = "A flat warm-brown window frame." },
+    { key = "blizzard",  text = L["Blizzard"],  r = 0.10, g = 0.09, b = 0.07,
+      desc = L["The classic gold-bordered dialog look."] },
+    { key = "elvui",     text = L["ElvUI"],     r = 0.11, g = 0.11, b = 0.11,
+      desc = L["A flat dark skin. It uses ElvUI's own skinning when ElvUI is installed."],
+      tip = L["Switching to or from this one needs a reload."] },
+    { key = "slate",     text = L["Slate"],     r = 0.11, g = 0.14, b = 0.20,
+      desc = L["A flat blue-grey window frame."] },
+    { key = "parchment", text = L["Parchment"], r = 0.17, g = 0.14, b = 0.09,
+      desc = L["A flat warm-brown window frame."] },
 }
 local ACCENT_ORDER = { "gold", "blue", "green", "red", "violet" }
-local ACCENT_NAMES = { gold = "Gold", blue = "Blue", green = "Green", red = "Red", violet = "Violet" }
+local ACCENT_NAMES = { gold = L["Gold"], blue = L["Blue"], green = L["Green"], red = L["Red"], violet = L["Violet"] }
 
 local function Swatch(parent, w, h, r, g, b)
     local s = CreateFrame("Button", nil, parent, "BackdropTemplate")
@@ -510,16 +517,20 @@ local function BuildThemeRow(content)
     f:SetHeight(ROW_H + 14)
     f.label = Text(f, "GameFontHighlight")
     f.label:SetPoint("LEFT", 6, 0)
-    f.label:SetText("Window theme")
+    f.label:SetText(L["Window theme"])
+    f.label:SetPoint("RIGHT", f, "RIGHT", -(#THEMES * 64 + 10), 0)   -- stop short of the swatches
+    f.label:SetWordWrap(false)
     f.btns = {}
     for i, t in ipairs(THEMES) do
-        local b = Swatch(f, 56, 30, t.r, t.g, t.b)
-        b:SetPoint("RIGHT", -6 - (#THEMES - i) * 62, 0)
+        local b = Swatch(f, 60, 30, t.r, t.g, t.b)
+        b:SetPoint("RIGHT", -6 - (#THEMES - i) * 64, 0)
         b.key = t.key
         local lbl = Text(b, "GameFontHighlightSmall", "CENTER")
-        lbl:SetPoint("BOTTOM", 0, 3)
+        lbl:SetPoint("BOTTOMLEFT", 2, 3)
+        lbl:SetPoint("BOTTOMRIGHT", -2, 3)
+        lbl:SetWordWrap(false)                 -- "Pergament" and friends: clip rather than spill out of the swatch
         lbl:SetText(t.text)
-        b:SetScript("OnEnter", function() ShowInfo(t.text .. " theme", t.desc, t.tip) end)
+        b:SetScript("OnEnter", function() ShowInfo(L["%s theme"]:format(t.text), t.desc, t.tip) end)
         b:SetScript("OnLeave", ShowPageInfo)
         b:SetScript("OnClick", function(self)
             Sound("IG_MAINMENU_OPTION_CHECKBOX_ON")
@@ -546,7 +557,7 @@ local function BuildAccentRow(content)
     f:SetHeight(ROW_H + 6)
     f.label = Text(f, "GameFontHighlight")
     f.label:SetPoint("LEFT", 6, 0)
-    f.label:SetText("Accent colour")
+    f.label:SetText(L["Accent colour"])
     f.btns = {}
     for i, key in ipairs(ACCENT_ORDER) do
         local c = (WhatItDrops_Accents and WhatItDrops_Accents[key]) or { 1, 0.82, 0 }
@@ -554,9 +565,9 @@ local function BuildAccentRow(content)
         b:SetPoint("RIGHT", -6 - (#ACCENT_ORDER - i) * 30, 0)
         b.key = key
         b:SetScript("OnEnter", function()
-            ShowInfo(ACCENT_NAMES[key] .. " accent",
-                "Tints window titles, the rare-drop sparkle and the portrait card's border.",
-                "The window itself stays bronze.")
+            ShowInfo(L["%s accent"]:format(ACCENT_NAMES[key]),
+                L["Tints window titles, the rare-drop sparkle and the portrait card's border."],
+                L["The window itself stays bronze."])
         end)
         b:SetScript("OnLeave", ShowPageInfo)
         b:SetScript("OnClick", function(self)
@@ -607,9 +618,9 @@ local function BuildProfileBox(content)
     end)
     edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     edit:SetScript("OnEnter", function()
-        ShowInfo("Profile text",
-            "Export fills this box. To import, paste a profile here first, then use Import.",
-            "It holds every setting, the window and minimap positions, and your two keybinds.")
+        ShowInfo(L["Profile text"],
+            L["Export fills this box. To import, paste a profile here first, then use Import."],
+            L["It holds every setting, the window and minimap positions, and your two keybinds."])
     end)
     edit:SetScript("OnLeave", ShowPageInfo)
 
@@ -675,7 +686,7 @@ local function definePages()
         box.edit:SetFocus()
         box.edit:HighlightText()
         importArmed = false
-        box.setStatus("Exported " .. #s .. " characters. Press Ctrl+C to copy, then paste it into the other install's Profile page.", true)
+        box.setStatus(L["Exported %d characters. Press Ctrl+C to copy, then paste it into the other install's Profile page."]:format(#s), true)
     end
     local function importClick()
         local text = box.edit:GetText()
@@ -692,7 +703,7 @@ local function definePages()
         importArmed = true
         importToken = importToken + 1
         local mine = importToken
-        box.setStatus(msg .. " Click Import again to replace your current settings.", true)
+        box.setStatus(msg .. " " .. L["Click Import again to replace your current settings."], true)
         C_Timer.After(8, function()
             if importToken == mine and importArmed then
                 importArmed = false
@@ -707,26 +718,26 @@ local function definePages()
 
     pages = {
         {
-            key = "general", title = "General",
-            desc = "How the loot window and the browser behave.",
+            key = "general", title = L["General"],
+            desc = L["How the loot window and the browser behave."],
             sections = {
-                { title = "Loot lookup", key = "lookup", rows = {
-                    Flag("auto", "Auto-show on target",
-                        "Open the loot window by itself whenever you target an enemy.", false,
-                        { tip = "Other players always need the keybind." }),
-                    Flag("useMouseover", "Use mouseover first",
-                        "When a creature is under your mouse, look that one up instead of your target.", false),
-                    Flag("hideJunk", "Hide common loot",
-                        "Leave grey and white items out of loot lists.", false, { apply = RefreshLoot }),
-                    Flag("showWorldDrops", "Show world drops",
-                        "Include the generic world-drop pool along with a creature's own drops.", true,
-                        { apply = RefreshLoot, tip = "Retail data has no world-drop pool, so this changes nothing there." }),
-                    Flag("clearSearchOnOpen", "Clear the browser search",
-                        "Start the item browser with an empty search box each time it opens.", true),
+                { title = L["Loot lookup"], key = "lookup", rows = {
+                    Flag("auto", L["Auto-show on target"],
+                        L["Open the loot window by itself whenever you target an enemy."], false,
+                        { tip = L["Other players always need the keybind."] }),
+                    Flag("useMouseover", L["Use mouseover first"],
+                        L["When a creature is under your mouse, look that one up instead of your target."], false),
+                    Flag("hideJunk", L["Hide common loot"],
+                        L["Leave grey and white items out of loot lists."], false, { apply = RefreshLoot }),
+                    Flag("showWorldDrops", L["Show world drops"],
+                        L["Include the generic world-drop pool along with a creature's own drops."], true,
+                        { apply = RefreshLoot, tip = L["Retail data has no world-drop pool, so this changes nothing there."] }),
+                    Flag("clearSearchOnOpen", L["Clear the browser search"],
+                        L["Start the item browser with an empty search box each time it opens."], true),
                 } },
-                { title = "Minimap", key = "minimap", rows = {
-                    { kind = "toggle", label = "Show the minimap button",
-                      desc = "Left-click reloads the UI, right-click does a loot lookup, and you can drag it around the minimap.",
+                { title = L["Minimap"], key = "minimap", rows = {
+                    { kind = "toggle", label = L["Show the minimap button"],
+                      desc = L["Left-click reloads the UI, right-click does a loot lookup, and you can drag it around the minimap."],
                       get = function() return not (db().minimap and db().minimap.hide) end,
                       set = function(v)
                           local m = db(); m.minimap = m.minimap or {}; m.minimap.hide = not v
@@ -736,85 +747,85 @@ local function definePages()
             },
         },
         {
-            key = "appearance", title = "Appearance",
-            desc = "Theme, colours and effects for the loot window and the browser.",
+            key = "appearance", title = L["Appearance"],
+            desc = L["Theme, colours and effects for the loot window and the browser."],
             sections = {
-                { title = "Theme", key = "theme", rows = {
+                { title = L["Theme"], key = "theme", rows = {
                     { kind = "custom", frame = themeFrame, render = renderTheme },
                     { kind = "custom", frame = accentFrame, render = renderAccent },
-                    Button("Finish switching theme",
-                        "ElvUI skins widgets as they are created, so switching to or from it takes a reload.",
-                        "Reload UI", function() ReloadUI() end, { vis = function() return needReload end }),
+                    Button(L["Finish switching theme"],
+                        L["ElvUI skins widgets as they are created, so switching to or from it takes a reload."],
+                        L["Reload UI"], function() ReloadUI() end, { vis = function() return needReload end }),
                 } },
-                { title = "Window", key = "window", rows = {
-                    Slider("Opacity", "How solid the window background is. The text and icons stay fully visible.",
+                { title = L["Window"], key = "window", rows = {
+                    Slider(L["Opacity"], L["How solid the window background is. The text and icons stay fully visible."],
                         40, 100, 1,
                         function() return math.floor((db().opacity or 1) * 100 + 0.5) end,
                         function(v) db().opacity = v / 100 end,
                         { fmt = pct, apply = ApplyLook }),
-                    Slider("Scale", "The size of the loot window and the browser.",
+                    Slider(L["Scale"], L["The size of the loot window and the browser."],
                         70, 140, 1,
                         function() return math.floor((db().uiScale or 1) * 100 + 0.5) end,
                         function(v) db().uiScale = v / 100 end,
-                        { fmt = pct, apply = ApplyLook, tip = "Each window keeps its place on screen." }),
-                    Choice("Row height", "How tall each line of a loot list is.",
-                        { { value = "compact", text = "Compact" }, { value = "normal", text = "Normal" },
-                          { value = "roomy", text = "Roomy" } },
+                        { fmt = pct, apply = ApplyLook, tip = L["Each window keeps its place on screen."] }),
+                    Choice(L["Row height"], L["How tall each line of a loot list is."],
+                        { { value = "compact", text = L["Compact"] }, { value = "normal", text = L["Normal"] },
+                          { value = "roomy", text = L["Roomy"] } },
                         function() return db().rowSize or "normal" end,
                         function(v) db().rowSize = v end,
                         { apply = ApplyLook }),
                 } },
-                { title = "Loot list effects", key = "fx", rows = {
-                    Flag("fxBars", "Drop-rate bars",
-                        "A bar behind each row, as wide as that item's drop chance and tinted by its quality.", true,
-                        { apply = ApplyLook, tip = "A 1.8% drop gets a very thin bar. That is the real chance." }),
-                    Flag("fxBorders", "Quality-coloured icon borders",
-                        "A thin border around each icon in the item's quality colour.", true, { apply = ApplyLook }),
-                    Flag("fxSparkle", "Sparkle on rare drops",
-                        "A sparkle beside rare-or-better items that drop less than 2% of the time.", true,
+                { title = L["Loot list effects"], key = "fx", rows = {
+                    Flag("fxBars", L["Drop-rate bars"],
+                        L["A bar behind each row, as wide as that item's drop chance and tinted by its quality."], true,
+                        { apply = ApplyLook, tip = L["A drop chance of 1.8 percent gets a very thin bar. That is the real chance."] }),
+                    Flag("fxBorders", L["Quality-coloured icon borders"],
+                        L["A thin border around each icon in the item's quality colour."], true, { apply = ApplyLook }),
+                    Flag("fxSparkle", L["Sparkle on rare drops"],
+                        L["A sparkle beside rare-or-better items that drop less than 2 percent of the time."], true,
                         { apply = ApplyLook }),
-                    Flag("fxFade", "Rows fade in",
-                        "Rows ease in when a list opens, instead of appearing all at once.", true),
-                    Flag("fxModel", "3D model of the target",
-                        "Show a model of the creature or player in a small card beside the loot window.", false,
-                        { apply = ApplyLook, tip = "Boss entries from the Encounter Journal have no model." }),
+                    Flag("fxFade", L["Rows fade in"],
+                        L["Rows ease in when a list opens, instead of appearing all at once."], true),
+                    Flag("fxModel", L["3D model of the target"],
+                        L["Show a model of the creature or player in a small card beside the loot window."], false,
+                        { apply = ApplyLook, tip = L["Boss entries from the Encounter Journal have no model."] }),
                 } },
-                { title = "Defaults", key = "reset", rows = {
-                    Button("Reset appearance",
-                        "Put the theme, accent, opacity, scale, row height and effects back to how they started.",
-                        function() return confirming and "Click again to confirm" or "Reset appearance" end,
+                { title = L["Defaults"], key = "reset", rows = {
+                    Button(L["Reset appearance"],
+                        L["Put the theme, accent, opacity, scale, row height and effects back to how they started."],
+                        function() return confirming and L["Click again to confirm"] or L["Reset appearance"] end,
                         resetClick),
                 } },
             },
         },
         {
-            key = "keybinds", title = "Keybinds",
-            desc = "Click a key button, then press the key you want. Right-click a button to clear it.",
+            key = "keybinds", title = L["Keybinds"],
+            desc = L["Click a key button, then press the key you want. Right-click a button to clear it."],
             sections = {
-                { title = "Keys", key = "keys", rows = {
-                    { kind = "keybind", label = "Loot for target", binding = "WHATITDROPS_FULLLOOKUP",
-                      desc = "Look up your target: loot for a creature, equipped gear for a player. With no target inside a dungeon or raid it lists that instance's bosses.",
-                      tip = "These also appear under Esc > Key Bindings > WhatItDrops." },
-                    { kind = "keybind", label = "Item browser", binding = "WHATITDROPS_LOOKUP",
-                      desc = "Open the item and creature browser: search by name, see who drops an item." },
+                { title = L["Keys"], key = "keys", rows = {
+                    { kind = "keybind", label = L["Loot for target"], binding = "WHATITDROPS_FULLLOOKUP",
+                      desc = L["Look up your target: loot for a creature, equipped gear for a player. With no target inside a dungeon or raid it lists that instance's bosses."],
+                      tip = L["These also appear under Esc > Key Bindings > WhatItDrops."] },
+                    { kind = "keybind", label = L["Item browser"], binding = "WHATITDROPS_LOOKUP",
+                      desc = L["Open the item and creature browser: search by name, see who drops an item."] },
                 } },
             },
         },
         {
-            key = "profile", title = "Profile",
-            desc = "Copy your whole setup as one line of text and paste it back on another character or install. Settings are already shared by every character on this account.",
+            key = "profile", title = L["Profile"],
+            desc = L["Copy your whole setup as one line of text and paste it back on another character or install. Settings are already shared by every character on this account."],
             sections = {
-                { title = "Share your setup", key = "share", rows = {
+                { title = L["Share your setup"], key = "share", rows = {
                     { kind = "custom", frame = box, render = renderBox },
-                    Button("Export",
-                        "Build a profile from your current settings and put it in the box, selected, ready to copy with Ctrl+C.",
-                        "Export current settings", doExport,
-                        { tip = "Covers every setting, window and minimap positions, and your two keybinds." }),
-                    Button("Import",
-                        "Replace your settings with the profile in the box. It is checked first, and nothing changes unless it is valid.",
-                        function() return importArmed and "Click again to replace" or "Import from the box" end,
+                    Button(L["Export"],
+                        L["Build a profile from your current settings and put it in the box, selected, ready to copy with Ctrl+C."],
+                        L["Export current settings"], doExport,
+                        { tip = L["Covers every setting, window and minimap positions, and your two keybinds."] }),
+                    Button(L["Import"],
+                        L["Replace your settings with the profile in the box. It is checked first, and nothing changes unless it is valid."],
+                        function() return importArmed and L["Click again to replace"] or L["Import from the box"] end,
                         importClick,
-                        { tip = "Anything the profile leaves out goes back to its default." }),
+                        { tip = L["Anything the profile leaves out goes back to its default."] }),
                 } },
             },
         },
@@ -1124,6 +1135,8 @@ local function BuildWindow()
         b:GetHighlightTexture():SetAlpha(0.25)
         b.text = Text(b, "GameFontHighlight")
         b.text:SetPoint("LEFT", 8, 0)
+        b.text:SetPoint("RIGHT", -4, 0)        -- a very long name is cut short with an ellipsis, not run over the border
+        b.text:SetWordWrap(false)
         local key = p.key
         b:SetScript("OnClick", function()
             Sound("IG_CHARACTER_INFO_TAB")

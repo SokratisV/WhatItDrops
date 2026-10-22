@@ -1,6 +1,26 @@
 ## Interface: 16001, 20505, 120100
 ## Title: WhatItDrops |cff66ccffWowhead|r
 ## Notes: Loot tables for any mob: /loot, /fullloot, /loot browse. Inline names + item search.
+## Title-deDE: WhatItDrops |cff66ccffWowhead|r
+## Notes-deDE: Beutelisten für jeden Gegner: /loot, /fullloot, /loot browse. Namen direkt in der Liste plus Gegenstandssuche.
+## Title-frFR: WhatItDrops |cff66ccffWowhead|r
+## Notes-frFR: Tables de butin pour n'importe quel monstre : /loot, /fullloot, /loot browse. Noms intégrés et recherche d'objets.
+## Title-esES: WhatItDrops |cff66ccffWowhead|r
+## Notes-esES: Tablas de botín de cualquier monstruo: /loot, /fullloot, /loot browse. Nombres integrados y búsqueda de objetos.
+## Title-esMX: WhatItDrops |cff66ccffWowhead|r
+## Notes-esMX: Tablas de botín de cualquier monstruo: /loot, /fullloot, /loot browse. Nombres integrados y búsqueda de objetos.
+## Title-ptBR: WhatItDrops |cff66ccffWowhead|r
+## Notes-ptBR: Tabelas de saque de qualquer monstro: /loot, /fullloot, /loot browse. Nomes incluídos e busca de itens.
+## Title-ruRU: WhatItDrops |cff66ccffWowhead|r
+## Notes-ruRU: Таблицы добычи любого монстра: /loot, /fullloot, /loot browse. Встроенные названия и поиск предметов.
+## Title-koKR: WhatItDrops |cff66ccffWowhead|r
+## Notes-koKR: 모든 몬스터의 전리품 목록: /loot, /fullloot, /loot browse. 이름 내장 및 아이템 검색.
+## Title-zhCN: WhatItDrops |cff66ccffWowhead|r
+## Notes-zhCN: 任意怪物的战利品表：/loot、/fullloot、/loot browse。内置名称和物品搜索。
+## Title-zhTW: WhatItDrops |cff66ccffWowhead|r
+## Notes-zhTW: 任何怪物的戰利品表：/loot、/fullloot、/loot browse。內建名稱與物品搜尋。
+## Title-itIT: WhatItDrops |cff66ccffWowhead|r
+## Notes-itIT: Tabelle del bottino di qualsiasi mostro: /loot, /fullloot, /loot browse. Nomi incorporati e ricerca oggetti.
 ## Author: Sokratis
 ## Version: 1.3.1
 ## IconTexture: Interface\AddOns\WhatItDrops\icon.tga
@@ -11,6 +31,17 @@
 ## X-Curse-Project-ID: 1567458
 
 embeds.xml
+Locales\Locale.lua
+Locales\deDE.lua
+Locales\frFR.lua
+Locales\esES.lua
+Locales\esMX.lua
+Locales\ptBR.lua
+Locales\ruRU.lua
+Locales\koKR.lua
+Locales\zhCN.lua
+Locales\zhTW.lua
+Locales\itIT.lua
 Data\WhatItDropsItems.lua
 Data\WhatItDropsBosses.lua
 Data\WhatItDropsQuestItems.lua

@@ -1,4 +1,5 @@
-local ADDON = ...
+local ADDON, ns = ...
+local L = ns.L
 
 ----------------------------------------------------------------------
 -- Client / API compatibility
@@ -75,7 +76,7 @@ local function GetNpcID(unit)
 	if IsSecret(guid) then
 		if not warnedSecret then
 			warnedSecret = true
-			DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffWhatItDrops|r: this client won't let addons read unit IDs, so loot lookup by target is unavailable. |cffffd100/loot browse|r still works.")
+			DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffWhatItDrops|r: " .. L["this client won't let addons read unit IDs, so loot lookup by target is unavailable. %s still works."]:format("|cffffd100/loot browse|r"))
 		end
 		return
 	end
@@ -134,7 +135,7 @@ local function ItemQuality(id)
 	return select(3, GetItemInfo(id))
 end
 local function NpcName(id)
-	return (WhatItDropsNpcName and WhatItDropsNpcName[id]) or ("NPC " .. id)
+	return (WhatItDropsNpcName and WhatItDropsNpcName[id]) or (L["NPC %s"]:format(id))
 end
 
 -- Quest-class drops: the baked table on Classic; on Retail ask the client for the
@@ -242,7 +243,10 @@ local function GetWindow()
 
 	local source = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	source:SetPoint("TOPLEFT", 14, -26)
-	source:SetText("Drop data: Wowhead via Questie")
+	source:SetPoint("TOPRIGHT", -14, -26)      -- long translations clip instead of running off the window
+	source:SetJustifyH("LEFT")
+	source:SetWordWrap(false)
+	source:SetText("")
 	f.source = source
 
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
@@ -250,9 +254,9 @@ local function GetWindow()
 	WhatItDrops_Skin.Close(close)
 
 	-- Header icon buttons (Settings, Item browser), to the left of the close X.
-	HeaderIcon(f, "Interface\\Buttons\\UI-OptionsButton", "Settings",
+	HeaderIcon(f, "Interface\\Buttons\\UI-OptionsButton", _G.SETTINGS or "Settings",
 		function() if WhatItDrops_OpenSettings then WhatItDrops_OpenSettings() end end, -34)
-	HeaderIcon(f, "Interface\\Common\\UI-Searchbox-Icon", "Item browser",
+	HeaderIcon(f, "Interface\\Common\\UI-Searchbox-Icon", L["Item browser"],
 		function() if WhatItDrops_OpenBrowser then WhatItDrops_OpenBrowser() end end, -56)
 
 	-- Scrollable item list
@@ -271,7 +275,7 @@ local function GetWindow()
 	empty:SetPoint("TOPLEFT", 16, -HEADER_H - 6)
 	empty:SetPoint("TOPRIGHT", -16, -HEADER_H - 6)
 	empty:SetJustifyH("LEFT")
-	empty:SetText("No bundled loot for this NPC. Use the Wowhead link below.")
+	empty:SetText(L["No bundled loot for this NPC. Use the Wowhead link below."])
 	empty:Hide()
 	f.empty = empty
 
@@ -281,7 +285,7 @@ local function GetWindow()
 	check:SetPoint("BOTTOMLEFT", 10, 8)
 	local checkLabel = check:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	checkLabel:SetPoint("LEFT", check, "RIGHT", 2, 0)
-	checkLabel:SetText("Hide common loot")
+	checkLabel:SetText(L["Hide common loot"])
 	check:SetScript("OnClick", function(self)
 		WhatItDropsDB.hideJunk = self:GetChecked() and true or false
 		WhatItDrops_Refresh()
@@ -294,7 +298,7 @@ local function GetWindow()
 	worldCheck:SetPoint("BOTTOMLEFT", 10, 30)
 	local worldLabel = worldCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	worldLabel:SetPoint("LEFT", worldCheck, "RIGHT", 2, 0)
-	worldLabel:SetText("Show world drops")
+	worldLabel:SetText(L["Show world drops"])
 	worldCheck:SetScript("OnClick", function(self)
 		WhatItDropsDB.showWorldDrops = self:GetChecked() and true or false
 		WhatItDrops_Refresh()
@@ -534,7 +538,7 @@ function WhatItDrops_Render()
 		for _, r in ipairs(rows) do r:Hide() end
 		win.scroll:Hide(); win.check:Hide(); win.worldCheck:Hide(); win.urlBtn:Hide(); win.empty:Show()
 		win.content:SetHeight(1)
-		win:SetHeight(HEADER_H + 30 + FOOTER_H)
+		win:SetHeight(HEADER_H + 44 + FOOTER_H)        -- room for a message that wraps to three lines
 		UpdateModelCard()
 		return
 	end
@@ -549,10 +553,12 @@ function WhatItDrops_Render()
 		if shown >= MAX_ROWS then break end
 		local itemID = entry.id
 		-- Names/quality from baked tables, or from the entry itself (player gear).
-		local name = entry.name or ItemName(itemID)
 		local quality = entry.quality or ItemQuality(itemID)
-		local giLink, icon
-		if itemID then _, giLink, _, _, _, _, _, _, _, icon = GetItemInfo(itemID) end
+		local giName, giLink, icon
+		if itemID then giName, giLink, _, _, _, _, _, _, _, icon = GetItemInfo(itemID) end
+		-- The client's own name first, so item names follow the player's language; the baked
+		-- name (English) is only the fallback while the client hasn't loaded the item yet.
+		local name = entry.name or giName or ItemName(itemID)
 		local link = entry.link or giLink
 		-- Only wait on the async item cache for rows that actually have an ID to
 		-- look up (quest items unresolved to an ID never resolve — don't churn).
@@ -781,33 +787,33 @@ local function EnsureJournalIndex()
 	if not ok then
 		ejNames, ejByMap, ejAll = ejNames or {}, ejByMap or {}, ejAll or {}
 		ejError = tostring(err)
-		DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffWhatItDrops|r: Encounter Journal lookup failed: " .. ejError
-			.. "  |cffffd100/loot journal|r shows details.")
+		DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffWhatItDrops|r: " .. L["Encounter Journal lookup failed: %s"]:format(ejError)
+			.. "  " .. L["%s shows details."]:format("|cffffd100/loot journal|r"))
 	end
 end
 
 -- /loot journal: say what the Journal source is doing, for when a boss goes missing.
 function WhatItDrops_JournalStatus(query)
-	local function say(msg) DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffWhatItDrops|r journal: " .. msg) end
-	if not IS_RETAIL then say("Retail only (this client uses the baked Classic data).") return end
+	local function say(msg) DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffWhatItDrops|r " .. L["journal"] .. ": " .. msg) end
+	if not IS_RETAIL then say(L["Retail only (this client uses the baked Classic data)."]) return end
 	local missing = EJMissing()
-	if #missing > 0 then say("unavailable -- this client lacks: " .. table.concat(missing, ", ")) return end
+	if #missing > 0 then say(L["unavailable -- this client lacks: %s"]:format(table.concat(missing, ", "))) return end
 	EnsureJournalIndex()
 	local maps = 0
 	for _ in pairs(ejByMap or {}) do maps = maps + 1 end
-	say(("indexed %d encounters across %d instance maps; tiers reported: %s"):format(
+	say(L["indexed %d encounters across %d instance maps; tiers reported: %s"]:format(
 		#(ejAll or {}), maps, tostring(EJ_GetNumTiers())))
-	if ejError then say("index build error: " .. ejError) end
+	if ejError then say(L["index build error: %s"]:format(ejError)) end
 	local q = (query or ""):lower()
 	if q ~= "" then
 		local n = 0
 		for _, rec in ipairs(ejAll or {}) do
 			if rec.name:lower():find(q, 1, true) then
 				n = n + 1
-				if n <= 8 then say(("  match: %s  (%s, instance %s, map %s)"):format(rec.name, tostring(rec.instName), tostring(rec.inst), tostring(rec.map))) end
+				if n <= 8 then say("  " .. L["match: %s (%s, instance %s, map %s)"]:format(rec.name, tostring(rec.instName), tostring(rec.inst), tostring(rec.map))) end
 			end
 		end
-		say(n .. ' encounter(s) match "' .. q .. '"')
+		say(L["%d encounter(s) match: %s"]:format(n, q))
 	end
 end
 
@@ -858,8 +864,8 @@ local function ReadJournalLoot()
 		local info = C_EncounterJournal.GetLootInfoByIndex(i)
 		if info and info.itemID and not seen[info.itemID] then
 			seen[info.itemID] = true
-			local tag = info.displayAsExtremelyRare and "extremely rare"
-				or info.displayAsVeryRare and "very rare" or info.slot
+			local tag = info.displayAsExtremelyRare and L["extremely rare"]
+				or info.displayAsVeryRare and L["very rare"] or info.slot
 			items[#items + 1] = { id = info.itemID, rightText = (tag and tag ~= "") and ("|cff888888" .. tag .. "|r") or nil }
 		end
 	end
@@ -905,9 +911,9 @@ local function ShowNPC(npcID, npcName)
 	current.id, current.name = npcID, npcName
 	current.player, current.unit, current.inspectGUID = false, nil, nil
 	current.items = BuildList(npcID)
-	f.source:SetText("Loot: Wowhead %  (data via LootCodex)")
-	f.title:SetText((npcName or "NPC") .. "  |cff888888(" .. npcID .. ")|r")
-	f.empty:SetText("No bundled loot for this NPC. Use the Wowhead link below.")
+	f.source:SetText(L["Loot: Wowhead drop rates (data via LootCodex)"])
+	f.title:SetText((npcName or L["NPC"]) .. "  |cff888888(" .. npcID .. ")|r")
+	f.empty:SetText(L["No bundled loot for this NPC. Use the Wowhead link below."])
 	f.check:SetChecked(WhatItDropsDB and WhatItDropsDB.hideJunk or false)
 	f.worldCheck:SetChecked(WhatItDropsDB and WhatItDropsDB.showWorldDrops or false)
 	f.url:SetText(BuildURL(npcID))
@@ -924,9 +930,9 @@ ShowJournal = function(rec)
 	JournalSelect(rec)
 	local items = ReadJournalLoot()
 	current.items, current.journalItems = items, items
-	f.source:SetText("Loot: Encounter Journal  (no drop rates)")
+	f.source:SetText(L["Loot: Encounter Journal (no drop rates)"])
 	f.title:SetText(rec.name .. "  |cff888888(" .. (rec.instName or "") .. ")|r")
-	f.empty:SetText("The Encounter Journal lists no loot for this boss.")
+	f.empty:SetText(L["The Encounter Journal lists no loot for this boss."])
 	f.url:SetText("")
 	f.url:Hide()
 	f:Show()
@@ -934,11 +940,17 @@ ShowJournal = function(rec)
 end
 
 -- Equipped-gear slots (id, label), in a sensible visual order.
+-- Slot names are the client's own words (HEADSLOT and friends), so they match the game's
+-- character sheet in every language; the English text is only a fallback.
 local GEAR_SLOTS = {
-	{ 1, "Head" }, { 2, "Neck" }, { 3, "Shoulder" }, { 15, "Back" }, { 5, "Chest" },
-	{ 9, "Wrist" }, { 10, "Hands" }, { 6, "Waist" }, { 7, "Legs" }, { 8, "Feet" },
-	{ 11, "Finger" }, { 12, "Finger" }, { 13, "Trinket" }, { 14, "Trinket" },
-	{ 16, "Main Hand" }, { 17, "Off Hand" }, { 18, "Ranged" },
+	{ 1, _G.HEADSLOT or "Head" }, { 2, _G.NECKSLOT or "Neck" }, { 3, _G.SHOULDERSLOT or "Shoulder" },
+	{ 15, _G.BACKSLOT or "Back" }, { 5, _G.CHESTSLOT or "Chest" },
+	{ 9, _G.WRISTSLOT or "Wrist" }, { 10, _G.HANDSSLOT or "Hands" }, { 6, _G.WAISTSLOT or "Waist" },
+	{ 7, _G.LEGSSLOT or "Legs" }, { 8, _G.FEETSLOT or "Feet" },
+	{ 11, _G.FINGER0SLOT or "Finger" }, { 12, _G.FINGER1SLOT or "Finger" },
+	{ 13, _G.TRINKET0SLOT or "Trinket" }, { 14, _G.TRINKET1SLOT or "Trinket" },
+	{ 16, _G.MAINHANDSLOT or "Main Hand" }, { 17, _G.SECONDARYHANDSLOT or "Off Hand" },
+	{ 18, _G.RANGEDSLOT or "Ranged" },
 }
 
 local function CollectGear(unit)
@@ -985,9 +997,9 @@ local function ShowPlayer(unit)
 	current.id, current.name = nil, UnitName(unit)
 	current.player, current.unit, current.inspectGUID = true, unit, UnitGUID(unit)
 	current.items = CollectGear(unit)
-	f.source:SetText("Equipped gear  |cff888888(click = source, Ctrl-click = preview)|r")
-	f.title:SetText((current.name or "Player") .. "  |cff888888(gear)|r")
-	f.empty:SetText("No visible gear yet — get within inspect range, then reopen.")
+	f.source:SetText(L["Equipped gear"] .. "  |cff888888(" .. L["click = source, Ctrl-click = preview"] .. ")|r")
+	f.title:SetText((current.name or L["Player"]) .. "  |cff888888(" .. L["gear"] .. ")|r")
+	f.empty:SetText(L["No visible gear yet — get within inspect range, then reopen."])
 	f.url:Hide()
 	f:Show()
 	WhatItDrops_Render()
@@ -1109,12 +1121,12 @@ function WhatItDrops_ShowQuest()
 	current.id, current.name = nil, title
 	current.player, current.unit, current.inspectGUID = false, nil, nil
 	current.items = (idx and not isHeader) and CollectQuestItems(idx) or nil
-	f.source:SetText("Items this quest needs  |cff888888(click = who drops it)|r")
-	f.title:SetText((title or "Quest") .. "  |cff888888(quest)|r")
+	f.source:SetText(L["Items this quest needs"] .. "  |cff888888(" .. L["click = who drops it"] .. ")|r")
+	f.title:SetText((title or L["Quest"]) .. "  |cff888888(" .. L["quest"] .. ")|r")
 	if not idx or isHeader then
-		f.empty:SetText("Select a quest in the log, then click again.")
+		f.empty:SetText(L["Select a quest in the log, then click again."])
 	else
-		f.empty:SetText("This quest needs no gathered items.")
+		f.empty:SetText(L["This quest needs no gathered items."])
 	end
 	f.url:Hide()
 	f:Show()
@@ -1152,12 +1164,16 @@ local function CreateQuestLogButton()
 
 	local b = CreateFrame("Button", "WhatItDropsQuestLogButton", host, "UIPanelButtonTemplate")
 	b:SetSize(110, 22)
-	b:SetText("Loot Needed")
+	b:SetScript("OnShow", function(self)      -- a longer translation widens the button instead of clipping
+		local fs = self:GetFontString()
+		if fs then self:SetWidth(math.max(110, fs:GetStringWidth() + 24)) end
+	end)
+	b:SetText(L["Loot Needed"])
 	b:SetPoint(anchorPoint, anchor, relPoint, ox, oy)
 	b:SetScript("OnClick", WhatItDrops_ShowQuest)
 	b:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-		GameTooltip:SetText("WhatItDrops: show the items this quest needs\nand where they drop.", nil, nil, nil, nil, true)
+		GameTooltip:SetText(L["WhatItDrops: show the items this quest needs and where they drop."], nil, nil, nil, nil, true)
 		GameTooltip:Show()
 	end)
 	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1202,8 +1218,8 @@ local function CreateMinimapButton()
 			end,
 			OnTooltipShow = function(tt)
 				tt:AddLine("WhatItDrops")
-				tt:AddLine("Left-click: reload UI", 1, 1, 1)
-				tt:AddLine("Right-click: loot lookup", 1, 1, 1)
+				tt:AddLine(L["Left-click: reload UI"], 1, 1, 1)
+				tt:AddLine(L["Right-click: loot lookup"], 1, 1, 1)
 			end,
 		})
 		LDBIcon:Register("WhatItDrops", obj, WhatItDropsDB.minimap)
@@ -1269,24 +1285,24 @@ RenderBrowser = function()
 	local list = {}
 	if bState == "items" then
 		local res = bResults or {}
-		f.title:SetText(bContext or "WhatItDrops — Browser")
+		f.title:SetText(bContext or L["WhatItDrops — Browser"])
 		if bContext then
-			f.status:SetText(#res .. " boss" .. (#res == 1 and "" or "es"))
+			f.status:SetText(L["Bosses: %d"]:format(#res))
 		else
-			f.status:SetText(#res .. " result" .. (#res == 1 and "" or "s"))
+			f.status:SetText(L["Results: %d"]:format(#res))
 		end
 		for i = 1, math.min(#res, 300) do list[i] = res[i] end
 	else
-		f.title:SetText("Dropped by: " .. ItemName(bSelItem))
+		f.title:SetText(L["Dropped by: %s"]:format(ItemName(bSelItem)))
 		local src = (reverseIndex and reverseIndex[bSelItem]) or {}
 		for i = 1, #src do list[i] = src[i] end
 		table.sort(list, function(a, b) return a.pct > b.pct end)
-		f.status:SetText(#list .. " npc" .. (#list == 1 and "" or "s"))
+		f.status:SetText(L["Creatures: %d"]:format(#list))
 		while #list > 300 do list[#list] = nil end
 		-- No mob drops it in our data — point to Wowhead instead.
 		if #list == 0 then
 			for _, r in ipairs(bRows) do r:Hide() end
-			f.hint:SetText("Not a mob drop in our data (crafted, quest, vendor, or event). Open on Wowhead — Ctrl+C to copy:")
+			f.hint:SetText(L["Not a mob drop in our data (crafted, quest, vendor, or event). Open on Wowhead — Ctrl+C to copy:"])
 			f.hint:Show()
 			local u = BuildItemURL(bSelItem)
 			f.url.expected = u; f.url:SetText(u); f.url:Show(); f.url:SetFocus(); f.url:HighlightText()
@@ -1304,13 +1320,13 @@ RenderBrowser = function()
 			r.itemID = nil
 			r.icon:SetTexture(FALLBACK_ICON)
 			r.name:SetText("|cffffd100" .. e.name .. "|r  |cff888888(" .. e.id .. ")|r")
-			r.right:SetText("|cff888888target|r")
+			r.right:SetText("|cff888888" .. L["target"] .. "|r")
 			r.onClick = function() EnsureFull(e.id); ShowNPC(e.id, e.name) end
 		elseif bState == "items" and e.kind == "boss" then
 			r.itemID = nil
 			r.icon:SetTexture(FALLBACK_ICON)
 			r.name:SetText("|cffffd100" .. e.name .. "|r")
-			r.right:SetText("|cff888888journal|r")
+			r.right:SetText("|cff888888" .. L["journal"] .. "|r")
 			r.onClick = function() ShowJournal(e.rec) end
 		elseif bState == "items" then
 			r.itemID = e.id
@@ -1385,7 +1401,7 @@ local function GetBrowser()
 	title:SetTextColor(AccentRGB())
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", 2, 2)
 	WhatItDrops_Skin.Close(close)
-	HeaderIcon(f, "Interface\\Buttons\\UI-OptionsButton", "Settings",
+	HeaderIcon(f, "Interface\\Buttons\\UI-OptionsButton", _G.SETTINGS or "Settings",
 		function() if WhatItDrops_OpenSettings then WhatItDrops_OpenSettings() end end, -34)
 
 	local sb = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
@@ -1395,12 +1411,13 @@ local function GetBrowser()
 	f.search = sb
 	WhatItDrops_Skin.EditBox(sb)
 	local go = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-	go:SetSize(62, 22); go:SetPoint("LEFT", sb, "RIGHT", 6, 0); go:SetText("Search")
+	go:SetSize(62, 22); go:SetPoint("LEFT", sb, "RIGHT", 6, 0); go:SetText(_G.SEARCH or "Search")
 	go:SetScript("OnClick", function() DoBrowserSearch(sb:GetText()) end)
 	WhatItDrops_Skin.Button(go)
 
 	local back = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-	back:SetSize(54, 20); back:SetPoint("TOPLEFT", 14, -60); back:SetText("< Back")
+	back:SetSize(54, 20); back:SetPoint("TOPLEFT", 14, -60); back:SetText(L["< Back"])
+	do local fs = back:GetFontString(); if fs then back:SetWidth(math.max(54, fs:GetStringWidth() + 20)) end end
 	back:SetScript("OnClick", function() bState = "items"; RenderBrowser() end); back:Hide(); f.back = back
 	WhatItDrops_Skin.Button(back)
 	local status = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"); status:SetPoint("TOPRIGHT", -16, -64); f.status = status
@@ -1501,7 +1518,7 @@ function WhatItDrops_ShowInstanceBosses()
 		table.sort(res, function(a, b) return a.name < b.name end)
 	end
 	bState, bSelItem, bResults = "items", nil, res
-	bContext = "Bosses — " .. (instName or "Instance")
+	bContext = L["Bosses — %s"]:format(instName or L["Instance"])
 	RenderBrowser()
 	if bWin then bWin.search:ClearFocus() end
 	return true
@@ -1715,21 +1732,21 @@ SlashCmdList.WHATITDROPS = function(msg)
 		WhatItDrops_ShowQuest()
 	elseif msg == "bosses" then
 		if not WhatItDrops_ShowInstanceBosses() then
-			print("|cff66ccffWhatItDrops|r: no boss list — you're not in a dungeon/raid we have data for.")
+			print("|cff66ccffWhatItDrops|r: " .. L["no boss list — you're not in a dungeon/raid we have data for."])
 		end
 	elseif msg:match("^journal") then
 		WhatItDrops_JournalStatus(msg:match("^journal%s+(.+)$"))
 	elseif msg == "help" then
-		print("|cff66ccffWhatItDrops|r commands:")
-		print("  |cffffd100/loot|r — loot table for your current target (Wowhead %, via LootCodex data)")
-		print("  |cffffd100/loot browse [text]|r — search items or NPCs by name")
-		print("  |cffffd100/loot bosses|r — list the bosses of the instance you're in")
-		print("  |cffffd100/loot quest|r — items the selected quest needs, and where they drop")
-		print("  |cffffd100/loot auto|r — toggle auto-showing on target")
-		print("  |cffffd100/loot config|r (or |cffffd100/wid|r) — open settings & keybinds")
-		print("  |cffffd100/wid export|r, |cffffd100/wid import|r — copy your whole setup as text, or paste one back")
-		print("  Ctrl+C shows the Wowhead link; press again to copy & close.")
-		print("  Click an item to see what drops it; Ctrl-click previews; Shift-click links it.")
+		print("|cff66ccffWhatItDrops|r " .. L["commands:"])
+		print("  " .. L["%s — loot table for your current target (Wowhead rates, via LootCodex data)"]:format("|cffffd100/loot|r"))
+		print("  " .. L["%s — search items or creatures by name"]:format("|cffffd100/loot browse [text]|r"))
+		print("  " .. L["%s — list the bosses of the instance you're in"]:format("|cffffd100/loot bosses|r"))
+		print("  " .. L["%s — items the selected quest needs, and where they drop"]:format("|cffffd100/loot quest|r"))
+		print("  " .. L["%s — toggle auto-showing on target"]:format("|cffffd100/loot auto|r"))
+		print("  " .. L["%s (or %s) — open the settings window"]:format("|cffffd100/loot config|r", "|cffffd100/wid|r"))
+		print("  " .. L["%s, %s — copy your whole setup as text, or paste one back"]:format("|cffffd100/wid export|r", "|cffffd100/wid import|r"))
+		print("  " .. L["Ctrl+C shows the Wowhead link; press again to copy and close."])
+		print("  " .. L["Click an item to see what drops it; Ctrl-click previews; Shift-click links it."])
 	else
 		LinkUnit()
 	end
@@ -1755,8 +1772,8 @@ SlashCmdList.WHATITDROPSFULL = function() LinkUnit() end
 
 -- Binding entry points (invoked from Bindings.xml) + Key Bindings UI labels.
 BINDING_HEADER_WHATITDROPS = "WhatItDrops"
-BINDING_NAME_WHATITDROPS_FULLLOOKUP = "Show loot for target"
-BINDING_NAME_WHATITDROPS_LOOKUP = "Open item browser"
+BINDING_NAME_WHATITDROPS_FULLLOOKUP = L["Show loot for target"]
+BINDING_NAME_WHATITDROPS_LOOKUP = L["Open item browser"]
 function WhatItDrops_DoBinding()
 	-- Mouseover (if enabled) or target: a player shows gear, a creature shows
 	-- loot; anything else opens the browser.

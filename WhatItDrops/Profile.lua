@@ -1,4 +1,5 @@
-local ADDON = ...
+local ADDON, ns = ...
+local L = ns.L
 
 -- Profile export / import: your whole setup as one copyable string.
 --
@@ -212,24 +213,24 @@ end
 -- Returns values, info on success (values: key -> value; info: count, ignored, app), or
 -- nil, message on failure.
 local function parse(text)
-    if type(text) ~= "string" then return nil, "Paste a profile first." end
+    if type(text) ~= "string" then return nil, L["Paste a profile first."] end
     text = text:gsub("^%s+", ""):gsub("%s+$", "")
-    if text == "" then return nil, "Paste a profile first." end
-    if #text > MAX_LEN then return nil, "That text is far too long to be a WhatItDrops profile." end
+    if text == "" then return nil, L["Paste a profile first."] end
+    if #text > MAX_LEN then return nil, L["That text is far too long to be a WhatItDrops profile."] end
 
     local tag, body, sum = text:match("^(%w+):([^:]*):(%x+)$")
     if not tag then
-        if text:find("^WID") then return nil, "That profile is damaged: it isn't in the expected shape." end
-        return nil, "That doesn't look like a WhatItDrops profile. It should start with " .. TAG .. ":"
+        if text:find("^WID") then return nil, L["That profile is damaged: it isn't in the expected shape."] end
+        return nil, L["That doesn't look like a WhatItDrops profile. It should start with %s"]:format(TAG .. ":")
     end
     if tag ~= TAG then
-        return nil, "That profile is from a different version of WhatItDrops (" .. tag .. "). Update the addon and export it again."
+        return nil, L["That profile is from a different version of WhatItDrops (%s). Update the addon and export it again."]:format(tag)
     end
     body = body:gsub("%s", "")      -- tolerate line wrapping from a chat window or a text file
     local payload = b64decode(body)
-    if not payload then return nil, "That profile is damaged: it can't be decoded." end
+    if not payload then return nil, L["That profile is damaged: it can't be decoded."] end
     if checksum(payload) ~= sum:lower() then
-        return nil, "That profile is damaged: it doesn't match its checksum, so part of it was lost or changed."
+        return nil, L["That profile is damaged: it doesn't match its checksum, so part of it was lost or changed."]
     end
 
     local values, count, ignored, version, app = {}, 0, 0, nil, nil
@@ -252,11 +253,11 @@ local function parse(text)
             end
         end
     end
-    if not version then return nil, "That profile is damaged: it has no version." end
+    if not version then return nil, L["That profile is damaged: it has no version."] end
     if version > SCHEMA_VERSION then
-        return nil, "That profile was made by a newer WhatItDrops. Update the addon, then import it."
+        return nil, L["That profile was made by a newer WhatItDrops. Update the addon, then import it."]
     end
-    if count == 0 then return nil, "That profile has no settings this version of WhatItDrops recognizes." end
+    if count == 0 then return nil, L["That profile has no settings this version of WhatItDrops recognizes."] end
     return values, { count = count, ignored = ignored, app = app }
 end
 
@@ -264,9 +265,13 @@ end
 function WhatItDrops_CheckProfile(text)
     local values, info = parse(text)
     if not values then return false, info end
-    local msg = "Valid profile with " .. info.count .. " settings"
-    if info.ignored > 0 then msg = msg .. " (" .. info.ignored .. " entries will be ignored)" end
-    return true, msg .. "."
+    local msg
+    if info.ignored > 0 then
+        msg = L["Valid profile with %d settings (%d entries will be ignored)."]:format(info.count, info.ignored)
+    else
+        msg = L["Valid profile with %d settings."]:format(info.count)
+    end
+    return true, msg
 end
 
 local function applyBinding(action, key)
@@ -316,12 +321,12 @@ function WhatItDrops_ImportProfile(text)
     if WhatItDrops_Refresh then WhatItDrops_Refresh() end
     if WhatItDrops_RefreshOptions then WhatItDrops_RefreshOptions() end
 
-    local msg = "Imported " .. info.count .. " settings."
-    if info.ignored > 0 then msg = msg .. " " .. info.ignored .. " entries weren't recognized and were skipped." end
-    if skippedBinds then msg = msg .. " Keybinds weren't changed (you're in combat, or the key was refused)." end
+    local msg = L["Imported %d settings."]:format(info.count)
+    if info.ignored > 0 then msg = msg .. " " .. L["%d entries weren't recognized and were skipped."]:format(info.ignored) end
+    if skippedBinds then msg = msg .. " " .. L["Keybinds weren't changed (you're in combat, or the key was refused)."] end
     local newTheme = d.theme or "blizzard"
     if (oldTheme == "elvui") ~= (newTheme == "elvui") then
-        msg = msg .. " Switching to or from ElvUI needs a /reload."
+        msg = msg .. " " .. L["Switching to or from ElvUI needs a /reload."]
     end
     return true, msg
 end

@@ -15,6 +15,8 @@ Target any enemy in World of Warcraft (Retail, WoW: Forever or TBC Classic) and 
 > Classic project id but only exposes the modern namespaced API; every call that moved is
 > feature-detected rather than switched on project id.
 
+> **Languages.** The interface is translated into English, Deutsch, Español (España and México), Français, Italiano, Português (Brasil), Русский, 한국어, 简体中文 and 繁體中文; the game client's own language is used automatically.
+
 ## Addons in this repo
 
 | Addon | Loads | Purpose |
@@ -119,6 +121,25 @@ python tools/generate-retail-from-tdb.py <TDB_full_world_*.sql> <your AddOns fol
 This writes the `WhatItDrops_Retail` addon (a `.lua` and a `.toc`). Group rolls are resolved into
 real percentages, and one loot table is kept per creature (the base difficulty when there is one).
 Bump the version string in the script when you cut a release, so a regeneration can't roll it back.
+
+### Translations
+
+Every player-visible string is `L["English text"]`; the English text is the key, so a missing
+translation falls back to English. `Locales/Locale.lua` creates `ns.L`, and `Locales/<code>.lua`
+adds one language each (deDE, frFR, esES, esMX, ptBR, ruRU, koKR, zhCN, zhTW, itIT). Add a string
+by wrapping it in `L[...]` and adding a line to every locale file, then run:
+
+```
+python tools/check-locales.py <path to the WhatItDrops folder>
+```
+
+It checks that every key is present in every language and nothing extra is, that each translation
+keeps the placeholders (`%s`, `%d`) in order and the colour markup, that no English was left in,
+that the TOC loads the locale files before the code and has a `Notes-xxXX` line per language, that
+no player-visible string is left unwrapped, and that every file compiles (with `lupa` installed).
+`tools/toc_locales.py` holds the translated TOC titles and notes; `tools/localize-tocs.py <AddOns
+folder>` writes them into all seven TOCs. Slash-command words, saved-variable names and the
+profile format are never translated.
 
 ### Offline test
 

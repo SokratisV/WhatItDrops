@@ -16,6 +16,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tdbparse as t  # noqa: E402
+import toc_locales  # noqa: E402
 
 MAX_ROWS = 400      # a table past this is data corruption, not loot (cf. the Don Carlos bug)
 ITEM = 0            # creature_loot_template.ItemType: 0 item, 1 currency, 2 reference
@@ -111,6 +112,7 @@ def main(world_sql, addons_dir):
         f.write("## Interface: 16001, 20505, 120100\n"
                 "## Title: WhatItDrops |cff66ccffRetail Data|r\n"
                 "## Notes: Retail creature loot from the TrinityCore TDB (GPLv3). Loaded on demand by WhatItDrops.\n"
+                + "".join(l + "\n" for l in toc_locales.lines_for("Retail")) +
                 "## Version: 1.3.1\n"
                 "## IconTexture: Interface\\AddOns\\WhatItDrops\\icon.tga\n"
                 "## Group: WhatItDrops\n"

@@ -235,11 +235,24 @@ local function readfile(path)
 	local s = f:read("*a"); f:close()
 	return s
 end
+function GetLocale() return LOCALE or "enUS" end
+-- the client's own slot-name globals: the gear list must use these, not its English fallbacks
+HEADSLOT, CHESTSLOT, LEGSSLOT, SETTINGS, SEARCH = "HEADSLOT-GLOBAL", "CHESTSLOT-GLOBAL", "LEGSSLOT-GLOBAL", "SETTINGS-GLOBAL", "SEARCH-GLOBAL"
+
+local NS = {}                              -- the second argument every addon file receives
+function TextsContain(text)
+	for _, f in ipairs(frames) do
+		if f.__kind == "FontString" and f.__text == text then return true end
+		if f.__text == text and (f.__kind == "Button" or f.__kind == "CheckButton") then return true end
+	end
+	return false
+end
+
 local function loadAddonFile(rel)
 	local src = readfile(ADDON_DIR .. "/" .. rel)
 	local fn, err = loadstring(src, "@" .. rel)
 	if not fn then error(err) end
-	return fn("WhatItDrops")
+	return fn("WhatItDrops", NS)
 end
 local function fire(event, ...)
 	for _, f in ipairs(frames) do
@@ -253,7 +266,7 @@ end
 WhatItDropsFull = { [1234] = { 5, 1001, 1.8, 1002, 6.5, 1003, 22, 1004, 54, 1005, 100, 1006, 0.5 } }
 WhatItDropsNpcName = { [1234] = "Moroes" }
 
-for _, rel in ipairs({ "Theme.lua", "WhatItDrops.lua", "Profile.lua", "Options.lua", "Settings.lua" }) do
+for _, rel in ipairs({ "Locales/Locale.lua", "Locales/deDE.lua", "Locales/frFR.lua", "Locales/esES.lua", "Locales/esMX.lua", "Locales/ptBR.lua", "Locales/ruRU.lua", "Locales/koKR.lua", "Locales/zhCN.lua", "Locales/zhTW.lua", "Locales/itIT.lua", "Theme.lua", "WhatItDrops.lua", "Profile.lua", "Options.lua", "Settings.lua" }) do
 	try("load " .. rel, loadAddonFile, rel)
 end
 WhatItDropsDB = nil                      -- first login: nothing saved
@@ -284,6 +297,9 @@ local function lootWindow()
 	runTimers(1); try("gear refresh timers", function() fire("INSPECT_READY", unit.guid); fire("GET_ITEM_INFO_RECEIVED", 101, true) end)
 	runTimers(1)
 	unit.guid, unit.player, unit.name = "Creature-0-0-0-0-1234-0000", false, "Moroes"
+	if not (TextsContain("HEADSLOT-GLOBAL") and TextsContain("CHESTSLOT-GLOBAL")) then
+		fails = fails + 1; note("FAIL [l10n] the gear list does not use the client's slot-name globals")
+	end
 	try("slash /loot again", SlashCmdList.WHATITDROPS, "")
 	try("/loot browse", SlashCmdList.WHATITDROPS, "browse moro")
 	runTimers(1)
@@ -471,7 +487,7 @@ local function profileTests()
 	expect(okm, "mixed profile rejected: " .. tostring(mm))
 	expect(WhatItDropsDB.auto == true and WhatItDropsDB.rowSize == "roomy", "valid entries in a mixed profile were not applied")
 	expect(WhatItDropsDB.theme == "blizzard", "a hostile theme value was applied")
-	expect(type(mm) == "string" and mm:find("skipped"), "a mixed profile did not report the skipped entries")
+	expect(type(mm) == "string" and (LOCALE ~= "enUS" or mm:find("skipped")), "a mixed profile did not report the skipped entries")
 	expect(WhatItDropsDB.pos == nil or WhatItDropsDB.pos.browser == nil, "a half-pair position was kept")
 	try("restore positions after half-pair", WhatItDrops_RestorePositions)
 
@@ -481,7 +497,7 @@ local function profileTests()
 	local okcb, mcb = WhatItDrops_ImportProfile(s)
 	IN_COMBAT = false
 	expect(okcb and boundKey.WHATITDROPS_LOOKUP == "F2", "keybinds changed during combat")
-	expect(mcb and mcb:find("Keybinds"), "no note about skipped keybinds in combat")
+	expect(mcb and (LOCALE ~= "enUS" or mcb:find("Keybinds")), "no note about skipped keybinds in combat")
 
 	-- an import that crosses ElvUI says it needs a reload
 	WhatItDropsDB.theme = "blizzard"
@@ -507,18 +523,18 @@ local function profileUI()
 			if rawget(f, "label") and f.label.__text == label and rawget(f, "button") and rawget(f, "row") then return f.button end
 		end
 	end
-	expect(rowButton("Import") ~= nil, "Import button not found")
-	if not rowButton("Import") then return end
+	expect(rowButton(NS.L["Import"]) ~= nil, "Import button not found")
+	if not rowButton(NS.L["Import"]) then return end
 	WhatItDropsDB.theme = "blizzard"
 	box.__text = "not a profile"
-	press(rowButton("Import"), "OnClick", "LeftButton"); runTimers(0.2)
+	press(rowButton(NS.L["Import"]), "OnClick", "LeftButton"); runTimers(0.2)
 	expect(WhatItDropsDB.theme == "blizzard", "a bad paste changed settings")
 	box.__text = exported
 	local armedBefore = WhatItDropsDB.accent
 	WhatItDropsDB.accent = "red"
-	press(rowButton("Import"), "OnClick", "LeftButton"); runTimers(0.2)   -- first click only checks
+	press(rowButton(NS.L["Import"]), "OnClick", "LeftButton"); runTimers(0.2)   -- first click only checks
 	expect(WhatItDropsDB.accent == "red", "the first Import click already changed settings")
-	press(rowButton("Import"), "OnClick", "LeftButton"); runTimers(0.2)   -- second click applies
+	press(rowButton(NS.L["Import"]), "OnClick", "LeftButton"); runTimers(0.2)   -- second click applies
 	expect(WhatItDropsDB.accent == armedBefore, "the second Import click did not apply the profile")
 	try("/wid import", SlashCmdList.WHATITDROPSWID, "import")
 	try("/wid profile", SlashCmdList.WHATITDROPSWID, "profile")
@@ -536,6 +552,21 @@ local function optionsWindow()
 		-- rebuild dropdown menus so radio entries exist before interacting
 		for _, f in ipairs(frames) do if f.GenerateMenu and f.__menu then MENUS_BUILT = (MENUS_BUILT or 0) + 1; try("generate menu", f.GenerateMenu, f) end end
 		try("interact " .. key, interact)
+	end
+	for _, key in ipairs({ "General", "Appearance", "Keybinds", "Profile" }) do
+		local want = NS.L[key]
+		if not TextsContain(want) then
+			fails = fails + 1; note("FAIL [l10n] the settings window never showed '" .. key .. "' as '" .. tostring(want) .. "'")
+		end
+		if LOCALE ~= "enUS" and want == key and not (LOCALE == "esES" or LOCALE == "esMX") then
+			fails = fails + 1; note("FAIL [l10n] '" .. key .. "' is untranslated under " .. LOCALE)
+		end
+	end
+	if not TextsContain(NS.L["Hide common loot"]) then
+		fails = fails + 1; note("FAIL [l10n] the loot window never showed its translated 'Hide common loot' label")
+	end
+	if LOCALE ~= "enUS" and NS.L["Hide common loot"] == "Hide common loot" then
+		fails = fails + 1; note("FAIL [l10n] 'Hide common loot' is untranslated under " .. LOCALE)
 	end
 	try("/wid appearance", SlashCmdList.WHATITDROPSWID, "appearance")
 	try("refresh", WhatItDrops_RefreshOptions)

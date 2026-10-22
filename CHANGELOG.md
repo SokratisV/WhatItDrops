@@ -13,6 +13,13 @@ All notable changes to this project are documented here. The format is based on
   (format, version, checksum, and every value's type and range), never run any code from the text,
   skip anything they don't recognise and say so, and ask for a second click before replacing your
   settings. Anything the profile leaves out goes back to its default.
+- **Translations for every WoW client language:** Deutsch, Français, Español (España and
+  México), Português (Brasil), Русский, 한국어, 简体中文, 繁體中文 and Italiano. All windows, settings,
+  messages, tooltips and key-binding names are translated; gear slot names and the "Search" and
+  "Settings" labels use the client's own words. Item names in the loot list now come from the game
+  first, so they follow your language. Layouts were loosened for longer languages (labels stop short
+  of their controls, buttons widen to fit). Creature names in the browser, and searching items on
+  Classic clients, still use the bundled English names.
 - **The settings window now remembers where you left it**, like the loot window and browser do.
 
 ## [1.3.1] - 2026-10-20

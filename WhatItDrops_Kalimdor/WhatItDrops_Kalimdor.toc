@@ -1,6 +1,26 @@
 ## Interface: 16001, 20505, 120100
 ## Title: WhatItDrops |cff66ccffKalimdor Data|r
 ## Notes: Wowhead loot for Kalimdor (via LootCodex GPLv3). Loaded on demand by WhatItDrops.
+## Title-deDE: WhatItDrops |cff66ccffKalimdor Daten|r
+## Notes-deDE: Wowhead-Beute für Kalimdor (über LootCodex, GPLv3). Wird bei Bedarf von WhatItDrops geladen.
+## Title-frFR: WhatItDrops |cff66ccffKalimdor Données|r
+## Notes-frFR: Butin Wowhead pour Kalimdor (via LootCodex, GPLv3). Chargé à la demande par WhatItDrops.
+## Title-esES: WhatItDrops |cff66ccffKalimdor Datos|r
+## Notes-esES: Botín de Wowhead para Kalimdor (vía LootCodex, GPLv3). WhatItDrops lo carga bajo demanda.
+## Title-esMX: WhatItDrops |cff66ccffKalimdor Datos|r
+## Notes-esMX: Botín de Wowhead para Kalimdor (vía LootCodex, GPLv3). WhatItDrops lo carga bajo demanda.
+## Title-ptBR: WhatItDrops |cff66ccffKalimdor Dados|r
+## Notes-ptBR: Saque do Wowhead para Kalimdor (via LootCodex, GPLv3). Carregado sob demanda pelo WhatItDrops.
+## Title-ruRU: WhatItDrops |cff66ccffКалимдор Данные|r
+## Notes-ruRU: Добыча Wowhead для региона «Калимдор» (через LootCodex, GPLv3). Загружается по требованию WhatItDrops.
+## Title-koKR: WhatItDrops |cff66ccff칼림도어 데이터|r
+## Notes-koKR: 칼림도어의 Wowhead 전리품 (LootCodex 경유, GPLv3). WhatItDrops가 필요할 때 불러옵니다.
+## Title-zhCN: WhatItDrops |cff66ccff卡利姆多数据|r
+## Notes-zhCN: 卡利姆多的 Wowhead 战利品（来自 LootCodex，GPLv3）。由 WhatItDrops 按需加载。
+## Title-zhTW: WhatItDrops |cff66ccff卡林多資料|r
+## Notes-zhTW: 卡林多的 Wowhead 戰利品（來自 LootCodex，GPLv3）。由 WhatItDrops 按需載入。
+## Title-itIT: WhatItDrops |cff66ccffKalimdor Dati|r
+## Notes-itIT: Bottino di Wowhead per Kalimdor (tramite LootCodex, GPLv3). Caricato su richiesta da WhatItDrops.
 ## Version: 1.3.1
 ## IconTexture: Interface\AddOns\WhatItDrops\icon.tga
 ## Group: WhatItDrops

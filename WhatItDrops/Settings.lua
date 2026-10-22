@@ -1,4 +1,5 @@
-local ADDON = ...
+local ADDON, ns = ...
+local L = ns.L
 
 -- The entry in the game's own AddOns settings: a button that opens the WhatItDrops window
 -- (Options.lua). The window is where every setting lives.
@@ -7,12 +8,17 @@ stub.name = "WhatItDrops"
 
 local stubText = stub:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 stubText:SetPoint("TOPLEFT", 16, -16)
-stubText:SetText("WhatItDrops has its own settings window.  /wid opens it too.")
+stubText:SetPoint("TOPRIGHT", -16, -16)
+stubText:SetJustifyH("LEFT")
+stubText:SetText(L["WhatItDrops has its own settings window. %s opens it too."]:format("/wid"))
 
 local stubButton = CreateFrame("Button", nil, stub, "UIPanelButtonTemplate")
 stubButton:SetSize(200, 24)
 stubButton:SetPoint("TOPLEFT", 16, -46)
-stubButton:SetText("Open WhatItDrops settings")
+stubButton:SetText(L["Open WhatItDrops settings"])
+-- grow to fit a longer translation instead of clipping it
+local stubLabel = stubButton:GetFontString()
+if stubLabel then stubButton:SetWidth(math.max(200, stubLabel:GetStringWidth() + 32)) end
 stubButton:SetScript("OnClick", function()
 	-- Close the game's settings first, or our window opens behind it.
 	if SettingsPanel and SettingsPanel.IsShown and SettingsPanel:IsShown() and HideUIPanel then

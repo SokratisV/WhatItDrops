@@ -17,6 +17,8 @@
 > from the Midnight 12.x client, so it reports a Classic project id but only exposes the modern
 > namespaced API; every call that moved is feature-detected rather than switched on project id.
 
+> **Languages.** The interface is translated into English, Deutsch, Español (España and México), Français, Italiano, Português (Brasil), Русский, 한국어, 简体中文 and 繁體中文; the game client's own language is used automatically. Item names follow your client; creature names in the browser still come from the bundled English data (search them in English).
+
 WhatItDrops shows you what whatever you are looking at drops, with no website and no alt-tab.
 Target a mob, open the window, and see its loot and how often it drops. Search items or creatures
 by name, drill into "who drops this", list the bosses of the instance you are standing in, and see
