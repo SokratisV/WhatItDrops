@@ -12,13 +12,13 @@
 param(
     # Prefer the stashed build-input copy (so the LootCodex addon can be uninstalled);
     # fall back to the live addon if the stash is absent.
-    [string] $CodexDB  = "E:\World of Warcraft\_anniversary_\Interface\AddOns\WhatItDrops\tools\lootcodex\LootCodexDB.lua",
-    [string] $Sql      = "E:\World of Warcraft\_anniversary_\Interface\AddOns\WhatItDrops\tools\cmangos\tbcdb.sql",
-    [string] $AddonsDir= "E:\World of Warcraft\_anniversary_\Interface\AddOns",
-    [string] $ItemsOut = "E:\World of Warcraft\_anniversary_\Interface\AddOns\WhatItDrops\Data\WhatItDropsItems.lua"
+    [string] $CodexDB  = "E:\World of Warcraft\_forever_\Interface\AddOns\WhatItDrops\tools\lootcodex\LootCodexDB.lua",
+    [string] $Sql      = "E:\World of Warcraft\_forever_\Interface\AddOns\WhatItDrops\tools\cmangos\tbcdb.sql",
+    [string] $AddonsDir= "E:\World of Warcraft\_forever_\Interface\AddOns",
+    [string] $ItemsOut = "E:\World of Warcraft\_forever_\Interface\AddOns\WhatItDrops\Data\WhatItDropsItems.lua"
 )
 if (-not (Test-Path $CodexDB)) {
-    $live = "E:\World of Warcraft\_anniversary_\Interface\AddOns\LootCodex\LootCodexDB.lua"
+    $live = "E:\World of Warcraft\_forever_\Interface\AddOns\LootCodex\LootCodexDB.lua"
     if (Test-Path $live) { $CodexDB = $live } else { throw "LootCodexDB not found (stash or live addon): $CodexDB" }
 }
 if (-not (Test-Path $Sql) -and (Test-Path "$Sql.gz")) {

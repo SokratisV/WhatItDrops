@@ -4,9 +4,9 @@
 # about (present in WhatItDropsItemName) so the table stays small and only covers drops
 # we can actually display.
 param(
-    [string] $Sql      = "E:\World of Warcraft\_anniversary_\Interface\AddOns\WhatItDrops\tools\cmangos\tbcdb.sql",
-    [string] $ItemsLua  = "E:\World of Warcraft\_anniversary_\Interface\AddOns\WhatItDrops\Data\WhatItDropsItems.lua",
-    [string] $Out       = "E:\World of Warcraft\_anniversary_\Interface\AddOns\WhatItDrops\Data\WhatItDropsQuestItems.lua",
+    [string] $Sql      = "E:\World of Warcraft\_forever_\Interface\AddOns\WhatItDrops\tools\cmangos\tbcdb.sql",
+    [string] $ItemsLua  = "E:\World of Warcraft\_forever_\Interface\AddOns\WhatItDrops\Data\WhatItDropsItems.lua",
+    [string] $Out       = "E:\World of Warcraft\_forever_\Interface\AddOns\WhatItDrops\Data\WhatItDropsQuestItems.lua",
     [switch] $ProbeOnly
 )
 # known item ids = keys already in WhatItDropsItemName

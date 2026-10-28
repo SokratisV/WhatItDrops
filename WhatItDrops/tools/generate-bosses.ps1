@@ -9,9 +9,9 @@
 #   only gap is script-SUMMONED bosses (Ragnaros, Majordomo, Nefarian) which have no
 #   spawn row and so can't be mapped to their instance from this data.
 param(
-    [string] $Sql      = "E:\World of Warcraft\_anniversary_\Interface\AddOns\WhatItDrops\tools\cmangos\tbcdb.sql",
-    [string] $CodexDB  = "E:\World of Warcraft\_anniversary_\Interface\AddOns\WhatItDrops\tools\lootcodex\LootCodexDB.lua",
-    [string] $Out      = "E:\World of Warcraft\_anniversary_\Interface\AddOns\WhatItDrops\Data\WhatItDropsBosses.lua"
+    [string] $Sql      = "E:\World of Warcraft\_forever_\Interface\AddOns\WhatItDrops\tools\cmangos\tbcdb.sql",
+    [string] $CodexDB  = "E:\World of Warcraft\_forever_\Interface\AddOns\WhatItDrops\tools\lootcodex\LootCodexDB.lua",
+    [string] $Out      = "E:\World of Warcraft\_forever_\Interface\AddOns\WhatItDrops\Data\WhatItDropsBosses.lua"
 )
 $CONTINENTS = @{ 0=$true; 1=$true; 530=$true }   # not instances
 

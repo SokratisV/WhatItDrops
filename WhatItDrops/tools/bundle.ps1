@@ -1,6 +1,6 @@
 # Build the shareable WhatItDrops install zip without using Remove-Item (a path guard
 # blocks Remove-Item near the WoW dir). Writes entries straight into the archive.
-$base = "E:\World of Warcraft\_anniversary_\Interface\AddOns"
+$base = "E:\World of Warcraft\_forever_\Interface\AddOns"
 $folders = @('WhatItDrops','WhatItDrops_EasternKingdoms','WhatItDrops_Instances','WhatItDrops_Kalimdor','WhatItDrops_Misc','WhatItDrops_Outland')
 $ver = (Select-String -Path (Join-Path $base 'WhatItDrops\WhatItDrops.toc') -Pattern '##\s*Version:\s*(.+)').Matches.Groups[1].Value.Trim()
 $out = Join-Path ([Environment]::GetFolderPath('Desktop')) 'WhatItDrops-install.zip'
