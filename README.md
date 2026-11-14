@@ -7,10 +7,7 @@
 ![WoW](https://img.shields.io/badge/WoW-Retail%20%2F%20Forever%20%2F%20TBC%20Classic-f8b700)
 ![Interface](https://img.shields.io/badge/interface-120100%20%7C%2016001%20%7C%2020505-555)
 
-> **WoW: Forever accuracy.** The bundled Classic-side loot data comes from a TBC-era database,
-> but Forever's content is Vanilla. Drop rates, which creatures drop what, and which items exist
-> can therefore be **inaccurate on WoW: Forever**. Treat the lists there as a guide, not gospel.
-> Retail uses retail data and is not affected.
+> **WoW: Forever data.** Forever loads its own database, the CMaNGOS **Vanilla 1.12** one, chosen by its own `_Forever.toc` files; the TBC clients load the TBC one. Forever is Vanilla-based but not identical to the 1.12 server data, so some drop rates and items can still differ from the game. Treat the lists as a guide, not gospel. `/loot data` says which database your client loaded.
 
 > **Client support.** One download runs on **Retail** (interface `120100`), **WoW Forever**
 > (`16001`) and the **TBC Classic / Anniversary** client (`20505`). Forever serves Classic content
@@ -62,6 +59,7 @@ Screenshots: drop images into docs/ and reference them here, e.g.
 | `/loot browse [text]` | Search items **or** creatures by name. |
 | `/loot bosses` | The bosses of the instance you are in. |
 | `/loot quest` | Items the selected quest needs, and where they drop. |
+| `/loot data` | Which loot database this client loaded (Vanilla for WoW: Forever, TBC for the TBC clients). |
 | `/loot names` | Non-English clients: how many item and creature names your client has given us, and whether it names the creature you are targeting. |
 | `/loot auto` | Toggle auto-show on target. |
 | `/wid` (or `/loot config`) | Open the settings window. |
@@ -94,12 +92,13 @@ A small **family of addons**: one always-loaded UI addon plus data packs that lo
 
 ## Data and accuracy
 
-- **Classic clients (TBC Classic and WoW: Forever).** Everything comes from the **CMaNGOS** TBC
-  world database (`cmangos/tbc-db`, GPL v3): loot tables resolved into plain drop chances, item
-  names and quality, creature names, bosses and quest-item flags. These are a server emulator's
-  numbers rather than live measurements, and **they are TBC-era data, not Vanilla**, which is why
-  they can be wrong on WoW: Forever. Creatures are bucketed into per-continent and per-instance
-  packs using the spawn tables.
+- **Classic clients.** Everything comes from the **CMaNGOS** world databases (GPL v3): loot tables
+  resolved into plain drop chances, item names and quality, creature names, bosses and quest-item
+  flags. **TBC Classic** uses `cmangos/tbc-db` (TBC 2.4.3); **WoW: Forever** uses
+  `cmangos/classic-db` (Vanilla 1.12), loaded through its own `_Forever.toc` files so each client
+  parses only its own database. These are a server emulator's numbers rather than live
+  measurements, and Forever is Vanilla-based but not identical to the 1.12 server data. Creatures
+  are bucketed into per-continent and per-instance packs using the spawn tables.
 - **Retail creatures.** Loot and chances come from the **TrinityCore** `TDB` world database
   (GPL v3), covering about 8,400 creatures. It has no loot for current instanced bosses, because
   Retail builds that from the Encounter Journal.

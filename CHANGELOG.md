@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+- **WoW: Forever now has its own Vanilla loot database.** It is generated from the CMaNGOS
+  `classic-db` (Vanilla 1.12, GPL v3) with the same loot-resolving code as the TBC data, and the
+  Forever client loads it through `WhatItDrops_Forever.toc` (plus an identical `_Camelot.toc`, the
+  other suffix the client accepts) in the main addon and the five data packs, so each client parses
+  only its own database; any client without its own TOC falls back to the TBC data as before.
+  `/loot data` shows which database was loaded. The Forever set covers about 4,300 creatures,
+  7,200 items and 280 dungeon and raid bosses.
 - **The Classic data no longer uses LootCodex.** Drop chances, item and creature names, quality,
   the boss list and the quest-item flags are now generated entirely from the current CMaNGOS
   `tbc-db` (base dump `TBCDB_1.11.0`, GPL v3): the loot tables are resolved into plain chances

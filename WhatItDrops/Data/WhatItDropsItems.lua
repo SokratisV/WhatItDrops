@@ -2,6 +2,7 @@
 -- Item names+quality and creature names from the CMaNGOS tbc-db (GPL v3).
 -- Retail has its own data (WhatItDrops_Retail); these tables are Classic-only.
 if WOW_PROJECT_ID ~= nil and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then return end
+WhatItDropsDataSource = "CMaNGOS tbc-db (TBC 2.4.3)"
 WhatItDropsItemName = {
 [25]="Worn Shortsword",
 [45]="Squire's Shirt",

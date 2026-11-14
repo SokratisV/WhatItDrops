@@ -1,0 +1,30 @@
+## Interface: 16001
+## Title: WhatItDrops |cff66ccffInstances Data|r
+## Notes: Loot chances for Instances from the CMaNGOS database (GPLv3). Loaded on demand by WhatItDrops.
+## Title-deDE: WhatItDrops |cff66ccffInstanzen Daten|r
+## Notes-deDE: Beutechancen für Instanzen aus der CMaNGOS-Datenbank (GPLv3). Wird bei Bedarf von WhatItDrops geladen.
+## Title-frFR: WhatItDrops |cff66ccffInstances Données|r
+## Notes-frFR: Taux de butin pour Instances issus de la base CMaNGOS (GPLv3). Chargé à la demande par WhatItDrops.
+## Title-esES: WhatItDrops |cff66ccffInstancias Datos|r
+## Notes-esES: Probabilidades de botín para Instancias de la base de datos de CMaNGOS (GPLv3). WhatItDrops lo carga bajo demanda.
+## Title-esMX: WhatItDrops |cff66ccffInstancias Datos|r
+## Notes-esMX: Probabilidades de botín para Instancias de la base de datos de CMaNGOS (GPLv3). WhatItDrops lo carga bajo demanda.
+## Title-ptBR: WhatItDrops |cff66ccffInstâncias Dados|r
+## Notes-ptBR: Taxas de saque para Instâncias do banco de dados do CMaNGOS (GPLv3). Carregado sob demanda pelo WhatItDrops.
+## Title-ruRU: WhatItDrops |cff66ccffПодземелья Данные|r
+## Notes-ruRU: Шансы добычи для региона «Подземелья» из базы данных CMaNGOS (GPLv3). Загружается по требованию WhatItDrops.
+## Title-koKR: WhatItDrops |cff66ccff인스턴스 데이터|r
+## Notes-koKR: 인스턴스의 CMaNGOS 데이터베이스 기반 전리품 확률 (GPLv3). WhatItDrops가 필요할 때 불러옵니다.
+## Title-zhCN: WhatItDrops |cff66ccff副本数据|r
+## Notes-zhCN: 副本的战利品概率，来自 CMaNGOS 数据库（GPLv3）。由 WhatItDrops 按需加载。
+## Title-zhTW: WhatItDrops |cff66ccff副本資料|r
+## Notes-zhTW: 副本的戰利品機率，來自 CMaNGOS 資料庫（GPLv3）。由 WhatItDrops 按需載入。
+## Title-itIT: WhatItDrops |cff66ccffIstanze Dati|r
+## Notes-itIT: Probabilità di bottino per Istanze dal database CMaNGOS (GPLv3). Caricato su richiesta da WhatItDrops.
+## Version: 1.4.0
+## IconTexture: Interface\AddOns\WhatItDrops\icon.tga
+## Group: WhatItDrops
+## X-Part-Of: WhatItDrops
+## LoadOnDemand: 1
+
+WhatItDrops_Instances_Vanilla.lua

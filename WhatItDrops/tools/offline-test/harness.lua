@@ -318,6 +318,7 @@ if CLIENT == "forever" then      -- the bundled Classic tables (Retail has none 
 	WhatItDropsItemName = { [1000] = "Wolf Pelt Copy", [1001] = "Wolf Pelt", [1002] = "Boar Tusk", [1003] = "Light Leather", [1004] = "Healing Herbs",
 		[1005] = "Plain Cloth", [1006] = "Strange Gem", [1007] = "Distant Trinket" }   -- 1007 is on no loot table
 	WhatItDropsQuestItem = { [1001] = true, [1002] = true }
+	WhatItDropsDataSource = "CMaNGOS classic-db (Vanilla 1.12)"
 end
 
 for _, rel in ipairs({ "Locales/Locale.lua", "Locales/deDE.lua", "Locales/frFR.lua", "Locales/esES.lua", "Locales/esMX.lua", "Locales/ptBR.lua", "Locales/ruRU.lua", "Locales/koKR.lua", "Locales/zhCN.lua", "Locales/zhTW.lua", "Locales/itIT.lua", "Names.lua", "Theme.lua", "WhatItDrops.lua", "Profile.lua", "Options.lua", "Settings.lua" }) do
@@ -361,6 +362,12 @@ local function lootWindow()
 	-- /loot help runs the help text through :format, which is where a bare % would crash
 	local before = #chat
 	try("/loot help", SlashCmdList.WHATITDROPS, "help")
+	-- /loot data names the database this client loaded
+	local beforeData = #chat
+	try("/loot data", SlashCmdList.WHATITDROPS, "data")
+	local sawSourceName = false
+	for i = beforeData + 1, #chat do if chat[i]:find(CLIENT == "forever" and "Vanilla 1.12" or "TrinityCore TDB", 1, true) then sawSourceName = true end end
+	if not sawSourceName then fails = fails + 1; note("FAIL [data] /loot data did not name the loaded database") end
 	if #chat <= before then fails = fails + 1; note("FAIL [l10n] /loot help printed nothing") end
 	if LOCALE == "enUS" then
 		local sawSource = false

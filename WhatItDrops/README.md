@@ -2,10 +2,7 @@
 
 Target any enemy in World of Warcraft (Retail, WoW: Forever or TBC Classic) and see its loot table.
 
-> **WoW: Forever accuracy.** The bundled Classic-side loot data comes from a TBC-era database,
-> but Forever's content is Vanilla. Drop rates, which creatures drop what, and which items exist
-> can therefore be **inaccurate on WoW: Forever**. Treat the lists there as a guide, not gospel.
-> Retail uses retail data and is not affected.
+> **WoW: Forever data.** Forever loads its own database, the CMaNGOS **Vanilla 1.12** one, chosen by its own `_Forever.toc` files; the TBC clients load the TBC one. Forever is Vanilla-based but not identical to the 1.12 server data, so some drop rates and items can still differ from the game. Treat the lists as a guide, not gospel. `/loot data` says which database your client loaded.
 
 > **Client support.** Runs on **Retail** (interface `120100`), **WoW Forever** (`16001`) and the
 > **TBC Classic / Anniversary** client (`20505`) from the same files. Retail reads creature loot
@@ -60,16 +57,18 @@ FlareUI by Malkkav (MIT).
 
 ## Data
 
-**Classic clients (TBC Classic and WoW: Forever).** Everything comes from the **CMaNGOS** TBC
-world database (`cmangos/tbc-db`, **GPL v3**): the loot tables are resolved into plain drop
-chances (groups, references and quest drops included), and item names, quality, creature names,
-the boss list and the quest-item flags come from the same dump. These are a server emulator's
-numbers, not live measurements, and they are TBC-era data, not Vanilla, which is why they can be
-inaccurate on WoW: Forever. Zone-wide pools (green and blue world drops) are listed after the
-creature's own drops, limited to chances of 0.1% or more. Creatures are bucketed into
-per-continent and per-instance partitions using the `creature` spawn tables, so the client only
-parses the region you are in. Names and quality are baked inline (no `GetItemInfo` flicker,
-offline, and they power the search).
+**Classic clients.** Everything comes from the **CMaNGOS** world databases (GPL v3): the loot
+tables are resolved into plain drop chances (groups, references and quest drops included), and
+item names, quality, creature names, the boss list and the quest-item flags come from the same
+dump. **TBC Classic** uses `cmangos/tbc-db` (TBC 2.4.3); **WoW: Forever** uses `cmangos/classic-db`
+(Vanilla 1.12). Each client loads only its own: the main addon and the five data packs ship a
+default TOC (TBC) and `_Forever.toc` / `_Camelot.toc` variants (Vanilla), and the client picks
+the one matching its game type. These are a server emulator's numbers, not live measurements.
+Zone-wide pools (green and blue world drops) are listed after the creature's own drops, limited
+to chances of 0.1% or more. Creatures are bucketed into per-continent and per-instance
+partitions using the `creature` spawn tables, so the client only parses the region you are in.
+Names and quality are baked inline (no `GetItemInfo` flicker, offline, and they power the
+search).
 
 **Retail creatures.** Loot and chances come from the **TrinityCore** `TDB` world database
 (**GPL v3**), about 8,400 creatures. It has no loot for current instanced bosses (Retail builds
@@ -88,19 +87,25 @@ licenses. Credit to the **CMaNGOS** project and the **TrinityCore** project.
 
 ### Classic packs
 
-Download the base dump from the `cmangos/tbc-db` repo's `Full_DB/` folder
-(`TBCDB_1.11.0_...sql.gz`), decompress it to `tools/cmangos/tbcdb.sql` (git-ignored), then:
+Download a base dump from the CMaNGOS repos' `Full_DB/` folders and decompress it (the `.sql` files
+are git-ignored): `cmangos/tbc-db` `TBCDB_*.sql.gz` to `tools/cmangos/tbcdb.sql`, and
+`cmangos/classic-db` `ClassicDB_*.sql.gz` to `tools/cmangos/classic/classicdb.sql`. Then:
 
 ```
 python tools/generate-from-cmangos.py tools/cmangos/tbcdb.sql <your AddOns folder>
+python tools/generate-from-cmangos.py tools/cmangos/classic/classicdb.sql <your AddOns folder> --vanilla
+python tools/localize-tocs.py <your AddOns folder>
+python tools/check-tocs.py <your AddOns folder>
 ```
 
-This rebuilds the five regional packs (`WhatItDrops_<Region>.lua`, not their TOCs),
-`Data/WhatItDropsItems.lua` (names and quality), `Data/WhatItDropsBosses.lua` (instance map id
-to boss NPC ids; a boss is a single-spawn creature that drops a rare-or-better item, or a Rank 3
-creature) and `Data/WhatItDropsQuestItems.lua` (Quest-class item ids), all from that one file.
-`tools/cmangos_loot.py` does the loot maths and `python tools/test_cmangos_loot.py` checks it
-against hand-worked examples.
+The first rebuilds the five regional packs (`WhatItDrops_<Region>.lua`) and
+`Data/WhatItDrops{Items,Bosses,QuestItems}.lua`; with `--vanilla` the packs are
+`WhatItDrops_<Region>_Vanilla.lua` and the data goes to `Data/Forever/`. A boss is a
+single-spawn creature that drops a rare-or-better item, or a Rank 3 creature. `localize-tocs.py`
+writes the localized TOC lines and the `_Forever.toc` / `_Camelot.toc` variants, and
+`check-tocs.py` loads each client's TOC file list in a fresh Lua state to prove it gets only its
+own database. `tools/cmangos_loot.py` does the loot maths and `python tools/test_cmangos_loot.py`
+checks it against hand-worked examples.
 
 ### Retail pack
 

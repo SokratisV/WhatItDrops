@@ -1842,6 +1842,9 @@ SlashCmdList.WHATITDROPS = function(msg)
 		WhatItDrops_ShowQuest()
 	elseif msg == "names" then
 		ReportNames()
+	elseif msg == "data" then
+		-- which loot database this client loaded (the Forever client loads the vanilla one)
+		print("|cff66ccffWhatItDrops|r: " .. L["Loot data: %s"]:format(WhatItDropsDataSource or "TrinityCore TDB"))
 	elseif msg == "bosses" then
 		if not WhatItDrops_ShowInstanceBosses() then
 			print("|cff66ccffWhatItDrops|r: " .. L["no boss list — you're not in a dungeon/raid we have data for."])
@@ -1855,6 +1858,7 @@ SlashCmdList.WHATITDROPS = function(msg)
 		print("  " .. L["%s — list the bosses of the instance you're in"]:format("|cffffd100/loot bosses|r"))
 		print("  " .. L["%s — items the selected quest needs, and where they drop"]:format("|cffffd100/loot quest|r"))
 		print("  " .. L["%s — check the item and creature names in your language"]:format("|cffffd100/loot names|r"))
+		print("  " .. L["%s — show which loot database this client loaded"]:format("|cffffd100/loot data|r"))
 		print("  " .. L["%s — toggle auto-showing on target"]:format("|cffffd100/loot auto|r"))
 		print("  " .. L["%s (or %s) — open the settings window"]:format("|cffffd100/loot config|r", "|cffffd100/wid|r"))
 		print("  " .. L["%s, %s — copy your whole setup as text, or paste one back"]:format("|cffffd100/wid export|r", "|cffffd100/wid import|r"))
