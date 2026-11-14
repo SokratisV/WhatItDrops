@@ -93,6 +93,8 @@ available (auto-downloaded and decompressed under `tools/cmangos/`):
 ./generate-from-lootcodex.ps1
 ```
 
+The SQL input `tools/cmangos/tbcdb.sql` is the base dump from the `cmangos/tbc-db` repo's `Full_DB/` folder (`TBCDB_1.11.0_...sql.gz`, decompressed; the script unpacks a `tbcdb.sql.gz` next to it if the `.sql` is missing). The scripts take it with `-Sql <path>`. Regenerating rewrites the six pack TOCs with stale headers, so restore them afterwards (`git restore WhatItDrops_*/*.toc`).
+
 This rebuilds the Classic partition addons and `Data/WhatItDropsItems.lua`. The multi-MB SQL
 build input under `tools/cmangos/` is git-ignored.
 

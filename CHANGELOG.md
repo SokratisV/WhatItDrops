@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+- **Classic data regenerated against the current cmangos `tbc-db`** (base dump `TBCDB_1.11.0`,
+  replacing the May snapshot). The generators now also read `creature_spawn_entry`, which newer
+  dumps use for creatures that share a spawn point: about 250 creatures that would otherwise have
+  fallen back to the catch-all pack are filed under the right continent or instance again, and
+  about ten trash mobs that were mistaken for dungeon bosses (for example Murkblood Healer and
+  Sethekk Shaman) are no longer listed as bosses. Drop rates and item names are unchanged: they
+  still come from the LootCodex data, which was not refreshed.
+
 ## [1.4.0] - 2026-10-22
 
 - **Profile export and import.** A new **Profile** page in the settings window (and `/wid export`,
