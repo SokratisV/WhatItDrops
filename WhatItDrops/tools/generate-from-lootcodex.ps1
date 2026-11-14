@@ -49,13 +49,28 @@ Write-Host "Parsing creature spawns ..."
 $rxSpawn = [regex]"\((\d+),(\d+),(\d+),"
 $spawns = @{}
 $needle = "INSERT INTO ``creature`` VALUES"
+# Newer cmangos dumps leave creature.id at 0 for spawns whose creature is listed in
+# creature_spawn_entry (guid, entry), so both tables are read: guid -> map from `creature`,
+# then each (guid, entry) pair counts as a spawn of that entry on that map.
+$needleE = "INSERT INTO ``creature_spawn_entry`` VALUES"
+$rxEntry = [regex]"\((\d+),(\d+)\)"
+$guidMap = @{}
+function AddSpawn([int]$id, [int]$mid) {
+    $part = switch ($mid) { 0 {'EasternKingdoms'} 1 {'Kalimdor'} 530 {'Outland'} default {'Instances'} }
+    if (-not $spawns.ContainsKey($id)) { $spawns[$id] = New-Object 'System.Collections.Generic.HashSet[string]' }
+    [void]$spawns[$id].Add($part)
+}
 foreach ($line in [System.IO.File]::ReadLines($Sql)) {
-    if (-not $line.StartsWith($needle)) { continue }
-    foreach ($m in $rxSpawn.Matches($line)) {
-        $id = [int]$m.Groups[2].Value; $mid = [int]$m.Groups[3].Value
-        $part = switch ($mid) { 0 {'EasternKingdoms'} 1 {'Kalimdor'} 530 {'Outland'} default {'Instances'} }
-        if (-not $spawns.ContainsKey($id)) { $spawns[$id] = New-Object 'System.Collections.Generic.HashSet[string]' }
-        [void]$spawns[$id].Add($part)
+    if ($line.StartsWith($needle)) {
+        foreach ($m in $rxSpawn.Matches($line)) {
+            $id = [int]$m.Groups[2].Value; $mid = [int]$m.Groups[3].Value
+            if ($id -eq 0) { $guidMap[[int]$m.Groups[1].Value] = $mid } else { AddSpawn $id $mid }
+        }
+    } elseif ($line.StartsWith($needleE)) {
+        foreach ($m in $rxEntry.Matches($line)) {
+            $g = [int]$m.Groups[1].Value
+            if ($guidMap.ContainsKey($g)) { AddSpawn ([int]$m.Groups[2].Value) $guidMap[$g] }
+        }
     }
 }
 Write-Host ("  spawn-mapped npcs: {0}" -f $spawns.Count)
@@ -81,6 +96,7 @@ function FlushNpc {
     # design, so this only bounds the mob-specific portion.)
     if ($script:spec.Count -gt 500) {
         Write-Warning ("Skipping npc {0}: {1} mob-specific drops looks like a corrupted reference dump." -f $script:curNpc, $script:spec.Count)
+        $npcName.Remove($script:curNpc)     # no loot shipped, so no name either
         return
     }
     $script:spec  | Sort-Object -Property r -Descending | Out-Null

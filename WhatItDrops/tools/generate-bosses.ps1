@@ -19,12 +19,26 @@ $CONTINENTS = @{ 0=$true; 1=$true; 530=$true }   # not instances
 $rxSpawn=[regex]"\((\d+),(\d+),(\d+),"
 $spawnCount=@{}
 $needleC="INSERT INTO ``creature`` VALUES"
+# Newer cmangos dumps leave creature.id at 0 for spawns listed in creature_spawn_entry (guid, entry):
+# remember guid -> map for those and count each (guid, entry) pair as a spawn of that entry.
+$needleE="INSERT INTO ``creature_spawn_entry`` VALUES"
+$rxEntry=[regex]"\((\d+),(\d+)\)"
+$guidMap=@{}
+function CountSpawn([int]$id,[int]$mid){
+  if($CONTINENTS.ContainsKey($mid)){return}
+  $k="$id`:$mid"; if($spawnCount.ContainsKey($k)){$spawnCount[$k]++}else{$spawnCount[$k]=1}
+}
 foreach($line in [System.IO.File]::ReadLines($Sql)){
-  if(-not $line.StartsWith($needleC)){continue}
-  foreach($m in $rxSpawn.Matches($line)){
-    $id=[int]$m.Groups[2].Value; $mid=[int]$m.Groups[3].Value
-    if($CONTINENTS.ContainsKey($mid)){continue}
-    $k="$id`:$mid"; if($spawnCount.ContainsKey($k)){$spawnCount[$k]++}else{$spawnCount[$k]=1}
+  if($line.StartsWith($needleC)){
+    foreach($m in $rxSpawn.Matches($line)){
+      $id=[int]$m.Groups[2].Value; $mid=[int]$m.Groups[3].Value
+      if($id -eq 0){$guidMap[[int]$m.Groups[1].Value]=$mid}else{CountSpawn $id $mid}
+    }
+  } elseif($line.StartsWith($needleE)){
+    foreach($m in $rxEntry.Matches($line)){
+      $g=[int]$m.Groups[1].Value
+      if($guidMap.ContainsKey($g)){CountSpawn ([int]$m.Groups[2].Value) $guidMap[$g]}
+    }
   }
 }
 
