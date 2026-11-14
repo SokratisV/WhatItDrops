@@ -1,25 +1,25 @@
 ## Interface: 16001, 20505, 120100
-## Title: WhatItDrops |cff66ccffWowhead|r
+## Title: WhatItDrops
 ## Notes: Loot tables for any mob: /loot, /fullloot, /loot browse. Inline names + item search.
-## Title-deDE: WhatItDrops |cff66ccffWowhead|r
+## Title-deDE: WhatItDrops
 ## Notes-deDE: Beutelisten für jeden Gegner: /loot, /fullloot, /loot browse. Namen direkt in der Liste plus Gegenstandssuche.
-## Title-frFR: WhatItDrops |cff66ccffWowhead|r
+## Title-frFR: WhatItDrops
 ## Notes-frFR: Tables de butin pour n'importe quel monstre : /loot, /fullloot, /loot browse. Noms intégrés et recherche d'objets.
-## Title-esES: WhatItDrops |cff66ccffWowhead|r
+## Title-esES: WhatItDrops
 ## Notes-esES: Tablas de botín de cualquier monstruo: /loot, /fullloot, /loot browse. Nombres integrados y búsqueda de objetos.
-## Title-esMX: WhatItDrops |cff66ccffWowhead|r
+## Title-esMX: WhatItDrops
 ## Notes-esMX: Tablas de botín de cualquier monstruo: /loot, /fullloot, /loot browse. Nombres integrados y búsqueda de objetos.
-## Title-ptBR: WhatItDrops |cff66ccffWowhead|r
+## Title-ptBR: WhatItDrops
 ## Notes-ptBR: Tabelas de saque de qualquer monstro: /loot, /fullloot, /loot browse. Nomes incluídos e busca de itens.
-## Title-ruRU: WhatItDrops |cff66ccffWowhead|r
+## Title-ruRU: WhatItDrops
 ## Notes-ruRU: Таблицы добычи любого монстра: /loot, /fullloot, /loot browse. Встроенные названия и поиск предметов.
-## Title-koKR: WhatItDrops |cff66ccffWowhead|r
+## Title-koKR: WhatItDrops
 ## Notes-koKR: 모든 몬스터의 전리품 목록: /loot, /fullloot, /loot browse. 이름 내장 및 아이템 검색.
-## Title-zhCN: WhatItDrops |cff66ccffWowhead|r
+## Title-zhCN: WhatItDrops
 ## Notes-zhCN: 任意怪物的战利品表：/loot、/fullloot、/loot browse。内置名称和物品搜索。
-## Title-zhTW: WhatItDrops |cff66ccffWowhead|r
+## Title-zhTW: WhatItDrops
 ## Notes-zhTW: 任何怪物的戰利品表：/loot、/fullloot、/loot browse。內建名稱與物品搜尋。
-## Title-itIT: WhatItDrops |cff66ccffWowhead|r
+## Title-itIT: WhatItDrops
 ## Notes-itIT: Tabelle del bottino di qualsiasi mostro: /loot, /fullloot, /loot browse. Nomi incorporati e ricerca oggetti.
 ## Author: Sokratis
 ## Version: 1.4.0

@@ -6,16 +6,16 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-- **Classic data regenerated against the current cmangos `tbc-db`** (base dump `TBCDB_1.11.0`,
-  replacing the May snapshot). The generators now also read `creature_spawn_entry`, which newer
-  dumps use for creatures that share a spawn point: about 250 creatures that would otherwise have
-  fallen back to the catch-all pack are filed under the right continent or instance again, and
-  about ten trash mobs that were mistaken for dungeon bosses (for example Murkblood Healer and
-  Sethekk Shaman) are no longer listed as bosses. Drop rates and item names are unchanged: they
-  still come from the LootCodex data, which was not refreshed.
-
-## [1.4.0] - 2026-10-22
-
+- **The Classic data no longer uses LootCodex.** Drop chances, item and creature names, quality,
+  the boss list and the quest-item flags are now generated entirely from the current CMaNGOS
+  `tbc-db` (base dump `TBCDB_1.11.0`, GPL v3): the loot tables are resolved into plain chances
+  (groups, references rolled several times, quest drops). The numbers are a server emulator's, not
+  Wowhead measurements: on creatures both versions list, three quarters of the drop chances agree
+  within 5 points and the median difference is zero, and the dungeon boss lists match. Creatures
+  now carry their own drops first and zone-wide pool drops after them (only chances of 0.1% or
+  more), about 360 more creatures have loot, and creatures that share a spawn point (and heroic
+  versions) are filed under the right continent or instance. The README, the pack descriptions and
+  the in-game source line no longer name LootCodex or Wowhead as the data source.
 - **Profile export and import.** A new **Profile** page in the settings window (and `/wid export`,
   `/wid import`) turns your whole setup into one line of text, `WID1:...`, and restores it on
   another character or install. It covers every setting, the loot window, browser and settings

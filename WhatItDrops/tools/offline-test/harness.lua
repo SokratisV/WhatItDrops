@@ -363,9 +363,9 @@ local function lootWindow()
 	try("/loot help", SlashCmdList.WHATITDROPS, "help")
 	if #chat <= before then fails = fails + 1; note("FAIL [l10n] /loot help printed nothing") end
 	if LOCALE == "enUS" then
-		local sawPercent = false
-		for i = before + 1, #chat do if chat[i]:find("(Wowhead %, via LootCodex data)", 1, true) then sawPercent = true end end
-		if not sawPercent then fails = fails + 1; note("FAIL [l10n] the help line lost its literal 'Wowhead %'") end
+		local sawSource = false
+		for i = before + 1, #chat do if chat[i]:find("(drop chances from the CMaNGOS database)", 1, true) then sawSource = true end end
+		if not sawSource then fails = fails + 1; note("FAIL [l10n] the help line lost its data-source note") end
 	end
 end
 

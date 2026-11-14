@@ -94,12 +94,12 @@ A small **family of addons**: one always-loaded UI addon plus data packs that lo
 
 ## Data and accuracy
 
-- **Classic clients (TBC Classic and WoW: Forever).** Loot rates, items, world-drop flags, names
-  and quality come from the **LootCodex** addon's Wowhead-derived database (by Coldnova, GPL v3,
-  itself derived from `cmangos/tbc-db`). Rates are Wowhead measurements from TBC Classic, so they
-  fit TBC Classic well. **They are TBC data, not Vanilla**, which is why they can be wrong on
-  WoW: Forever. Creatures are bucketed into per-continent and per-instance packs using the
-  `cmangos/tbc-db` spawn table.
+- **Classic clients (TBC Classic and WoW: Forever).** Everything comes from the **CMaNGOS** TBC
+  world database (`cmangos/tbc-db`, GPL v3): loot tables resolved into plain drop chances, item
+  names and quality, creature names, bosses and quest-item flags. These are a server emulator's
+  numbers rather than live measurements, and **they are TBC-era data, not Vanilla**, which is why
+  they can be wrong on WoW: Forever. Creatures are bucketed into per-continent and per-instance
+  packs using the spawn tables.
 - **Retail creatures.** Loot and chances come from the **TrinityCore** `TDB` world database
   (GPL v3), covering about 8,400 creatures. It has no loot for current instanced bosses, because
   Retail builds that from the Encounter Journal.
@@ -123,7 +123,7 @@ Bug reports and feature ideas are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md
 
 Distributed under the **GNU General Public License v3.0**; see [LICENSE](LICENSE).
 
-This project incorporates data generated from **LootCodex** (GPL v3), **cmangos/tbc-db**
-(GPL v3) and the **TrinityCore** TDB (GPL v3); as a derivative work it is necessarily GPL v3.
-Credit to **Coldnova** (LootCodex), the **CMaNGOS** project and the **TrinityCore** project.
+This project incorporates data generated from **cmangos/tbc-db** (GPL v3) and the **TrinityCore**
+TDB (GPL v3); as a derivative work it is necessarily GPL v3. Credit to the **CMaNGOS** project and
+the **TrinityCore** project.
 The settings window is in the style of **FlareUI** by Malkkav (MIT).

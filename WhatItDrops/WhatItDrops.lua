@@ -917,7 +917,7 @@ local function ShowNPC(npcID, npcName)
 	current.id, current.name, current.questKey = npcID, npcName, nil
 	current.player, current.unit, current.inspectGUID = false, nil, nil
 	current.items = BuildList(npcID)
-	f.source:SetText(L["Loot: Wowhead %  (data via LootCodex)"])
+	f.source:SetText(L["Loot: drop chances (CMaNGOS database)"])
 	f.title:SetText((npcName or L["NPC"]) .. "  |cff888888(" .. npcID .. ")|r")
 	f.empty:SetText(L["No bundled loot for this NPC. Use the Wowhead link below."])
 	f.check:SetChecked(WhatItDropsDB and WhatItDropsDB.hideJunk or false)
@@ -1850,7 +1850,7 @@ SlashCmdList.WHATITDROPS = function(msg)
 		WhatItDrops_JournalStatus(msg:match("^journal%s+(.+)$"))
 	elseif msg == "help" then
 		print("|cff66ccffWhatItDrops|r " .. L["commands:"])
-		print("  " .. L["%s — loot table for your current target (Wowhead %%, via LootCodex data)"]:format("|cffffd100/loot|r"))
+		print("  " .. L["%s — loot table for your current target (drop chances from the CMaNGOS database)"]:format("|cffffd100/loot|r"))
 		print("  " .. L["%s — search items or creatures by name"]:format("|cffffd100/loot browse [text]|r"))
 		print("  " .. L["%s — list the bosses of the instance you're in"]:format("|cffffd100/loot bosses|r"))
 		print("  " .. L["%s — items the selected quest needs, and where they drop"]:format("|cffffd100/loot quest|r"))

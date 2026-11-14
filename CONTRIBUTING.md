@@ -34,4 +34,4 @@ report** template. The most useful things to include:
 - Branch off `master`, keep commits focused, and write a clear summary.
 - Bump the `## Version:` in the affected `.toc` files and add a `CHANGELOG.md` entry.
 - By contributing you agree your changes are licensed under **GPL‑3.0** (this project is
-  a GPL v3 derivative of LootCodex / cmangos/tbc-db and cannot be relicensed).
+  a GPL v3 derivative of cmangos/tbc-db and the TrinityCore TDB and cannot be relicensed).

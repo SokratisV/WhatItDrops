@@ -60,13 +60,16 @@ FlareUI by Malkkav (MIT).
 
 ## Data
 
-**Classic clients (TBC Classic and WoW: Forever).** Loot rates, items, world-drop flags, names and
-quality come from the **LootCodex** addon's Wowhead-derived database (by Coldnova, **GPL v3**,
-itself derived from `cmangos/tbc-db`). Rates are Wowhead measurements from TBC Classic, so they
-fit TBC Classic well. They are TBC data, not Vanilla, which is why they can be inaccurate on
-WoW: Forever. Creatures are bucketed into per-continent and per-instance partitions using the
-`cmangos/tbc-db` `creature` spawn table, so the client only parses the region you are in. Names
-and quality are baked inline (no `GetItemInfo` flicker, offline, and they power the search).
+**Classic clients (TBC Classic and WoW: Forever).** Everything comes from the **CMaNGOS** TBC
+world database (`cmangos/tbc-db`, **GPL v3**): the loot tables are resolved into plain drop
+chances (groups, references and quest drops included), and item names, quality, creature names,
+the boss list and the quest-item flags come from the same dump. These are a server emulator's
+numbers, not live measurements, and they are TBC-era data, not Vanilla, which is why they can be
+inaccurate on WoW: Forever. Zone-wide pools (green and blue world drops) are listed after the
+creature's own drops, limited to chances of 0.1% or more. Creatures are bucketed into
+per-continent and per-instance partitions using the `creature` spawn tables, so the client only
+parses the region you are in. Names and quality are baked inline (no `GetItemInfo` flicker,
+offline, and they power the search).
 
 **Retail creatures.** Loot and chances come from the **TrinityCore** `TDB` world database
 (**GPL v3**), about 8,400 creatures. It has no loot for current instanced bosses (Retail builds
@@ -77,40 +80,27 @@ come from the game at runtime.
 
 ### License / credit
 
-This project incorporates data generated from **LootCodex**, **cmangos/tbc-db** and the
-**TrinityCore** TDB (all GPL v3). As a derivative it is distributed under **GPL v3**; see those
-projects for their licenses. Credit to **Coldnova** (LootCodex), the **CMaNGOS** project and the
-**TrinityCore** project.
+This project incorporates data generated from **cmangos/tbc-db** and the **TrinityCore** TDB
+(both GPL v3). As a derivative it is distributed under **GPL v3**; see those projects for their
+licenses. Credit to the **CMaNGOS** project and the **TrinityCore** project.
 
 ## Regenerating data (dev)
 
 ### Classic packs
 
-From `WhatItDrops/tools/` (PowerShell), with LootCodex installed and the CMaNGOS world DB
-available (auto-downloaded and decompressed under `tools/cmangos/`):
+Download the base dump from the `cmangos/tbc-db` repo's `Full_DB/` folder
+(`TBCDB_1.11.0_...sql.gz`), decompress it to `tools/cmangos/tbcdb.sql` (git-ignored), then:
 
-```powershell
-./generate-from-lootcodex.ps1
+```
+python tools/generate-from-cmangos.py tools/cmangos/tbcdb.sql <your AddOns folder>
 ```
 
-The SQL input `tools/cmangos/tbcdb.sql` is the base dump from the `cmangos/tbc-db` repo's `Full_DB/` folder (`TBCDB_1.11.0_...sql.gz`, decompressed; the script unpacks a `tbcdb.sql.gz` next to it if the `.sql` is missing). The scripts take it with `-Sql <path>`. Regenerating rewrites the six pack TOCs with stale headers, so restore them afterwards (`git restore WhatItDrops_*/*.toc`).
-
-This rebuilds the Classic partition addons and `Data/WhatItDropsItems.lua`. The multi-MB SQL
-build input under `tools/cmangos/` is git-ignored.
-
-```powershell
-./generate-bosses.ps1
-```
-
-This rebuilds `Data/WhatItDropsBosses.lua` (instance map id to boss NPC ids) from the same
-CMaNGOS `creature` / `creature_template` tables plus LootCodex item quality.
-
-```powershell
-./generate-questitems.ps1
-```
-
-This rebuilds `Data/WhatItDropsQuestItems.lua` (item ids that are Quest-class in
-`item_template`), used to flag quest drops with a marker in the loot window.
+This rebuilds the five regional packs (`WhatItDrops_<Region>.lua`, not their TOCs),
+`Data/WhatItDropsItems.lua` (names and quality), `Data/WhatItDropsBosses.lua` (instance map id
+to boss NPC ids; a boss is a single-spawn creature that drops a rare-or-better item, or a Rank 3
+creature) and `Data/WhatItDropsQuestItems.lua` (Quest-class item ids), all from that one file.
+`tools/cmangos_loot.py` does the loot maths and `python tools/test_cmangos_loot.py` checks it
+against hand-worked examples.
 
 ### Retail pack
 

@@ -7,7 +7,7 @@ Region names are the terms the WoW client uses for those zones.
 
 LOCALES = ["deDE", "frFR", "esES", "esMX", "ptBR", "ruRU", "koKR", "zhCN", "zhTW", "itIT"]
 
-MAIN_TITLE = "WhatItDrops |cff66ccffWowhead|r"
+MAIN_TITLE = "WhatItDrops"
 
 NOTES_MAIN = {
     "deDE": "Beutelisten für jeden Gegner: /loot, /fullloot, /loot browse. Namen direkt in der Liste plus Gegenstandssuche.",
@@ -62,16 +62,16 @@ REGION = {
 
 # "%s" is the region name
 NOTES_CLASSIC_PACK = {
-    "deDE": "Wowhead-Beute für %s (über LootCodex, GPLv3). Wird bei Bedarf von WhatItDrops geladen.",
-    "frFR": "Butin Wowhead pour %s (via LootCodex, GPLv3). Chargé à la demande par WhatItDrops.",
-    "esES": "Botín de Wowhead para %s (vía LootCodex, GPLv3). WhatItDrops lo carga bajo demanda.",
-    "esMX": "Botín de Wowhead para %s (vía LootCodex, GPLv3). WhatItDrops lo carga bajo demanda.",
-    "ptBR": "Saque do Wowhead para %s (via LootCodex, GPLv3). Carregado sob demanda pelo WhatItDrops.",
-    "ruRU": "Добыча Wowhead для региона «%s» (через LootCodex, GPLv3). Загружается по требованию WhatItDrops.",
-    "koKR": "%s의 Wowhead 전리품 (LootCodex 경유, GPLv3). WhatItDrops가 필요할 때 불러옵니다.",
-    "zhCN": "%s的 Wowhead 战利品（来自 LootCodex，GPLv3）。由 WhatItDrops 按需加载。",
-    "zhTW": "%s的 Wowhead 戰利品（來自 LootCodex，GPLv3）。由 WhatItDrops 按需載入。",
-    "itIT": "Bottino di Wowhead per %s (tramite LootCodex, GPLv3). Caricato su richiesta da WhatItDrops.",
+    "deDE": "Beutechancen für %s aus der CMaNGOS-Datenbank (GPLv3). Wird bei Bedarf von WhatItDrops geladen.",
+    "frFR": "Taux de butin pour %s issus de la base CMaNGOS (GPLv3). Chargé à la demande par WhatItDrops.",
+    "esES": "Probabilidades de botín para %s de la base de datos de CMaNGOS (GPLv3). WhatItDrops lo carga bajo demanda.",
+    "esMX": "Probabilidades de botín para %s de la base de datos de CMaNGOS (GPLv3). WhatItDrops lo carga bajo demanda.",
+    "ptBR": "Taxas de saque para %s do banco de dados do CMaNGOS (GPLv3). Carregado sob demanda pelo WhatItDrops.",
+    "ruRU": "Шансы добычи для региона «%s» из базы данных CMaNGOS (GPLv3). Загружается по требованию WhatItDrops.",
+    "koKR": "%s의 CMaNGOS 데이터베이스 기반 전리품 확률 (GPLv3). WhatItDrops가 필요할 때 불러옵니다.",
+    "zhCN": "%s的战利品概率，来自 CMaNGOS 数据库（GPLv3）。由 WhatItDrops 按需加载。",
+    "zhTW": "%s的戰利品機率，來自 CMaNGOS 資料庫（GPLv3）。由 WhatItDrops 按需載入。",
+    "itIT": "Probabilità di bottino per %s dal database CMaNGOS (GPLv3). Caricato su richiesta da WhatItDrops.",
 }
 NOTES_RETAIL_PACK = {
     "deDE": "Retail-Kreaturenbeute aus der TrinityCore-TDB (GPLv3). Wird bei Bedarf von WhatItDrops geladen.",
