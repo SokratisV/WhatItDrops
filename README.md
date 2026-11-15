@@ -43,7 +43,7 @@ Screenshots: drop images into docs/ and reference them here, e.g.
 - ✨ **Loot window polish.** A drop-rate bar behind each row, quality-coloured icon borders, a
   sparkle on rare-or-better drops under 2%, rows that fade in, and an optional 3D model of the
   target. Each effect has its own switch.
-- 🎨 **Settings window.** Themes (Blizzard, ElvUI, Slate, Parchment), accent colour, opacity,
+- 🎨 **Settings window.** Themes (**Flare**, the default, in the style of FlareUI; Blizzard, ElvUI, Slate, Parchment), accent colour, opacity,
   scale and row height, all applied live. Every setting is explained in a panel as you hover it.
 - 🗺️ **Minimap button.** Left-click reloads the UI, right-click does a loot lookup, drag to
   reposition. Toggle it in the settings.

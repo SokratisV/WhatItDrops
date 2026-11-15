@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+- **The loot window and browser now look like FlareUI by default.** A new **Flare** theme draws a dark
+  window with bronze trim over Blizzard's Collections tile (Blizzard textures only, none of FlareUI's
+  art), matching the settings window, and it is the default. Installs that still had the old default,
+  Blizzard's dialog look, are moved to it once; pick Blizzard again under Settings > Appearance if you
+  prefer it, and it stays. The window-theme row now has the swatches on a line of their own so five
+  fit beside translated labels.
 - **WoW: Forever now has its own Vanilla loot database.** It is generated from the CMaNGOS
   `classic-db` (Vanilla 1.12, GPL v3) with the same loot-resolving code as the TBC data, and the
   Forever client loads it through `WhatItDrops_Forever.toc` (plus an identical `_Camelot.toc`, the

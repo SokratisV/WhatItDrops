@@ -27,7 +27,7 @@ end
 -- 1. SCHEMA: the one list of what a profile holds
 --------------------------------------------------------------------------
 local function set(list) local s = {} for _, v in ipairs(list) do s[v] = true end return s end
-local THEMES = set({ "blizzard", "elvui", "slate", "parchment" })
+local THEMES = set({ "flare", "blizzard", "elvui", "slate", "parchment" })
 local ROWSIZES = set({ "compact", "normal", "roomy" })
 local ACCENTS = {}
 for k in pairs(WhatItDrops_Accents or { gold = true }) do ACCENTS[k] = true end
@@ -292,7 +292,7 @@ function WhatItDrops_ImportProfile(text)
     if not values then return false, info end
 
     local d = db()
-    local oldTheme = d.theme or "blizzard"
+    local oldTheme = d.theme or "flare"
     -- every profile setting back to its default, then the imported ones on top
     for _, e in ipairs(SCHEMA) do
         if not e.action then setPath(d, e.key, nil) end
@@ -324,7 +324,7 @@ function WhatItDrops_ImportProfile(text)
     local msg = L["Imported %d settings."]:format(info.count)
     if info.ignored > 0 then msg = msg .. " " .. L["%d entries weren't recognized and were skipped."]:format(info.ignored) end
     if skippedBinds then msg = msg .. " " .. L["Keybinds weren't changed (you're in combat, or the key was refused)."] end
-    local newTheme = d.theme or "blizzard"
+    local newTheme = d.theme or "flare"
     if (oldTheme == "elvui") ~= (newTheme == "elvui") then
         msg = msg .. " " .. L["Switching to or from ElvUI needs a /reload."]
     end

@@ -1,8 +1,11 @@
 -- WhatItDrops theming layer.
--- Two themes:
---   "blizzard" — the classic gold-bordered dialog look (default, unchanged).
+-- Themes:
+--   "flare"    — the default: a dark window with bronze trim over Blizzard's Collections
+--                tile, in the style of FlareUI (Blizzard textures only, none of its art).
+--   "blizzard" — the classic gold-bordered dialog look.
 --   "elvui"    — a flat dark skin. If ElvUI is installed it uses ElvUI's real
 --                skinning API for a perfect match; otherwise a native flat look.
+--   "slate", "parchment" — flat coloured frames.
 -- Every skin op is pcall-guarded: a theming failure leaves the widget as-is and
 -- never breaks the addon.
 
@@ -12,7 +15,7 @@ WhatItDrops_Skin = Skin
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 
 local function Theme()
-	return (WhatItDropsDB and WhatItDropsDB.theme) or "blizzard"
+	return (WhatItDropsDB and WhatItDropsDB.theme) or "flare"
 end
 Skin.GetTheme = Theme
 
@@ -79,9 +82,44 @@ end
 -- Public skinning entry points
 ----------------------------------------------------------------------
 
--- A BackdropTemplate frame (our two main windows).
+-- FlareUI's frame: a bronze tooltip-style border over a dark base, Blizzard's Collections
+-- tile and a black wash. The three layers are made once per frame and hidden under any
+-- other theme.
+local FLARE_BORDER = { 0.80, 0.60, 0.34 }
+local function flareLayers(f)
+	local l = f.__flare
+	if not l then
+		l = {}
+		l.base = f:CreateTexture(nil, "BACKGROUND", nil, 0)
+		l.base:SetPoint("TOPLEFT", 5, -5); l.base:SetPoint("BOTTOMRIGHT", -5, 5)
+		l.art = f:CreateTexture(nil, "BACKGROUND", nil, 1)
+		l.art:SetAllPoints(l.base)
+		l.art:SetTexture("Interface\\Collections\\CollectionsBackgroundTile", "REPEAT", "REPEAT")
+		l.art:SetHorizTile(true); l.art:SetVertTile(true)
+		l.wash = f:CreateTexture(nil, "BACKGROUND", nil, 2)
+		l.wash:SetAllPoints(l.base)
+		f.__flare = l
+	end
+	return l
+end
+
 function Skin.Frame(f)
 	local t = Theme()
+	if f.__flare and t ~= "flare" then
+		f.__flare.base:Hide(); f.__flare.art:Hide(); f.__flare.wash:Hide()
+	end
+	if t == "flare" then
+		guard(function()
+			local l = flareLayers(f)
+			f:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 16 })
+			f:SetBackdropBorderColor(FLARE_BORDER[1], FLARE_BORDER[2], FLARE_BORDER[3], 1)
+			l.base:SetColorTexture(0.06, 0.055, 0.045, Alpha(0.97))
+			l.art:SetAlpha(Alpha(1))
+			l.wash:SetColorTexture(0, 0, 0, Alpha(0.5))
+			l.base:Show(); l.art:Show(); l.wash:Show()
+		end)
+		return
+	end
 	if t == "elvui" then
 		local _, S = Elv()
 		if S and f.SetTemplate then

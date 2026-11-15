@@ -1641,7 +1641,13 @@ local function SeedDB()
 	if WhatItDropsDB.auto == nil then WhatItDropsDB.auto = false end
 	if WhatItDropsDB.hideJunk == nil then WhatItDropsDB.hideJunk = false end
 	if WhatItDropsDB.showWorldDrops == nil then WhatItDropsDB.showWorldDrops = true end
-	if WhatItDropsDB.theme == nil then WhatItDropsDB.theme = "blizzard" end
+	if WhatItDropsDB.theme == nil then WhatItDropsDB.theme = "flare" end
+	-- The default look changed from Blizzard's dialog to FlareUI's. "blizzard" was seeded for
+	-- everyone, so it cannot be told from a choice: move it over once, then leave the choice alone.
+	if not WhatItDropsDB.flareDefault then
+		WhatItDropsDB.flareDefault = true
+		if WhatItDropsDB.theme == "blizzard" then WhatItDropsDB.theme = "flare" end
+	end
 	if WhatItDropsDB.clearSearchOnOpen == nil then WhatItDropsDB.clearSearchOnOpen = true end
 	if WhatItDropsDB.useMouseover == nil then WhatItDropsDB.useMouseover = false end
 	WhatItDropsDB.minimap = WhatItDropsDB.minimap or { hide = false }

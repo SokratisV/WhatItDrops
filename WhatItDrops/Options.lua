@@ -46,7 +46,7 @@ local needReload = false      -- the theme was switched to or from ElvUI
 
 -- What L["Reset appearance"] puts back.
 local APPEARANCE_DEFAULTS = {
-    theme = "blizzard", accent = "gold", opacity = 1, uiScale = 1, rowSize = "normal",
+    theme = "flare", accent = "gold", opacity = 1, uiScale = 1, rowSize = "normal",
     fxBars = true, fxBorders = true, fxSparkle = true, fxFade = true, fxModel = false,
 }
 
@@ -490,6 +490,8 @@ end
 -- 5. THEME AND ACCENT SWATCHES (custom rows)
 --------------------------------------------------------------------------
 local THEMES = {
+    { key = "flare",     text = L["Flare"],     r = 0.17, g = 0.12, b = 0.06,
+      desc = L["A dark window with bronze trim over Blizzard's collections tile, in the style of FlareUI."] },
     { key = "blizzard",  text = L["Blizzard"],  r = 0.10, g = 0.09, b = 0.07,
       desc = L["The classic gold-bordered dialog look."] },
     { key = "elvui",     text = L["ElvUI"],     r = 0.11, g = 0.11, b = 0.11,
@@ -513,17 +515,18 @@ local function Swatch(parent, w, h, r, g, b)
 end
 
 local function BuildThemeRow(content)
+    -- the name on top and the swatches in a row beneath it, so five of them leave the label its room
     local f = CreateFrame("Frame", nil, content)
-    f:SetHeight(ROW_H + 14)
+    f:SetHeight(60)
     f.label = Text(f, "GameFontHighlight")
-    f.label:SetPoint("LEFT", 6, 0)
+    f.label:SetPoint("TOPLEFT", 6, -4)
+    f.label:SetPoint("TOPRIGHT", -6, -4)
     f.label:SetText(L["Window theme"])
-    f.label:SetPoint("RIGHT", f, "RIGHT", -(#THEMES * 64 + 10), 0)   -- stop short of the swatches
     f.label:SetWordWrap(false)
     f.btns = {}
     for i, t in ipairs(THEMES) do
         local b = Swatch(f, 60, 30, t.r, t.g, t.b)
-        b:SetPoint("RIGHT", -6 - (#THEMES - i) * 64, 0)
+        b:SetPoint("TOPLEFT", 6 + (i - 1) * 66, -24)
         b.key = t.key
         local lbl = Text(b, "GameFontHighlightSmall", "CENTER")
         lbl:SetPoint("BOTTOMLEFT", 2, 3)
@@ -534,7 +537,7 @@ local function BuildThemeRow(content)
         b:SetScript("OnLeave", ShowPageInfo)
         b:SetScript("OnClick", function(self)
             Sound("IG_MAINMENU_OPTION_CHECKBOX_ON")
-            local old = db().theme or "blizzard"
+            local old = db().theme or "flare"
             db().theme = self.key
             if (old == "elvui") ~= (self.key == "elvui") then needReload = true end
             ApplyLook()
@@ -543,7 +546,7 @@ local function BuildThemeRow(content)
         f.btns[i] = b
     end
     return f, function()
-        local cur = db().theme or "blizzard"
+        local cur = db().theme or "flare"
         for _, b in ipairs(f.btns) do
             if b.key == cur then b:SetBackdropBorderColor(1, 0.82, 0, 1)
             else b:SetBackdropBorderColor(0.25, 0.25, 0.28, 1) end
@@ -692,9 +695,9 @@ local function definePages()
         local text = box.edit:GetText()
         if importArmed then
             importArmed = false
-            local before = db().theme or "blizzard"
+            local before = db().theme or "flare"
             local ok, msg = WhatItDrops_ImportProfile(text)
-            if ok and (before == "elvui") ~= ((db().theme or "blizzard") == "elvui") then needReload = true end
+            if ok and (before == "elvui") ~= ((db().theme or "flare") == "elvui") then needReload = true end
             box.setStatus(msg, ok)
             return
         end

@@ -330,6 +330,17 @@ fire("PLAYER_LOGIN")
 runTimers()
 local db = WhatItDropsDB
 if not db then note("FAIL WhatItDropsDB was never created"); fails = fails + 1 end
+if db and db.theme ~= "flare" then fails = fails + 1; note("FAIL [theme] a fresh install does not default to the Flare theme (" .. tostring(db.theme) .. ")") end
+if db then
+	-- an install from before the change has "blizzard" saved for everyone: moved over once, then left alone
+	db.theme, db.flareDefault = "blizzard", nil
+	WhatItDrops_SeedDB()
+	if db.theme ~= "flare" then fails = fails + 1; note("FAIL [theme] an old 'blizzard' default was not moved to Flare") end
+	db.theme = "blizzard"
+	WhatItDrops_SeedDB()
+	if db.theme ~= "blizzard" then fails = fails + 1; note("FAIL [theme] a later choice of Blizzard was overridden") end
+	db.theme = "flare"
+end
 
 -- ---------------------------------------------------------------- the loot window
 local function lootWindow()
@@ -339,12 +350,22 @@ local function lootWindow()
 	if not (win and win.__shown) then note("FAIL loot window not shown"); fails = fails + 1 end
 	for _, set in ipairs({ { "fxBars", false }, { "fxBorders", false }, { "fxSparkle", false }, { "fxFade", false },
 		{ "fxModel", true }, { "rowSize", "roomy" }, { "rowSize", "compact" }, { "opacity", 0.5 }, { "uiScale", 1.2 },
-		{ "accent", "blue" }, { "theme", "slate" }, { "theme", "parchment" }, { "theme", "elvui" }, { "theme", "blizzard" } }) do
+		{ "accent", "blue" }, { "theme", "flare" }, { "theme", "slate" }, { "theme", "parchment" }, { "theme", "elvui" }, { "theme", "blizzard" } }) do
 		WhatItDropsDB[set[1]] = set[2]
 		try("apply " .. set[1] .. "=" .. tostring(set[2]), WhatItDrops_ApplyAppearance)
 		runTimers(0.1)
 	end
 	WhatItDropsDB.fxBars, WhatItDropsDB.fxBorders, WhatItDropsDB.fxSparkle, WhatItDropsDB.fxFade = true, true, true, true
+	-- the Flare skin draws its three layers and every other theme hides them again
+	local function flareShown(w) local l = rawget(w, "__flare"); return l and l.base.__shown and l.art.__shown and l.wash.__shown end
+	for _, win in ipairs({ _G.WhatItDropsFrame }) do
+		WhatItDropsDB.theme = "flare"; try("apply flare", WhatItDrops_ApplyAppearance)
+		if not flareShown(win) then fails = fails + 1; note("FAIL [theme] the Flare skin did not draw its layers") end
+		WhatItDropsDB.theme = "slate"; try("apply slate", WhatItDrops_ApplyAppearance)
+		if flareShown(win) then fails = fails + 1; note("FAIL [theme] the Flare layers stayed visible under another theme") end
+		WhatItDropsDB.theme = "flare"; try("apply flare again", WhatItDrops_ApplyAppearance)
+		if not flareShown(win) then fails = fails + 1; note("FAIL [theme] the Flare layers did not come back") end
+	end
 	try("re-render", WhatItDrops_Render)
 	-- a player's gear
 	unit.guid, unit.player, unit.name = "Player-1-0000AAAA", true, "Someone"
@@ -556,7 +577,7 @@ local function profileTests()
 	local okm, mm = WhatItDrops_ImportProfile(mixed)
 	expect(okm, "mixed profile rejected: " .. tostring(mm))
 	expect(WhatItDropsDB.auto == true and WhatItDropsDB.rowSize == "roomy", "valid entries in a mixed profile were not applied")
-	expect(WhatItDropsDB.theme == "blizzard", "a hostile theme value was applied")
+	expect(WhatItDropsDB.theme == "flare", "a hostile theme value was applied (an omitted theme goes back to the default, Flare)")
 	expect(type(mm) == "string" and (LOCALE ~= "enUS" or mm:find("skipped")), "a mixed profile did not report the skipped entries")
 	expect(WhatItDropsDB.pos == nil or WhatItDropsDB.pos.browser == nil, "a half-pair position was kept")
 	try("restore positions after half-pair", WhatItDrops_RestorePositions)
@@ -638,6 +659,28 @@ local function optionsWindow()
 	if LOCALE ~= "enUS" and NS.L["Hide common loot"] == "Hide common loot" then
 		fails = fails + 1; note("FAIL [l10n] 'Hide common loot' is untranslated under " .. LOCALE)
 	end
+	-- "Reset appearance" (two clicks) puts the Flare look back
+	try("show page appearance", WhatItDrops_ShowOptionsPage, "appearance"); runTimers(0.2)
+	local function findReset()      -- rows are recycled on every redraw, so look it up again each time
+		local found
+		for _, f in ipairs(frames) do
+			if rawget(f, "label") and f.label.__shown ~= false and (f.label.__text == NS.L["Reset appearance"] or f.label.__text == NS.L["Click again to confirm"])
+				and rawget(f, "button") and rawget(f, "row") then found = f.button end
+		end
+		return found
+	end
+	if not findReset() then fails = fails + 1; note("FAIL [theme] the Reset appearance button was not found")
+	else
+		WhatItDropsDB.theme = "slate"
+		press(findReset(), "OnClick", "LeftButton"); runTimers(0.2)
+		press(findReset(), "OnClick", "LeftButton"); runTimers(0.2)
+		if WhatItDropsDB.theme ~= "flare" then fails = fails + 1; note("FAIL [theme] Reset appearance left the theme at " .. tostring(WhatItDropsDB.theme)) end
+	end
+	-- a missing saved theme still resolves to Flare
+	local savedTheme = WhatItDropsDB.theme
+	WhatItDropsDB.theme = nil
+	if WhatItDrops_Skin.GetTheme() ~= "flare" then fails = fails + 1; note("FAIL [theme] an unset theme does not resolve to Flare") end
+	WhatItDropsDB.theme = savedTheme
 	try("/wid appearance", SlashCmdList.WHATITDROPSWID, "appearance")
 	try("refresh", WhatItDrops_RefreshOptions)
 	try("close", function() win:Hide() end)

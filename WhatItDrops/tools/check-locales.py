@@ -27,7 +27,7 @@ CODE = ["WhatItDrops.lua", "Names.lua", "Options.lua", "Profile.lua", "Settings.
 # word). Each is a deliberate decision: anything else equal to the English text is reported as
 # an untranslated leftover.
 SAME_OK = {
-    "*": {"Blizzard", "ElvUI"},
+    "*": {"Blizzard", "ElvUI", "Flare"},
     "deDE": {"Gold", "Normal", "Quest", "WhatItDrops — Browser"},
     "frFR": {"Compact", "Instance", "Normal", "Violet"},
     "esES": {"General", "Normal"},
