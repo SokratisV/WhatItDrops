@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-15
+
 - **The loot window and browser now look like FlareUI by default.** A new **Flare** theme draws a dark
   window with bronze trim over Blizzard's Collections tile (Blizzard textures only, none of FlareUI's
   art), matching the settings window, and it is the default. Installs that still had the old default,
@@ -172,6 +174,7 @@ Initial release as **WhatItDrops**. This is the addon previously published as
 Commands: `/loot` (target lookup), `/loot config`, `/loot browse`, `/fullloot`, and
 `/whatitdrops`.
 
+[1.5.0]: https://github.com/SokratisV/WhatItDrops/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/SokratisV/WhatItDrops/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/SokratisV/WhatItDrops/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/SokratisV/WhatItDrops/compare/v1.2.1...v1.3.0

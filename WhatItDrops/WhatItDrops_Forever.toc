@@ -22,7 +22,7 @@
 ## Title-itIT: WhatItDrops
 ## Notes-itIT: Tabelle del bottino di qualsiasi mostro: /loot, /fullloot, /loot browse. Nomi incorporati e ricerca oggetti.
 ## Author: Sokratis
-## Version: 1.4.0
+## Version: 1.5.0
 ## IconTexture: Interface\AddOns\WhatItDrops\icon.tga
 ## Group: WhatItDrops
 ## X-Part-Of: WhatItDrops
