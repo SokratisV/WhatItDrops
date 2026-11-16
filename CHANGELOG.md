@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+- **A round style for the quest log's "Loot Needed" button.** Settings > General > Quest log >
+  Button style switches between the text button and a round one that looks like a minimap button: a
+  gold ring around a dark disc with a little treasure chest (new `Chest.tga`, cut from the logo). It
+  moves with Shift-drag like the text button, shares its remembered position, hides with the same
+  switch, and the style is part of exported profiles.
+
 ## [1.5.1] - 2026-11-16
 
 - **The quest log's "Loot Needed" button can be switched off or moved.** On WoW: Forever it could end

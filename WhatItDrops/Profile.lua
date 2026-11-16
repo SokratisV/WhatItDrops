@@ -29,6 +29,7 @@ end
 local function set(list) local s = {} for _, v in ipairs(list) do s[v] = true end return s end
 local THEMES = set({ "flare", "blizzard", "elvui", "slate", "parchment" })
 local ROWSIZES = set({ "compact", "normal", "roomy" })
+local BUTTONSTYLES = set({ "text", "round" })
 local ACCENTS = {}
 for k in pairs(WhatItDrops_Accents or { gold = true }) do ACCENTS[k] = true end
 
@@ -38,6 +39,7 @@ local SCHEMA = {
     { key = "useMouseover",      t = "bool" },
     { key = "hideJunk",          t = "bool" },
     { key = "questButton",       t = "bool" },
+    { key = "questButtonStyle",  t = "enum", values = BUTTONSTYLES },
     { key = "showWorldDrops",    t = "bool" },
     { key = "clearSearchOnOpen", t = "bool" },
     { key = "theme",             t = "enum", values = THEMES },

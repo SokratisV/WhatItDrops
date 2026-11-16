@@ -101,6 +101,7 @@ function methods.CreateFontString(self) return newObject("FontString", self) end
 function methods.CreateAnimationGroup(self) return newObject("AnimationGroup", self) end
 function methods.CreateAnimation(self) return newObject("Animation", self) end
 function methods.GetNumPoints() return 1 end
+function methods.SetPoint(self, point, ...) self.__point = point; return self end    -- remembered so the tests can see where a button was put
 
 -- templates that a given client may not have
 local MISSING = {}
@@ -682,6 +683,9 @@ local function optionsWindow()
 		press(findReset(), "OnClick", "LeftButton"); runTimers(0.2)
 		if WhatItDropsDB.theme ~= "flare" then fails = fails + 1; note("FAIL [theme] Reset appearance left the theme at " .. tostring(WhatItDropsDB.theme)) end
 	end
+	-- the sweep above selected every option of every choice in turn: Button style ends on Round
+	if WhatItDropsDB.questButtonStyle ~= "round" then fails = fails + 1; note("FAIL [questbtn] the Button style choice did not change the setting (" .. tostring(WhatItDropsDB.questButtonStyle) .. ")") end
+	WhatItDropsDB.questButtonStyle = "text"; WhatItDrops_UpdateQuestButton()
 	-- the quest-log section: Reset position forgets a dragged button
 	try("show page general", WhatItDrops_ShowOptionsPage, "general"); runTimers(0.2)
 	local function findPos()
@@ -727,6 +731,27 @@ local function questButtonTests()
 	SHIFT_DOWN = true; press(b, "OnDragStart"); press(b, "OnDragStop"); SHIFT_DOWN = false
 	local pos = WhatItDropsDB.questButtonPos
 	chk(type(pos) == "table" and type(pos[1]) == "number" and type(pos[2]) == "number", "a Shift-drag was not remembered")
+	-- the round style: shown instead of the text button, movable the same way, off with the switch
+	local r = _G.WhatItDropsQuestLogRoundButton
+	chk(r and not r.__shown and b.__shown, "by default the text button shows and the round one stays hidden")
+	if r then
+		WhatItDropsDB.questButtonStyle = "round"; WhatItDrops_UpdateQuestButton()
+		chk(r.__shown and not b.__shown, "the round style did not replace the text button")
+		WhatItDropsDB.questButtonPos = nil; WhatItDrops_UpdateQuestButton()
+		chk(rawget(b, "__point") ~= "TOPLEFT" and rawget(r, "__point") ~= "TOPLEFT", "with no remembered spot the buttons were not put beside the host's own")
+		SHIFT_DOWN = true; press(r, "OnDragStart"); press(r, "OnDragStop"); SHIFT_DOWN = false
+		chk(type(WhatItDropsDB.questButtonPos) == "table", "a Shift-drag of the round button was not remembered")
+		chk(rawget(b, "__point") == "TOPLEFT" and rawget(r, "__point") == "TOPLEFT", "after a drag both styles were not put at the remembered spot")
+		WhatItDropsDB.questButton = false; WhatItDrops_UpdateQuestButton()
+		chk(not r.__shown and not b.__shown, "turning the button off left the round style visible")
+		WhatItDropsDB.questButton = true
+		local exportedRound = WhatItDrops_ExportProfile()
+		WhatItDropsDB.questButtonStyle = "text"; WhatItDrops_UpdateQuestButton()
+		chk(b.__shown and not r.__shown, "going back to the text style did not swap the buttons")
+		local ok2 = WhatItDrops_ImportProfile(exportedRound)
+		chk(ok2 and WhatItDropsDB.questButtonStyle == "round" and r.__shown and not b.__shown, "the button style did not survive a profile round trip")
+		WhatItDropsDB.questButtonStyle = "text"; WhatItDropsDB.questButtonPos = nil; WhatItDrops_UpdateQuestButton()
+	end
 	-- it comes along in a profile: exported off, imported back, it is off again
 	WhatItDropsDB.questButton = false
 	local exported = WhatItDrops_ExportProfile()

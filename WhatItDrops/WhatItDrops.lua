@@ -1145,13 +1145,17 @@ function WhatItDrops_ShowQuest()
 	WhatItDrops_Render()
 end
 
-local questButton      -- the Loot Needed button, once it exists
+-- The Loot Needed button comes in two styles, a text button and a round one (a gold ring, a dark
+-- disc and a little chest, like a minimap button); one of them is shown, the settings choose.
+local questButtons = {}     -- style -> frame
 
--- Where the button sits: the spot the player dragged it to (relative to its host's top-left corner),
+local function QuestStyle()
+	return (WhatItDropsDB and WhatItDropsDB.questButtonStyle == "round") and "round" or "text"
+end
+
+-- Where a button sits: the spot the player dragged it to (relative to its host's top-left corner),
 -- otherwise beside the host's own buttons.
-local function PlaceQuestButton()
-	local b = questButton
-	if not b then return end
+local function PlaceQuestButton(b)
 	local host = b:GetParent()
 	b:ClearAllPoints()
 	local pos = WhatItDropsDB and WhatItDropsDB.questButtonPos
@@ -1164,9 +1168,7 @@ end
 
 -- Above whatever else the host holds. A button made after the host's own can still end up under
 -- them (and unclickable) when those carry a higher frame level, so go well past it.
-local function RaiseQuestButton()
-	local b = questButton
-	if not b then return end
+local function RaiseQuestButton(b)
 	local host = b:GetParent()
 	b:SetFrameStrata(host:GetFrameStrata())
 	b:SetFrameLevel(host:GetFrameLevel() + 50)
@@ -1174,11 +1176,67 @@ end
 
 -- Show, hide or move the button from the settings (and after a profile import).
 function WhatItDrops_UpdateQuestButton()
-	local b = questButton
-	if not b then return end
-	b:SetShown(not WhatItDropsDB or WhatItDropsDB.questButton ~= false)
-	RaiseQuestButton()
-	PlaceQuestButton()
+	local on = not WhatItDropsDB or WhatItDropsDB.questButton ~= false
+	local style = QuestStyle()
+	for key, b in pairs(questButtons) do
+		b:SetShown(on and key == style)
+		RaiseQuestButton(b)
+		PlaceQuestButton(b)
+	end
+end
+
+-- A round button that looks like a stock WoW minimap button: Blizzard's gold ring and dark disc,
+-- our chest in the middle, a round glow on hover. Sizes follow the standard 31-pixel button.
+local function MakeRoundQuestButton(host, size)
+	local s = size / 31
+	local b = CreateFrame("Button", "WhatItDropsQuestLogRoundButton", host)
+	b:SetSize(size, size)
+	b.bg = b:CreateTexture(nil, "BACKGROUND")
+	b.bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+	b.bg:SetSize(20 * s, 20 * s)
+	b.bg:SetPoint("TOPLEFT", 7 * s, -5 * s)
+	b.icon = b:CreateTexture(nil, "ARTWORK")
+	b.icon:SetTexture("Interface\\AddOns\\WhatItDrops\\Chest.tga")
+	b.icon:SetSize(17 * s, 17 * s)
+	local x, y = 7 * s + 1.5 * s, -5 * s - 1.5 * s
+	b.icon:SetPoint("TOPLEFT", x, y)
+	b.border = b:CreateTexture(nil, "OVERLAY")
+	b.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+	b.border:SetSize(53 * s, 53 * s)
+	b.border:SetPoint("TOPLEFT")
+	b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+	b:SetScript("OnMouseDown", function(self) self.icon:SetPoint("TOPLEFT", x + s, y - s) end)
+	b:SetScript("OnMouseUp", function(self) self.icon:SetPoint("TOPLEFT", x, y) end)
+	return b
+end
+
+-- The behaviour both styles share: open the quest view, say what it does, and move with Shift-drag
+-- (a plain click must stay a click); where it lands is remembered.
+local function WireQuestButton(b)
+	b:SetScript("OnClick", WhatItDrops_ShowQuest)
+	b:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText(L["WhatItDrops: show the items this quest needs and where they drop."], nil, nil, nil, nil, true)
+		GameTooltip:AddLine(L["Shift-drag the button to move it."], 0.6, 0.6, 0.6, true)
+		GameTooltip:Show()
+	end)
+	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	b:SetMovable(true)
+	b:RegisterForDrag("LeftButton")
+	b:SetScript("OnDragStart", function(self)
+		if IsShiftKeyDown() then self.dragging = true; self:StartMoving() end
+	end)
+	b:SetScript("OnDragStop", function(self)
+		if not self.dragging then return end
+		self.dragging = false
+		self:StopMovingOrSizing()
+		local h = self:GetParent()
+		local left, top, hleft, htop = self:GetLeft(), self:GetTop(), h:GetLeft(), h:GetTop()
+		if left and top and hleft and htop then
+			WhatItDropsDB.questButtonPos = { left - hleft, top - htop }
+		end
+		WhatItDrops_UpdateQuestButton()       -- both styles follow the new spot
+	end)
 end
 
 -- Add a button to Blizzard's quest log that opens the required-items view for the
@@ -1188,7 +1246,7 @@ end
 -- the log in the world map as QuestMapFrame, where the details pane is what has
 -- room for an extra button. If neither is recognised we skip the button entirely --
 -- /loot quest still reaches the same view. It can be switched off in the settings,
--- and Shift-dragged elsewhere when it lands in the way of the log or another addon.
+-- made round, and Shift-dragged elsewhere when it lands in the way of the log or another addon.
 local function CreateQuestLogButton()
 	local host, anchor, anchorPoint, relPoint, ox, oy
 
@@ -1211,43 +1269,25 @@ local function CreateQuestLogButton()
 
 	if not host or host.WhatItDropsButton then return end
 
-	local b = CreateFrame("Button", "WhatItDropsQuestLogButton", host, "UIPanelButtonTemplate")
-	b:SetSize(110, 22)
-	b.anchor, b.anchorPoint, b.relPoint, b.ox, b.oy = anchor, anchorPoint, relPoint, ox, oy
-	b:SetScript("OnShow", function(self)      -- a longer translation widens the button instead of clipping
+	local text = CreateFrame("Button", "WhatItDropsQuestLogButton", host, "UIPanelButtonTemplate")
+	text:SetSize(110, 22)
+	text:SetScript("OnShow", function(self)      -- a longer translation widens the button instead of clipping
 		local fs = self:GetFontString()
 		if fs then self:SetWidth(math.max(110, fs:GetStringWidth() + 24)) end
-		RaiseQuestButton()
+		RaiseQuestButton(self)
 	end)
-	b:SetText(L["Loot Needed"])
-	b:SetScript("OnClick", WhatItDrops_ShowQuest)
-	b:SetScript("OnEnter", function(self)
-		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-		GameTooltip:SetText(L["WhatItDrops: show the items this quest needs and where they drop."], nil, nil, nil, nil, true)
-		GameTooltip:AddLine(L["Shift-drag the button to move it."], 0.6, 0.6, 0.6, true)
-		GameTooltip:Show()
-	end)
-	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
-	-- Shift-drag moves it (a plain click must stay a click); where it lands is remembered
-	b:SetMovable(true)
-	b:RegisterForDrag("LeftButton")
-	b:SetScript("OnDragStart", function(self)
-		if IsShiftKeyDown() then self.dragging = true; self:StartMoving() end
-	end)
-	b:SetScript("OnDragStop", function(self)
-		if not self.dragging then return end
-		self.dragging = false
-		self:StopMovingOrSizing()
-		local h = self:GetParent()
-		local left, top, hleft, htop = self:GetLeft(), self:GetTop(), h:GetLeft(), h:GetTop()
-		if left and top and hleft and htop then
-			WhatItDropsDB.questButtonPos = { left - hleft, top - htop }
-		end
-		PlaceQuestButton()
-	end)
-	if WhatItDrops_Skin and WhatItDrops_Skin.Button then WhatItDrops_Skin.Button(b) end
-	host.WhatItDropsButton = b
-	questButton = b
+	text:SetText(L["Loot Needed"])
+	if WhatItDrops_Skin and WhatItDrops_Skin.Button then WhatItDrops_Skin.Button(text) end
+
+	local round = MakeRoundQuestButton(host, 28)
+	round:SetScript("OnShow", RaiseQuestButton)
+
+	for key, b in pairs({ text = text, round = round }) do
+		b.anchor, b.anchorPoint, b.relPoint, b.ox, b.oy = anchor, anchorPoint, relPoint, ox, oy
+		WireQuestButton(b)
+		questButtons[key] = b
+	end
+	host.WhatItDropsButton = text
 	WhatItDrops_UpdateQuestButton()
 end
 
@@ -1699,6 +1739,7 @@ local function SeedDB()
 	if WhatItDropsDB.auto == nil then WhatItDropsDB.auto = false end
 	if WhatItDropsDB.hideJunk == nil then WhatItDropsDB.hideJunk = false end
 	if WhatItDropsDB.questButton == nil then WhatItDropsDB.questButton = true end
+	if WhatItDropsDB.questButtonStyle == nil then WhatItDropsDB.questButtonStyle = "text" end
 	if WhatItDropsDB.showWorldDrops == nil then WhatItDropsDB.showWorldDrops = true end
 	if WhatItDropsDB.theme == nil then WhatItDropsDB.theme = "flare" end
 	-- The default look changed from Blizzard's dialog to FlareUI's. "blizzard" was seeded for

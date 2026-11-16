@@ -62,6 +62,16 @@ for folder in ["WhatItDrops"] + ["WhatItDrops_" + p for p in PACKS]:
     if any(re.match(r"Data/WhatItDrops(Items|Bosses|QuestItems)\.lua$", x) or (folder != "WhatItDrops" and x == folder + ".lua") for x in f):
         err("%s: the Forever TOC still lists TBC data" % folder)
 
+# ---- every addon file the Lua code points at (textures, mostly) must be in the folder
+main = os.path.join(root, "WhatItDrops")
+REF = re.compile(r'"Interface\\\\AddOns\\\\WhatItDrops\\\\([^"]+)"')
+for name in sorted(os.listdir(main)):
+    if name.endswith(".lua"):
+        for m in REF.finditer(open(os.path.join(main, name), encoding="utf-8").read()):
+            rel = m.group(1).replace("\\\\", "/")
+            if not os.path.exists(os.path.join(main, rel)):
+                err("%s refers to %s, which is not in the addon folder" % (name, rel))
+
 # ---- load each client's data the way the client would and look at the result
 lua = LuaRuntime(unpack_returned_tuples=True)
 LOAD = lua.eval("""function(files, readfile)

@@ -29,7 +29,7 @@ All the folders must sit directly under `Interface/AddOns/`.
 - `/loot` (or `/fullloot`): loot table for your current target; for a player, their equipped gear.
 - `/loot browse [text]`: **browser**. Search **items or NPCs** by name. Click an item to see which NPCs drop it; click an NPC to open its loot table.
 - `/loot bosses`: list the **bosses of the instance you are in** (each clickable to its loot). This is also what the loot keybind does with no target inside a dungeon or raid.
-- `/loot quest`: items the **selected quest** needs, and where they drop. Also a **"Loot Needed"** button in the quest log (turn it off or Shift-drag it elsewhere in the settings).
+- `/loot quest`: items the **selected quest** needs, and where they drop. Also a **"Loot Needed"** button in the quest log (turn it off, make it round, or Shift-drag it elsewhere; see the settings).
 - `/loot names`: non-English clients: how many item and creature names the client has given us so far, and what it answers for your target.
 - `/loot auto`: toggle auto-show on target.
 - `/wid` (or `/loot config`): open the settings window. `/wid appearance` opens it on the Appearance page.
