@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-16
+
 - **The quest log's "Loot Needed" button can be switched off or moved.** On WoW: Forever it could end
   up behind the quest log's own buttons and not be clickable. It now sits above its host's other
   controls, **Shift-drag** moves it anywhere (the spot is remembered), and Settings > General > Quest
@@ -180,6 +182,7 @@ Initial release as **WhatItDrops**. This is the addon previously published as
 Commands: `/loot` (target lookup), `/loot config`, `/loot browse`, `/fullloot`, and
 `/whatitdrops`.
 
+[1.5.1]: https://github.com/SokratisV/WhatItDrops/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/SokratisV/WhatItDrops/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/SokratisV/WhatItDrops/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/SokratisV/WhatItDrops/compare/v1.3.0...v1.3.1
