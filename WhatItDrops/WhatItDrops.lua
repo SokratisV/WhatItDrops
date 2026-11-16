@@ -40,7 +40,9 @@ end
 -- so the same file produces the right link on Retail, TBC, Wrath, Era, etc.
 -- Retail uses no branch prefix ("wowhead.com/npc="); Classic flavors use one.
 local function DetectBranch()
-	if IS_FOREVER then return "classic" end -- Forever's content is Vanilla
+	-- Wowhead keeps WoW Forever apart from Classic Era (it has its own /forever/ section), and the two
+	-- databases differ, so the link must say which one it means.
+	if IS_FOREVER then return "forever" end
 	local p = WOW_PROJECT_ID
 	if not p then return "" end -- very old client; assume mainline-style
 	if p == WOW_PROJECT_MAINLINE then return "" end
@@ -156,7 +158,7 @@ end
 -- Window
 ----------------------------------------------------------------------
 local ROW_H, MAX_VIEW = 18, 216
-local HEADER_H, FOOTER_H = 40, 78
+local HEADER_H, FOOTER_H = 40, 100
 
 -- Appearance settings (Settings > WhatItDrops > Appearance). Row height is read on
 -- every redraw, so changing it applies live.
@@ -312,6 +314,52 @@ local function GetWindow()
 	f.worldCheck = worldCheck
 	WhatItDrops_Skin.CheckBox(worldCheck)
 
+	-- Drop-chance filter: "Chance [min] - [max] %", the same limits as Settings > General > Loot lookup.
+	-- Enter (or leaving the box) applies it; text that is not a number puts the saved value back.
+	local filter = CreateFrame("Frame", nil, f)
+	filter:SetSize(316, 22)
+	filter:SetPoint("BOTTOMLEFT", 10, 52)
+	local filterLabel = filter:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	filterLabel:SetPoint("LEFT", 4, 0)
+	filterLabel:SetText(L["Chance"])
+	local function ChanceBox(key, default, tip)
+		local e = CreateFrame("EditBox", nil, filter, "InputBoxTemplate")
+		e:SetSize(42, 18)
+		e:SetAutoFocus(false)
+		e:SetMaxLetters(6)
+		e:SetFontObject(ChatFontNormal)
+		e:SetJustifyH("CENTER")
+		e.key, e.default = key, default
+		local function commit(self)
+			local text = (self:GetText() or ""):gsub(",", ".")     -- a decimal comma is fine too
+			local v = tonumber(text)
+			if v then WhatItDrops_SetChanceLimit(key, math.max(0, math.min(100, math.floor(v * 100 + 0.5) / 100))) end
+			WhatItDrops_Refresh()                                 -- also rewrites both boxes from the saved values
+		end
+		e:SetScript("OnEnterPressed", function(self) commit(self); self:ClearFocus() end)
+		e:SetScript("OnEditFocusLost", commit)
+		e:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+		e:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetText(tip, nil, nil, nil, nil, true)
+			GameTooltip:Show()
+		end)
+		e:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		WhatItDrops_Skin.EditBox(e)
+		return e
+	end
+	local minBox = ChanceBox("minPct", 0, L["Leave out drops whose chance is below this. 0 shows everything."])
+	minBox:SetPoint("LEFT", filterLabel, "RIGHT", 10, 0)
+	local dash = filter:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	dash:SetPoint("LEFT", minBox, "RIGHT", 4, 0)
+	dash:SetText("-")
+	local maxBox = ChanceBox("maxPct", 100, L["Leave out drops whose chance is above this. 100 shows everything."])
+	maxBox:SetPoint("LEFT", dash, "RIGHT", 6, 0)
+	local pctSign = filter:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	pctSign:SetPoint("LEFT", maxBox, "RIGHT", 4, 0)
+	pctSign:SetText("%")
+	f.filter, f.filterLabel, f.chanceMin, f.chanceMax = filter, filterLabel, minBox, maxBox
+
 	local urlBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	urlBtn:SetSize(80, 20)
 	urlBtn:SetPoint("BOTTOMRIGHT", -10, 8)
@@ -327,8 +375,8 @@ local function GetWindow()
 	f.urlBtn = urlBtn
 
 	local url = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
-	url:SetPoint("BOTTOMLEFT", 12, 54)
-	url:SetPoint("BOTTOMRIGHT", -12, 54)
+	url:SetPoint("BOTTOMLEFT", 12, 78)
+	url:SetPoint("BOTTOMRIGHT", -12, 78)
 	url:SetHeight(20)
 	url:SetAutoFocus(false)
 	url:SetFontObject(ChatFontNormal)
@@ -523,6 +571,19 @@ local function UpdateModelCard()
 	card:Show()
 end
 
+-- Set one end of the drop-chance filter ("minPct" or "maxPct", percent) and keep the other end in
+-- order, so the window can never be left empty by an impossible range.
+function WhatItDrops_SetChanceLimit(which, v)
+	if not WhatItDropsDB then return end
+	if which == "minPct" then
+		WhatItDropsDB.minPct = v
+		if (WhatItDropsDB.maxPct or 100) < v then WhatItDropsDB.maxPct = v end
+	else
+		WhatItDropsDB.maxPct = v
+		if (WhatItDropsDB.minPct or 0) > v then WhatItDropsDB.minPct = v end
+	end
+end
+
 -- Re-render the current NPC's list (called on open, on toggle, and when
 -- async item info arrives via GET_ITEM_INFO_RECEIVED).
 function WhatItDrops_Render()
@@ -547,7 +608,7 @@ function WhatItDrops_Render()
 	if not items then
 		for _, r in ipairs(rows) do r:Hide() end
 		if win.filterNote then win.filterNote:Hide() end
-		win.scroll:Hide(); win.check:Hide(); win.worldCheck:Hide(); win.urlBtn:Hide(); win.empty:Show()
+		win.scroll:Hide(); win.check:Hide(); win.worldCheck:Hide(); win.urlBtn:Hide(); win.filter:Hide(); win.empty:Show()
 		win.content:SetHeight(1)
 		win:SetHeight(HEADER_H + 44 + FOOTER_H)        -- room for a message that wraps to three lines
 		UpdateModelCard()
@@ -557,6 +618,11 @@ function WhatItDrops_Render()
 	win.check:SetShown(isNpc)
 	win.worldCheck:SetShown(isNpc)
 	win.urlBtn:SetShown(isNpc)
+	win.filter:SetShown(isNpc)
+	for _, box in ipairs({ win.chanceMin, win.chanceMax }) do
+		if not box:HasFocus() then box:SetText(("%g"):format((WhatItDropsDB and WhatItDropsDB[box.key]) or box.default)) end
+	end
+	if lo > 0 or hi < 100 then win.filterLabel:SetTextColor(AccentRGB()) else win.filterLabel:SetTextColor(1, 1, 1) end
 
 	local function pctStr(p) return (p >= 1 and "%.1f%%" or "%.2f%%"):format(p) end
 	local shown, waiting, filteredOut = 0, false, 0

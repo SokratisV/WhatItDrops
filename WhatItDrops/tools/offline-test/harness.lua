@@ -750,12 +750,42 @@ local function chanceFilterTests()
 	apply(0, 100)
 	chk(shown() == "1001,1002,1003,1004,1005,1006", "clearing the filter did not bring everything back")
 	chk(not (win.filterNote and win.filterNote.__shown), "the explanation stayed up after the list came back")
+	-- the boxes in the window itself
+	local minBox, maxBox = win.chanceMin, win.chanceMax
+	chk(minBox and maxBox and win.filter and win.filter.__shown, "the loot window has no chance filter boxes")
+	if minBox and maxBox then
+		apply(0, 100)
+		minBox.__text = "6.5"; press(minBox, "OnEnterPressed")
+		chk(WhatItDropsDB.minPct == 6.5 and shown() == "1002,1003,1004,1005", "typing a minimum in the window did not filter (min " .. tostring(WhatItDropsDB.minPct) .. ", showing " .. shown() .. ")")
+		maxBox.__text = "3"; press(maxBox, "OnEnterPressed")
+		chk(WhatItDropsDB.maxPct == 3 and WhatItDropsDB.minPct == 3, "a maximum below the minimum did not pull the minimum down")
+		maxBox.__text = "2,5"; press(maxBox, "OnEnterPressed")
+		chk(WhatItDropsDB.maxPct == 2.5 and WhatItDropsDB.minPct == 2.5, "a decimal comma was not understood (max " .. tostring(WhatItDropsDB.maxPct) .. ")")
+		minBox.__text = "abc"; press(minBox, "OnEnterPressed")
+		chk(WhatItDropsDB.minPct == 2.5 and minBox.__text == "2.5", "text that is not a number changed the minimum or was not reverted (" .. tostring(minBox.__text) .. ")")
+		maxBox.__text = "250"; press(maxBox, "OnEnterPressed")
+		chk(WhatItDropsDB.maxPct == 100, "a maximum over 100 was not clamped to 100 (" .. tostring(WhatItDropsDB.maxPct) .. ")")
+		apply(0, 50); minBox.__text = "60"; press(minBox, "OnEnterPressed")
+		chk(WhatItDropsDB.minPct == 60 and WhatItDropsDB.maxPct == 60, "a minimum above the maximum did not push the maximum up")
+		WhatItDropsDB.minPct = 7; try("refresh", WhatItDrops_Refresh)
+		chk(minBox.__text == "7", "a change made elsewhere (the settings) did not reach the box")
+		apply(0, 100)
+		chk(minBox.__text == "0" and maxBox.__text == "100", "clearing the filter did not reset the boxes")
+	end
+	-- the Wowhead link names the right database: Forever has its own, Classic and Retail are not it
+	local link = win.url and win.url.__text or ""
+	if CLIENT == "forever" then
+		chk(link:find("wowhead.com/forever/npc=1234", 1, true), "the Forever Wowhead link is not the /forever/ one: " .. link)
+	else
+		chk(link:find("wowhead.com/npc=1234", 1, true) and not link:find("/forever/", 1, true), "the Retail Wowhead link is wrong: " .. link)
+	end
 	-- the player's gear and other lists without chances are left alone
 	apply(90, 100)
 	unit.guid, unit.player, unit.name = "Player-1-0000AAAA", true, "Someone"
 	try("/loot (player)", SlashCmdList.WHATITDROPS, ""); runTimers(1)
 	local gear = shown()
 	chk(gear ~= "", "a player's gear list was emptied by the chance filter")
+	chk(win.filter and not win.filter.__shown, "the chance filter row showed over a player's gear")
 	unit.guid, unit.player, unit.name = "Creature-0-0-0-0-1234-0000", false, "Moroes"
 	-- the thresholds travel in a profile
 	WhatItDropsDB.minPct, WhatItDropsDB.maxPct = 3, 80

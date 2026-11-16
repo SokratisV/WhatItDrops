@@ -738,18 +738,12 @@ local function definePages()
                     Slider(L["Hide drops below"], L["Leave out drops whose chance is below this. 0 shows everything."],
                         0, 100, 0.5,
                         function() return db().minPct or 0 end,
-                        function(v)
-                            db().minPct = v
-                            if (db().maxPct or 100) < v then db().maxPct = v end     -- never an empty window
-                        end,
+                        function(v) if WhatItDrops_SetChanceLimit then WhatItDrops_SetChanceLimit("minPct", v) end end,
                         { fmt = pct, apply = RefreshLoot, tip = L["Chances are percentages of kills; rare drops are often under 1%."] }),
                     Slider(L["Hide drops above"], L["Leave out drops whose chance is above this. 100 shows everything."],
                         0, 100, 0.5,
                         function() return db().maxPct or 100 end,
-                        function(v)
-                            db().maxPct = v
-                            if (db().minPct or 0) > v then db().minPct = v end
-                        end,
+                        function(v) if WhatItDrops_SetChanceLimit then WhatItDrops_SetChanceLimit("maxPct", v) end end,
                         { fmt = pct, apply = RefreshLoot }),
                     Flag("showWorldDrops", L["Show world drops"],
                         L["Include the generic world-drop pool along with a creature's own drops."], true,

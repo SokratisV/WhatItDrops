@@ -6,12 +6,16 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-- **Filter a creature's drops by chance.** Settings > General > Loot lookup has **Hide drops below**
-  and **Hide drops above** (0.5% steps): the first leaves out drops that are rarer than the threshold,
-  the second drops that are more common, so you can look at only the rare ones, only the sure things,
-  or a band in between. They apply to a creature's loot list (not to a player's gear, a quest's items
-  or Encounter Journal bosses, which have no chances), keep each other in order, say so when they
-  leave the list empty, and are part of exported profiles.
+- **Filter a creature's drops by chance, right in the loot window.** A **Chance [min] - [max] %** row
+  sits above the two toggles: type a minimum and/or a maximum and press Enter. Drops below the
+  minimum (rarer) or above the maximum (more common) are left out, so you can look at only the rare
+  ones, only the sure things, or a band in between; the label lights up while a filter is on. The
+  same two limits are sliders under Settings > General > Loot lookup. They apply to a creature's
+  loot list (not to a player's gear, a quest's items or Encounter Journal bosses, which have no
+  chances), keep each other in order, say so when they leave the list empty, and are part of
+  exported profiles.
+- **The Wowhead link on WoW: Forever now points at Wowhead's Forever database** (`/forever/`), not
+  Classic Era's, since the two differ. Classic Era and the TBC and Retail clients are unchanged.
 
 - **A round style for the quest log's "Loot Needed" button.** Settings > General > Quest log >
   Button style switches between the text button and a round one that looks like a minimap button: a
