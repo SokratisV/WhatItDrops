@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+- **The quest log's "Loot Needed" button can be switched off or moved.** On WoW: Forever it could end
+  up behind the quest log's own buttons and not be clickable. It now sits above its host's other
+  controls, **Shift-drag** moves it anywhere (the spot is remembered), and Settings > General > Quest
+  log has a switch to hide it altogether and a button to put it back. `/loot quest` opens the same view
+  either way. The new switch is part of exported profiles.
+
 ## [1.5.0] - 2026-11-15
 
 - **The loot window and browser now look like FlareUI by default.** A new **Flare** theme draws a dark

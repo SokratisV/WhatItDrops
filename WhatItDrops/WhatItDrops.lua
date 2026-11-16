@@ -1145,13 +1145,50 @@ function WhatItDrops_ShowQuest()
 	WhatItDrops_Render()
 end
 
+local questButton      -- the Loot Needed button, once it exists
+
+-- Where the button sits: the spot the player dragged it to (relative to its host's top-left corner),
+-- otherwise beside the host's own buttons.
+local function PlaceQuestButton()
+	local b = questButton
+	if not b then return end
+	local host = b:GetParent()
+	b:ClearAllPoints()
+	local pos = WhatItDropsDB and WhatItDropsDB.questButtonPos
+	if pos and pos[1] and pos[2] then
+		b:SetPoint("TOPLEFT", host, "TOPLEFT", pos[1], pos[2])
+	else
+		b:SetPoint(b.anchorPoint, b.anchor, b.relPoint, b.ox, b.oy)
+	end
+end
+
+-- Above whatever else the host holds. A button made after the host's own can still end up under
+-- them (and unclickable) when those carry a higher frame level, so go well past it.
+local function RaiseQuestButton()
+	local b = questButton
+	if not b then return end
+	local host = b:GetParent()
+	b:SetFrameStrata(host:GetFrameStrata())
+	b:SetFrameLevel(host:GetFrameLevel() + 50)
+end
+
+-- Show, hide or move the button from the settings (and after a profile import).
+function WhatItDrops_UpdateQuestButton()
+	local b = questButton
+	if not b then return end
+	b:SetShown(not WhatItDropsDB or WhatItDropsDB.questButton ~= false)
+	RaiseQuestButton()
+	PlaceQuestButton()
+end
+
 -- Add a button to Blizzard's quest log that opens the required-items view for the
 -- selected quest. Created once, after login, and only if the quest log exists.
 --
 -- The classic clients have a standalone QuestLogFrame; Midnight / WoW Forever put
 -- the log in the world map as QuestMapFrame, where the details pane is what has
--- room for an extra button. If neither is recognised we skip the button entirely —
--- /loot quest still reaches the same view.
+-- room for an extra button. If neither is recognised we skip the button entirely --
+-- /loot quest still reaches the same view. It can be switched off in the settings,
+-- and Shift-dragged elsewhere when it lands in the way of the log or another addon.
 local function CreateQuestLogButton()
 	local host, anchor, anchorPoint, relPoint, ox, oy
 
@@ -1176,21 +1213,42 @@ local function CreateQuestLogButton()
 
 	local b = CreateFrame("Button", "WhatItDropsQuestLogButton", host, "UIPanelButtonTemplate")
 	b:SetSize(110, 22)
+	b.anchor, b.anchorPoint, b.relPoint, b.ox, b.oy = anchor, anchorPoint, relPoint, ox, oy
 	b:SetScript("OnShow", function(self)      -- a longer translation widens the button instead of clipping
 		local fs = self:GetFontString()
 		if fs then self:SetWidth(math.max(110, fs:GetStringWidth() + 24)) end
+		RaiseQuestButton()
 	end)
 	b:SetText(L["Loot Needed"])
-	b:SetPoint(anchorPoint, anchor, relPoint, ox, oy)
 	b:SetScript("OnClick", WhatItDrops_ShowQuest)
 	b:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		GameTooltip:SetText(L["WhatItDrops: show the items this quest needs and where they drop."], nil, nil, nil, nil, true)
+		GameTooltip:AddLine(L["Shift-drag the button to move it."], 0.6, 0.6, 0.6, true)
 		GameTooltip:Show()
 	end)
 	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	-- Shift-drag moves it (a plain click must stay a click); where it lands is remembered
+	b:SetMovable(true)
+	b:RegisterForDrag("LeftButton")
+	b:SetScript("OnDragStart", function(self)
+		if IsShiftKeyDown() then self.dragging = true; self:StartMoving() end
+	end)
+	b:SetScript("OnDragStop", function(self)
+		if not self.dragging then return end
+		self.dragging = false
+		self:StopMovingOrSizing()
+		local h = self:GetParent()
+		local left, top, hleft, htop = self:GetLeft(), self:GetTop(), h:GetLeft(), h:GetTop()
+		if left and top and hleft and htop then
+			WhatItDropsDB.questButtonPos = { left - hleft, top - htop }
+		end
+		PlaceQuestButton()
+	end)
 	if WhatItDrops_Skin and WhatItDrops_Skin.Button then WhatItDrops_Skin.Button(b) end
 	host.WhatItDropsButton = b
+	questButton = b
+	WhatItDrops_UpdateQuestButton()
 end
 
 ----------------------------------------------------------------------
@@ -1640,6 +1698,7 @@ local function SeedDB()
 	WhatItDropsDB = WhatItDropsDB or {}
 	if WhatItDropsDB.auto == nil then WhatItDropsDB.auto = false end
 	if WhatItDropsDB.hideJunk == nil then WhatItDropsDB.hideJunk = false end
+	if WhatItDropsDB.questButton == nil then WhatItDropsDB.questButton = true end
 	if WhatItDropsDB.showWorldDrops == nil then WhatItDropsDB.showWorldDrops = true end
 	if WhatItDropsDB.theme == nil then WhatItDropsDB.theme = "flare" end
 	-- The default look changed from Blizzard's dialog to FlareUI's. "blizzard" was seeded for

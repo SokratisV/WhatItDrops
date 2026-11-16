@@ -35,7 +35,7 @@ Screenshots: drop images into docs/ and reference them here, e.g.
 - 🐉 **Instance boss list.** With no target inside a dungeon or raid, the keybind lists that
   instance's bosses, each clickable to its loot.
 - 📜 **Quest loot.** A **"Loot Needed"** button in the quest log shows the items the selected
-  quest needs and where they drop. Quest-class drops are flagged with a yellow **!**.
+  quest needs and where they drop. It can be turned off in the settings or Shift-dragged elsewhere. Quest-class drops are flagged with a yellow **!**.
 - 🧍 **Player gear.** Target another player to see what they have equipped.
 - 🗺️ **Retail bosses from the Encounter Journal.** Current dungeon and raid bosses are read from
   the game itself, so they stay current. The Journal has no drop rates, so those rows show the

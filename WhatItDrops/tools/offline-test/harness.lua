@@ -182,7 +182,7 @@ function ReloadUI() RELOADED = true end
 function InCombatLockdown() return IN_COMBAT and true or false end
 function IsAltKeyDown() return false end
 function IsControlKeyDown() return false end
-function IsShiftKeyDown() return false end
+function IsShiftKeyDown() return SHIFT_DOWN and true or false end
 function IsModifiedClick() return false end
 function PlaySound() end
 SOUNDKIT = { IG_MAINMENU_OPTION_CHECKBOX_ON = 1, IG_CHARACTER_INFO_OPEN = 2 }
@@ -320,6 +320,12 @@ if CLIENT == "forever" then      -- the bundled Classic tables (Retail has none 
 	WhatItDropsQuestItem = { [1001] = true, [1002] = true }
 	WhatItDropsDataSource = "CMaNGOS classic-db (Vanilla 1.12)"
 end
+
+-- a quest log for the Loot Needed button to attach to (Midnight / Forever keep it in the world map's details pane)
+QuestMapFrame = CreateFrame("Frame", "QuestMapFrame", UIParent)
+QuestMapFrame.DetailsFrame = CreateFrame("Frame", nil, QuestMapFrame)
+QuestMapFrame.DetailsFrame.AbandonButton = CreateFrame("Button", nil, QuestMapFrame.DetailsFrame)
+rawset(QuestMapFrame.DetailsFrame, "WhatItDropsButton", false)    -- the stub frames answer any capitalised key with a function
 
 for _, rel in ipairs({ "Locales/Locale.lua", "Locales/deDE.lua", "Locales/frFR.lua", "Locales/esES.lua", "Locales/esMX.lua", "Locales/ptBR.lua", "Locales/ruRU.lua", "Locales/koKR.lua", "Locales/zhCN.lua", "Locales/zhTW.lua", "Locales/itIT.lua", "Names.lua", "Theme.lua", "WhatItDrops.lua", "Profile.lua", "Options.lua", "Settings.lua" }) do
 	try("load " .. rel, loadAddonFile, rel)
@@ -676,6 +682,21 @@ local function optionsWindow()
 		press(findReset(), "OnClick", "LeftButton"); runTimers(0.2)
 		if WhatItDropsDB.theme ~= "flare" then fails = fails + 1; note("FAIL [theme] Reset appearance left the theme at " .. tostring(WhatItDropsDB.theme)) end
 	end
+	-- the quest-log section: Reset position forgets a dragged button
+	try("show page general", WhatItDrops_ShowOptionsPage, "general"); runTimers(0.2)
+	local function findPos()
+		local found
+		for _, f in ipairs(frames) do
+			if rawget(f, "label") and f.label.__shown ~= false and f.label.__text == NS.L["Button position"] and rawget(f, "button") and rawget(f, "row") then found = f.button end
+		end
+		return found
+	end
+	if not findPos() then fails = fails + 1; note("FAIL [questbtn] the Button position row was not found")
+	else
+		WhatItDropsDB.questButtonPos = { 12, -34 }
+		press(findPos(), "OnClick", "LeftButton"); runTimers(0.2)
+		if WhatItDropsDB.questButtonPos ~= nil then fails = fails + 1; note("FAIL [questbtn] Reset position did not clear the remembered position") end
+	end
 	-- a missing saved theme still resolves to Flare
 	local savedTheme = WhatItDropsDB.theme
 	WhatItDropsDB.theme = nil
@@ -686,6 +707,34 @@ local function optionsWindow()
 	try("close", function() win:Hide() end)
 	try("/wid toggle again", SlashCmdList.WHATITDROPSWID, "")
 	if not win.__shown then note("FAIL second /wid did not reopen"); fails = fails + 1 end
+end
+
+-- ---------------------------------------------------------------- the quest-log button
+local function questButtonTests()
+	local function chk(c, m) if not c then fails = fails + 1; note("FAIL [questbtn] " .. m) end end
+	local b = _G.WhatItDropsQuestLogButton
+	chk(b and b.__shown, "the Loot Needed button was not created and shown")
+	if not b then return end
+	-- the settings: off hides it, on shows it again
+	WhatItDropsDB.questButton = false; WhatItDrops_UpdateQuestButton()
+	chk(not b.__shown, "turning the quest-log button off left it visible")
+	WhatItDropsDB.questButton = true; WhatItDrops_UpdateQuestButton()
+	chk(b.__shown, "turning it back on did not show it")
+	-- a drag without Shift does nothing, a Shift-drag remembers where the button landed
+	WhatItDropsDB.questButtonPos = nil
+	SHIFT_DOWN = false; press(b, "OnDragStart"); press(b, "OnDragStop")
+	chk(WhatItDropsDB.questButtonPos == nil, "a drag without Shift moved the button")
+	SHIFT_DOWN = true; press(b, "OnDragStart"); press(b, "OnDragStop"); SHIFT_DOWN = false
+	local pos = WhatItDropsDB.questButtonPos
+	chk(type(pos) == "table" and type(pos[1]) == "number" and type(pos[2]) == "number", "a Shift-drag was not remembered")
+	-- it comes along in a profile: exported off, imported back, it is off again
+	WhatItDropsDB.questButton = false
+	local exported = WhatItDrops_ExportProfile()
+	WhatItDropsDB.questButton = true; WhatItDrops_UpdateQuestButton()
+	local ok = WhatItDrops_ImportProfile(exported)
+	chk(ok and WhatItDropsDB.questButton == false and not b.__shown, "the quest-log button setting did not survive a profile round trip")
+	WhatItDropsDB.questButton = true; WhatItDropsDB.questButtonPos = nil; WhatItDrops_UpdateQuestButton()
+	chk(b.__shown, "the button did not come back after the test")
 end
 
 -- ---------------------------------------------------------------- names in the client's language
@@ -906,6 +955,7 @@ end
 
 if WhatItDropsDB then
 	try("loot window", lootWindow)
+	try("quest button", questButtonTests)
 	try("names", nameTests)
 	try("profile engine", profileTests)
 	try("options window", optionsWindow)

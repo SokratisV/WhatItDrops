@@ -107,6 +107,9 @@ end
 local function RefreshLoot()
     if WhatItDrops_Refresh then WhatItDrops_Refresh() end
 end
+local function UpdateQuestButton()
+    if WhatItDrops_UpdateQuestButton then WhatItDrops_UpdateQuestButton() end
+end
 
 -- A change was made: run the row's own follow-up.
 local function Applied(row)
@@ -746,6 +749,13 @@ local function definePages()
                           local m = db(); m.minimap = m.minimap or {}; m.minimap.hide = not v
                       end,
                       apply = function() if WhatItDrops_UpdateMinimapButton then WhatItDrops_UpdateMinimapButton() end end },
+                } },
+                { title = L["Quest log"], key = "quest", rows = {
+                    Flag("questButton", L["Loot Needed button"],
+                        L["Adds a Loot Needed button to the quest log that shows the items the selected quest needs. Turn it off if it gets in the way of the quest log or another addon; /loot quest still works."],
+                        true, { apply = UpdateQuestButton, tip = L["Shift-drag the button to move it."] }),
+                    Button(L["Button position"], L["Put the Loot Needed button back where it starts."], L["Reset position"],
+                        function() db().questButtonPos = nil; UpdateQuestButton() end),
                 } },
             },
         },
