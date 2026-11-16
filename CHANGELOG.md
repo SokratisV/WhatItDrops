@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-11-16
+
 - **Filter a creature's drops by chance, right in the loot window.** A **Chance [min] - [max] %** row
   sits above the two toggles: type a minimum and/or a maximum and press Enter. Drops below the
   minimum (rarer) or above the maximum (more common) are left out, so you can look at only the rare
@@ -199,6 +201,7 @@ Initial release as **WhatItDrops**. This is the addon previously published as
 Commands: `/loot` (target lookup), `/loot config`, `/loot browse`, `/fullloot`, and
 `/whatitdrops`.
 
+[1.5.2]: https://github.com/SokratisV/WhatItDrops/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/SokratisV/WhatItDrops/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/SokratisV/WhatItDrops/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/SokratisV/WhatItDrops/compare/v1.3.1...v1.4.0
