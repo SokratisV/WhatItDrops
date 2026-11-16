@@ -38,6 +38,8 @@ local SCHEMA = {
     { key = "auto",              t = "bool" },
     { key = "useMouseover",      t = "bool" },
     { key = "hideJunk",          t = "bool" },
+    { key = "minPct",            t = "num",  min = 0, max = 100 },
+    { key = "maxPct",            t = "num",  min = 0, max = 100 },
     { key = "questButton",       t = "bool" },
     { key = "questButtonStyle",  t = "enum", values = BUTTONSTYLES },
     { key = "showWorldDrops",    t = "bool" },

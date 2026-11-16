@@ -735,6 +735,22 @@ local function definePages()
                         L["When a creature is under your mouse, look that one up instead of your target."], false),
                     Flag("hideJunk", L["Hide common loot"],
                         L["Leave grey and white items out of loot lists."], false, { apply = RefreshLoot }),
+                    Slider(L["Hide drops below"], L["Leave out drops whose chance is below this. 0 shows everything."],
+                        0, 100, 0.5,
+                        function() return db().minPct or 0 end,
+                        function(v)
+                            db().minPct = v
+                            if (db().maxPct or 100) < v then db().maxPct = v end     -- never an empty window
+                        end,
+                        { fmt = pct, apply = RefreshLoot, tip = L["Chances are percentages of kills; rare drops are often under 1%."] }),
+                    Slider(L["Hide drops above"], L["Leave out drops whose chance is above this. 100 shows everything."],
+                        0, 100, 0.5,
+                        function() return db().maxPct or 100 end,
+                        function(v)
+                            db().maxPct = v
+                            if (db().minPct or 0) > v then db().minPct = v end
+                        end,
+                        { fmt = pct, apply = RefreshLoot }),
                     Flag("showWorldDrops", L["Show world drops"],
                         L["Include the generic world-drop pool along with a creature's own drops."], true,
                         { apply = RefreshLoot, tip = L["Retail data has no world-drop pool, so this changes nothing there."] }),

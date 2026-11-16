@@ -36,6 +36,7 @@ Screenshots: drop images into docs/ and reference them here, e.g.
   instance's bosses, each clickable to its loot.
 - 📜 **Quest loot.** A **"Loot Needed"** button in the quest log shows the items the selected
   quest needs and where they drop. It can be turned off in the settings, made round like a minimap button, or Shift-dragged elsewhere. Quest-class drops are flagged with a yellow **!**.
+- 🎚️ **Chance filter.** Hide drops below or above a chance you set (for example only the rare ones).
 - 🧍 **Player gear.** Target another player to see what they have equipped.
 - 🗺️ **Retail bosses from the Encounter Journal.** Current dungeon and raid bosses are read from
   the game itself, so they stay current. The Journal has no drop rates, so those rows show the

@@ -713,6 +713,60 @@ local function optionsWindow()
 	if not win.__shown then note("FAIL second /wid did not reopen"); fails = fails + 1 end
 end
 
+-- ---------------------------------------------------------------- the drop-chance filter
+-- The fake creature drops 1001 at 1.8%, 1002 at 6.5%, 1003 at 22%, 1004 at 54%, 1005 at 100% and, as
+-- a world drop, 1006 at 0.5%.
+local function chanceFilterTests()
+	local function chk(c, m) if not c then fails = fails + 1; note("FAIL [chance] " .. m) end end
+	unit.guid, unit.player, unit.name = "Creature-0-0-0-0-1234-0000", false, "Moroes"
+	WhatItDropsDB.minPct, WhatItDropsDB.maxPct, WhatItDropsDB.hideJunk, WhatItDropsDB.showWorldDrops = 0, 100, false, true
+	try("/loot (creature)", SlashCmdList.WHATITDROPS, "")
+	local win = _G.WhatItDropsFrame
+	local function shown()
+		local ids = {}
+		for _, f in ipairs(frames) do
+			local id = rawget(f, "itemID")
+			if f.__kind == "Button" and f.__parent == win.content and f.__shown and id then ids[#ids + 1] = id end
+		end
+		table.sort(ids)
+		return table.concat(ids, ",")
+	end
+	local function apply(lo, hi)
+		WhatItDropsDB.minPct, WhatItDropsDB.maxPct = lo, hi
+		try("refresh", WhatItDrops_Refresh)
+	end
+	chk(shown() == "1001,1002,1003,1004,1005,1006", "the unfiltered list is " .. shown())
+	apply(2, 100)
+	chk(shown() == "1002,1003,1004,1005", "hiding drops below 2%% left " .. shown())
+	apply(0, 50)
+	chk(shown() == "1001,1002,1003,1006", "hiding drops above 50%% left " .. shown())
+	apply(2, 50)
+	chk(shown() == "1002,1003", "a 2%%-50%% window left " .. shown())
+	apply(6.5, 22)
+	chk(shown() == "1002,1003", "the limits themselves are kept (6.5 and 22) but " .. shown() .. " is shown")
+	apply(60, 50)
+	chk(shown() == "", "an impossible window still showed " .. shown())
+	chk(win.filterNote and win.filterNote.__shown and win.filterNote.__text == NS.L["Everything here is hidden by your filters."], "an emptied list gave no explanation")
+	apply(0, 100)
+	chk(shown() == "1001,1002,1003,1004,1005,1006", "clearing the filter did not bring everything back")
+	chk(not (win.filterNote and win.filterNote.__shown), "the explanation stayed up after the list came back")
+	-- the player's gear and other lists without chances are left alone
+	apply(90, 100)
+	unit.guid, unit.player, unit.name = "Player-1-0000AAAA", true, "Someone"
+	try("/loot (player)", SlashCmdList.WHATITDROPS, ""); runTimers(1)
+	local gear = shown()
+	chk(gear ~= "", "a player's gear list was emptied by the chance filter")
+	unit.guid, unit.player, unit.name = "Creature-0-0-0-0-1234-0000", false, "Moroes"
+	-- the thresholds travel in a profile
+	WhatItDropsDB.minPct, WhatItDropsDB.maxPct = 3, 80
+	local exported = WhatItDrops_ExportProfile()
+	WhatItDropsDB.minPct, WhatItDropsDB.maxPct = 0, 100
+	local ok = WhatItDrops_ImportProfile(exported)
+	chk(ok and WhatItDropsDB.minPct == 3 and WhatItDropsDB.maxPct == 80, "the thresholds did not survive a profile round trip")
+	apply(0, 100)
+	try("/loot (creature)", SlashCmdList.WHATITDROPS, "")
+end
+
 -- ---------------------------------------------------------------- the quest-log button
 local function questButtonTests()
 	local function chk(c, m) if not c then fails = fails + 1; note("FAIL [questbtn] " .. m) end end
@@ -980,6 +1034,7 @@ end
 
 if WhatItDropsDB then
 	try("loot window", lootWindow)
+	try("chance filter", chanceFilterTests)
 	try("quest button", questButtonTests)
 	try("names", nameTests)
 	try("profile engine", profileTests)

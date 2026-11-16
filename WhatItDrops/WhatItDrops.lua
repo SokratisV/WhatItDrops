@@ -529,6 +529,10 @@ function WhatItDrops_Render()
 	if not win or not win:IsShown() then return end
 	local items = current.items
 	local hideJunk = WhatItDropsDB and WhatItDropsDB.hideJunk
+	-- Drops outside [lo, hi] percent are left out of a creature's list (lists without chances, such
+	-- as a player's gear, a quest's items or an Encounter Journal boss, are not touched).
+	local lo = (WhatItDropsDB and WhatItDropsDB.minPct) or 0
+	local hi = (WhatItDropsDB and WhatItDropsDB.maxPct) or 100
 
 	-- Rows fade in once per list, not on every redraw (item data arriving, toggles).
 	local nm = current.name
@@ -542,6 +546,7 @@ function WhatItDrops_Render()
 	local isNpc = current.id ~= nil
 	if not items then
 		for _, r in ipairs(rows) do r:Hide() end
+		if win.filterNote then win.filterNote:Hide() end
 		win.scroll:Hide(); win.check:Hide(); win.worldCheck:Hide(); win.urlBtn:Hide(); win.empty:Show()
 		win.content:SetHeight(1)
 		win:SetHeight(HEADER_H + 44 + FOOTER_H)        -- room for a message that wraps to three lines
@@ -554,7 +559,7 @@ function WhatItDrops_Render()
 	win.urlBtn:SetShown(isNpc)
 
 	local function pctStr(p) return (p >= 1 and "%.1f%%" or "%.2f%%"):format(p) end
-	local shown, waiting = 0, false
+	local shown, waiting, filteredOut = 0, false, 0
 	for _, entry in ipairs(items) do
 		if shown >= MAX_ROWS then break end
 		local itemID = entry.id
@@ -570,6 +575,8 @@ function WhatItDrops_Render()
 		-- look up (quest items unresolved to an ID never resolve — don't churn).
 		if itemID and not link then waiting = true end
 		local hidden = isNpc and hideJunk and quality and quality < 2
+		if not hidden and isNpc and entry.pct and (entry.pct < lo or entry.pct > hi) then hidden = true end
+		if hidden then filteredOut = filteredOut + 1 end
 		if not hidden then
 			shown = shown + 1
 			local r = GetRow(shown)
@@ -627,10 +634,26 @@ function WhatItDrops_Render()
 	end
 	for i = shown + 1, #rows do rows[i]:Hide() end
 
+	-- Nothing left to show only because of the filters: say so, rather than an unexplained blank list.
+	local allHidden = shown == 0 and filteredOut > 0
+	if allHidden then
+		if not win.filterNote then
+			win.filterNote = win:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+			win.filterNote:SetPoint("TOPLEFT", win.scroll, "TOPLEFT", 8, -8)
+			win.filterNote:SetPoint("TOPRIGHT", win.scroll, "TOPRIGHT", -8, -8)
+			win.filterNote:SetJustifyH("LEFT")
+		end
+		win.filterNote:SetText(L["Everything here is hidden by your filters."])
+		win.filterNote:Show()
+	elseif win.filterNote then
+		win.filterNote:Hide()
+	end
+
 	win.content:SetHeight(math.max(shown * ROW_H, 1))
+	local floorH = allHidden and ROW_H * 3 or ROW_H
 	local viewH = math.min(shown * ROW_H, MAX_VIEW)
-	win.scroll:SetHeight(math.max(viewH, ROW_H))
-	win:SetHeight(HEADER_H + math.max(viewH, ROW_H) + FOOTER_H)
+	win.scroll:SetHeight(math.max(viewH, floorH))
+	win:SetHeight(HEADER_H + math.max(viewH, floorH) + FOOTER_H)
 
 	-- If any item wasn't cached yet, the GET_ITEM_INFO_RECEIVED handler will
 	-- re-render as the data streams in.
@@ -1739,6 +1762,8 @@ local function SeedDB()
 	if WhatItDropsDB.auto == nil then WhatItDropsDB.auto = false end
 	if WhatItDropsDB.hideJunk == nil then WhatItDropsDB.hideJunk = false end
 	if WhatItDropsDB.questButton == nil then WhatItDropsDB.questButton = true end
+	if WhatItDropsDB.minPct == nil then WhatItDropsDB.minPct = 0 end
+	if WhatItDropsDB.maxPct == nil then WhatItDropsDB.maxPct = 100 end
 	if WhatItDropsDB.questButtonStyle == nil then WhatItDropsDB.questButtonStyle = "text" end
 	if WhatItDropsDB.showWorldDrops == nil then WhatItDropsDB.showWorldDrops = true end
 	if WhatItDropsDB.theme == nil then WhatItDropsDB.theme = "flare" end

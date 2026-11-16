@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+- **Filter a creature's drops by chance.** Settings > General > Loot lookup has **Hide drops below**
+  and **Hide drops above** (0.5% steps): the first leaves out drops that are rarer than the threshold,
+  the second drops that are more common, so you can look at only the rare ones, only the sure things,
+  or a band in between. They apply to a creature's loot list (not to a player's gear, a quest's items
+  or Encounter Journal bosses, which have no chances), keep each other in order, say so when they
+  leave the list empty, and are part of exported profiles.
+
 - **A round style for the quest log's "Loot Needed" button.** Settings > General > Quest log >
   Button style switches between the text button and a round one that looks like a minimap button: a
   gold ring around a dark disc with a little treasure chest (new `Chest.tga`, cut from the logo). It
