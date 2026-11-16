@@ -83,6 +83,22 @@ This project incorporates data generated from **cmangos/tbc-db** and the **Trini
 (both GPL v3). As a derivative it is distributed under **GPL v3**; see those projects for their
 licenses. Credit to the **CMaNGOS** project and the **TrinityCore** project.
 
+## Working copy and testing in game (dev)
+
+The repository is kept **outside** the game folders (it lives at `E:/Projects/WhatItDrops`) so the
+CurseForge app never sees it as an installed addon and never offers to "update" over your work. To try a
+change in game, copy it in:
+
+```
+python tools/deploy.py              # WoW Forever and Retail
+python tools/deploy.py --forever    # only Forever
+python tools/deploy.py --dry-run    # show what would change
+```
+
+It copies only what the release zip holds (no `tools/`, no `logo.png`), with LF line endings, and
+removes files the repo no longer has. The CurseForge app may then offer to restore the released
+version over your test build; just deploy again.
+
 ## Regenerating data (dev)
 
 ### Classic packs
