@@ -36,7 +36,7 @@ All the folders must sit directly under `Interface/AddOns/`.
 - `/wid export` / `/wid import`: copy your whole setup (every setting, window positions, the minimap button and your two keybinds) as one line of text, or paste one back. Also on the settings window's **Profile** page.
 - `/loot journal [boss]`: Retail only. Reports whether the Encounter Journal source works and what it indexed; with a name, which encounters match it.
 
-In the window: quest-item drops are flagged with a yellow **!**. **Hide common loot** drops greys and whites; **Show world drops** includes the generic world-drop pool (Classic data only). **Ctrl+C** reveals the Wowhead link, again copies and closes. **Ctrl-click** an item to preview it in the dressing room; **Shift-click** to link it in chat.
+In the window: quest-item drops are flagged with a yellow **!**. **Hide common loot** drops greys and whites; **Show world drops** includes the generic world-drop pool (Classic data only). With the mouse over the window **Ctrl+C** reveals the Wowhead link, again copies and closes. **Ctrl-click** an item to preview it in the dressing room; **Shift-click** to link it in chat.
 
 **Keybinds** (default **CTRL-L**, set once and only if that key is free; pressing it again closes the window it opened, unless your target changed): looks up your target; with no target inside a dungeon or raid it lists that instance's bosses; otherwise it opens the item browser. Rebind it on the Keybinds page.
 
