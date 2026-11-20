@@ -38,7 +38,7 @@ All the folders must sit directly under `Interface/AddOns/`.
 
 In the window: quest-item drops are flagged with a yellow **!**. **Hide common loot** drops greys and whites; **Show world drops** includes the generic world-drop pool (Classic data only). **Ctrl+C** reveals the Wowhead link, again copies and closes. **Ctrl-click** an item to preview it in the dressing room; **Shift-click** to link it in chat.
 
-**Keybinds** (default **CTRL-L**, set once and only if that key is free): looks up your target; with no target inside a dungeon or raid it lists that instance's bosses; otherwise it opens the item browser. Rebind it on the Keybinds page.
+**Keybinds** (default **CTRL-L**, set once and only if that key is free; pressing it again closes the window it opened, unless your target changed): looks up your target; with no target inside a dungeon or raid it lists that instance's bosses; otherwise it opens the item browser. Rebind it on the Keybinds page.
 
 **Minimap button:** left-click **reloads the UI**, right-click does a loot lookup (same as the keybind), drag to move it around the minimap. Toggle it in the settings.
 

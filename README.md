@@ -70,10 +70,11 @@ Screenshots: drop images into docs/ and reference them here, e.g.
 
 **Keybind** (default **CTRL-L**, set once and only if that key is free): looks up your target.
 With no target inside a dungeon or raid it lists that instance's bosses; otherwise it opens the
-item browser. Rebind it on the Keybinds page.
+item browser. Rebind it on the Keybinds page. Pressing it again closes the window it opened (unless your target
+changed); that can be switched off on the same page.
 
 In the loot window: **Hide common loot** drops greys and whites, **Show world drops** includes
-the generic world-drop pool (Classic data only), **Ctrl+C** reveals the Wowhead link (press again
+the generic world-drop pool (Classic data only), with the mouse over the window **Ctrl+C** reveals the Wowhead link (press again
 to copy and close), **Ctrl-click** previews an item in the dressing room, and **Shift-click**
 links it in chat.
 

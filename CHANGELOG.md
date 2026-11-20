@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+- **The keybind closes the window it opened.** Press the loot key (or the item browser key) again to
+  close the window; with a new target the loot key shows that target instead. On by default; switch it
+  off under Settings > Keybinds ("Keybind also closes the window"). Part of exported profiles.
+- **The loot window no longer keeps hold of the keyboard.** Some players found that all input stopped
+  while it was open. The window now takes keyboard input only while the mouse is over it (for the
+  Ctrl+C shortcut), lets every other key through, and stops listening at once in combat if its keys
+  would not pass through (the state that swallowed input, which cannot be repaired mid-fight). Moving
+  the mouse off the window or closing it always gives the keyboard back. The item browser's Wowhead
+  link for items with no droppers no longer focuses itself either (a focused box takes every key until
+  Escape); click it, then Ctrl+C.
+
 ## [1.5.2] - 2026-11-16
 
 - **Filter a creature's drops by chance, right in the loot window.** A **Chance [min] - [max] %** row

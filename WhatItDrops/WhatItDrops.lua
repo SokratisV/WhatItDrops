@@ -390,46 +390,53 @@ local function GetWindow()
 	f.url = url
 	WhatItDrops_Skin.EditBox(url)
 
-	-- Ctrl+C shortcut:
+	-- Ctrl+C shortcut, while the mouse is over the window:
 	--   1st press -> reveal & select the Wowhead URL (same as the button).
 	--   2nd press -> the focused box copies it natively, then we close.
-	-- The popup keeps keyboard input propagating so movement/keybinds still work;
-	-- it only consumes the specific Ctrl+C that triggers the reveal.
-	-- SetPropagateKeyboardInput is protected, so enabling keyboard capture is only
-	-- safe out of combat. If the window is first opened during combat, defer the
-	-- setup to combat-end — until then the frame stays keyboard-disabled, which lets
-	-- ESC fall through to the default UI (UISpecialFrames) and still close it.
-	local function EnableKeyCapture()
-		if InCombatLockdown() then return false end
-		f:EnableKeyboard(true)
-		f:SetPropagateKeyboardInput(true)   -- default: every key passes through
+	-- The window takes keyboard input ONLY while the pointer is over it, and lets every key
+	-- through except that one Ctrl+C. Players reported (rarely) that all input stopped while
+	-- the window was open; a keyboard-enabled frame whose pass-through has been switched off
+	-- does exactly that, and SetPropagateKeyboardInput cannot be called in combat to fix it.
+	-- So: moving the mouse away always gives every key back, and in combat the window stops
+	-- listening altogether whenever its keys would not pass through. EnableKeyboard is allowed
+	-- in combat (FlareUI's dialog relies on the same split); SetPropagateKeyboardInput is not.
+	f:EnableKeyboard(false)
+	f.keyboardOn = false
+	local function SetKeyboard(self, on)
+		if on == self.keyboardOn then return end
+		self.keyboardOn = on
+		if on and not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
+		self:EnableKeyboard(on)
+	end
+	local function WantKeyboard(self)
+		if not self:IsMouseOver() then return false end
+		if InCombatLockdown() then return self:GetPropagateKeyboardInput() and true or false end
 		return true
 	end
-	EnableKeyCapture()
-	-- Re-assert pass-through whenever combat ends. This completes the deferred
-	-- setup if the window first opened in combat AND heals any stranded "consume"
-	-- state left by a Ctrl+C whose restore was blocked by combat -- so ESC and
-	-- movement keys can never stay swallowed. Kept registered as a safety net.
-	f:RegisterEvent("PLAYER_REGEN_ENABLED")
-	f:HookScript("OnEvent", function(self, e)
-		if e == "PLAYER_REGEN_ENABLED" then
-			self:EnableKeyboard(true)
-			self:SetPropagateKeyboardInput(true)
-		end
+	local kbWait = 0
+	f:SetScript("OnUpdate", function(self, elapsed)
+		kbWait = kbWait + (elapsed or 0)
+		if kbWait < 0.1 then return end
+		kbWait = 0
+		SetKeyboard(self, WantKeyboard(self))
 	end)
-	-- And re-assert each time the window is shown.
-	f:HookScript("OnShow", function(self)
+	f:HookScript("OnHide", function(self)
+		SetKeyboard(self, false)
 		if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
 	end)
+	-- A Ctrl+C whose restore was caught by combat is healed as soon as combat ends.
+	f:RegisterEvent("PLAYER_REGEN_ENABLED")
+	f:HookScript("OnEvent", function(self, e)
+		if e == "PLAYER_REGEN_ENABLED" then self:SetPropagateKeyboardInput(true) end
+	end)
 	f:SetScript("OnKeyDown", function(self, key)
-		-- SetPropagateKeyboardInput is protected (blocked in combat); never touch it
-		-- in combat -- propagation is left as-is and keys pass through.
+		-- in combat propagation is left as it is (it cannot be changed); the OnUpdate above
+		-- switches the keyboard off if that ever means keys would be swallowed
 		if InCombatLockdown() then return end
 		if key == "C" and IsControlKeyDown() and (not url:IsShown() or not url:HasFocus()) then
 			self:SetPropagateKeyboardInput(false) -- consume just this Ctrl+C
 			url:Show(); url:SetFocus(); url:HighlightText()
-			-- restore pass-through on the very next frame, so the "consume" state is
-			-- sub-frame and can never be caught by combat (which would strand ESC).
+			-- restore pass-through on the very next frame, so the "consume" state is sub-frame
 			C_Timer.After(0, function()
 				if not InCombatLockdown() then f:SetPropagateKeyboardInput(true) end
 			end)
@@ -437,8 +444,7 @@ local function GetWindow()
 			self:SetPropagateKeyboardInput(true)  -- let every other key through
 		end
 	end)
-	-- Whenever the URL box closes (Escape or after a copy), restore pass-through so
-	-- a leftover "consume" state can never carry into combat and swallow ESC.
+	-- Whenever the URL box closes (Escape or after a copy), restore pass-through as well.
 	url:HookScript("OnHide", function()
 		if not InCombatLockdown() then f:SetPropagateKeyboardInput(true) end
 	end)
@@ -1508,10 +1514,12 @@ RenderBrowser = function()
 		-- No mob drops it in our data — point to Wowhead instead.
 		if #list == 0 then
 			for _, r in ipairs(bRows) do r:Hide() end
-			f.hint:SetText(L["Not a mob drop in our data (crafted, quest, vendor, or event). Open on Wowhead — Ctrl+C to copy:"])
+			f.hint:SetText(L["Not a mob drop in our data (crafted, quest, vendor, or event). Open on Wowhead — click the link, then Ctrl+C to copy:"])
 			f.hint:Show()
 			local u = BuildItemURL(bSelItem)
-			f.url.expected = u; f.url:SetText(u); f.url:Show(); f.url:SetFocus(); f.url:HighlightText()
+			-- Not focused: a focused box takes every key (movement, action bars) until Escape,
+			-- which reads as "all input stopped". Clicking it focuses and selects it.
+			f.url.expected = u; f.url:SetText(u); f.url:Show()
 			f.content:SetHeight(1)
 			return
 		end
@@ -1669,6 +1677,7 @@ local function GetBrowser()
 	url:SetScript("OnTextChanged", function(self)
 		if self.expected and self:GetText() ~= self.expected then self:SetText(self.expected); self:HighlightText() end
 	end)
+	url:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
 	url:Hide(); WhatItDrops_Skin.EditBox(url); f.url = url
 
 	bWin = f
@@ -1694,6 +1703,7 @@ function WhatItDrops_OpenBrowser(text)
 		end
 	end
 	f:Show()
+	f.openedByKey = nil          -- the key handlers set it again when they were the opener
 	if text and text ~= "" then
 		f.search:SetText(text); DoBrowserSearch(text)
 	elseif WhatItDropsDB and WhatItDropsDB.clearSearchOnOpen then
@@ -1828,6 +1838,7 @@ local function SeedDB()
 	if WhatItDropsDB.auto == nil then WhatItDropsDB.auto = false end
 	if WhatItDropsDB.hideJunk == nil then WhatItDropsDB.hideJunk = false end
 	if WhatItDropsDB.questButton == nil then WhatItDropsDB.questButton = true end
+	if WhatItDropsDB.keyToggles == nil then WhatItDropsDB.keyToggles = true end
 	if WhatItDropsDB.minPct == nil then WhatItDropsDB.minPct = 0 end
 	if WhatItDropsDB.maxPct == nil then WhatItDropsDB.maxPct = 100 end
 	if WhatItDropsDB.questButtonStyle == nil then WhatItDropsDB.questButtonStyle = "text" end
@@ -2059,7 +2070,7 @@ SlashCmdList.WHATITDROPS = function(msg)
 		print("  " .. L["%s — toggle auto-showing on target"]:format("|cffffd100/loot auto|r"))
 		print("  " .. L["%s (or %s) — open the settings window"]:format("|cffffd100/loot config|r", "|cffffd100/wid|r"))
 		print("  " .. L["%s, %s — copy your whole setup as text, or paste one back"]:format("|cffffd100/wid export|r", "|cffffd100/wid import|r"))
-		print("  " .. L["Ctrl+C shows the Wowhead link; press again to copy and close."])
+		print("  " .. L["With the mouse over the loot window, Ctrl+C shows the Wowhead link; press again to copy and close."])
 		print("  " .. L["Click an item to see what drops it; Ctrl-click previews; Shift-click links it."])
 	else
 		LinkUnit()
@@ -2088,14 +2099,42 @@ SlashCmdList.WHATITDROPSFULL = function() LinkUnit() end
 BINDING_HEADER_WHATITDROPS = "WhatItDrops"
 BINDING_NAME_WHATITDROPS_FULLLOOKUP = L["Show loot for target"]
 BINDING_NAME_WHATITDROPS_LOOKUP = L["Open item browser"]
+-- Is the loot window already showing what this unit would show? (Then the key closes it.)
+local function ShowingUnit(unit)
+	if current.player then
+		local guid = UnitIsPlayer(unit) and UnitGUID(unit)
+		return guid ~= nil and not IsSecret(guid) and not IsSecret(current.inspectGUID) and guid == current.inspectGUID
+	end
+	local npc = not UnitIsPlayer(unit) and GetNpcID(unit)
+	return npc and current.id == npc or false
+end
+
+local function KeyToggles()
+	return not WhatItDropsDB or WhatItDropsDB.keyToggles ~= false
+end
+
 function WhatItDrops_DoBinding()
 	-- Mouseover (if enabled) or target: a player shows gear, a creature shows
 	-- loot; anything else opens the browser.
 	local unit = ResolveUnit()
-	if UnitExists(unit) and (UnitIsPlayer(unit) or GetNpcID(unit)) then
+	local valid = UnitExists(unit) and (UnitIsPlayer(unit) or GetNpcID(unit))
+	if KeyToggles() then
+		-- the same key closes the window again, unless there is something new to show
+		if win and win:IsShown() and (not valid or ShowingUnit(unit)) then win:Hide(); return end
+		if not valid and bWin and bWin:IsShown() and bWin.openedByKey then bWin:Hide(); return end
+	end
+	if valid then
 		LinkUnit(unit)
 	elseif not WhatItDrops_ShowInstanceBosses() then
 		-- No target and not in a known instance: fall back to the plain browser.
 		WhatItDrops_OpenBrowser()
 	end
+	if not valid and bWin and bWin:IsShown() then bWin.openedByKey = true end
+end
+
+-- The item-browser key: opens the browser, and (with the option on) closes it again.
+function WhatItDrops_DoBrowserBinding()
+	if KeyToggles() and bWin and bWin:IsShown() then bWin:Hide(); return end
+	WhatItDrops_OpenBrowser()
+	if bWin then bWin.openedByKey = true end
 end

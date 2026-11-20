@@ -3,6 +3,6 @@
 		WhatItDrops_DoBinding()
 	</Binding>
 	<Binding name="WHATITDROPS_LOOKUP">
-		WhatItDrops_OpenBrowser()
+		WhatItDrops_DoBrowserBinding()
 	</Binding>
 </Bindings>

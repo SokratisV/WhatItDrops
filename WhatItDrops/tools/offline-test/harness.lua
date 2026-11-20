@@ -68,11 +68,19 @@ function methods.GetScript(self, n) return self.__scripts[n] end
 function methods.HookScript(self, n, fn) self.__hooks[n] = self.__hooks[n] or {}; table.insert(self.__hooks[n], fn) end
 function methods.RegisterEvent(self, e) self.__events[e] = true end
 function methods.UnregisterEvent(self, e) self.__events[e] = nil end
-function methods.Show(self) self.__shown = true; if self.__scripts.OnShow then self.__scripts.OnShow(self) end end
+local function runHooks(self, name, ...)
+	for _, h in ipairs(self.__hooks[name] or {}) do h(self, ...) end
+end
+function methods.Show(self)
+	self.__shown = true
+	if self.__scripts.OnShow then self.__scripts.OnShow(self) end
+	runHooks(self, "OnShow")
+end
 function methods.Hide(self)
 	local was = self.__shown
 	self.__shown = false
 	if was and self.__scripts.OnHide then self.__scripts.OnHide(self) end
+	if was then runHooks(self, "OnHide") end
 end
 function methods.SetShown(self, b) if b then self:Show() else self:Hide() end end
 function methods.IsShown(self) return self.__shown end
@@ -101,6 +109,13 @@ function methods.CreateFontString(self) return newObject("FontString", self) end
 function methods.CreateAnimationGroup(self) return newObject("AnimationGroup", self) end
 function methods.CreateAnimation(self) return newObject("Animation", self) end
 function methods.GetNumPoints() return 1 end
+function methods.EnableKeyboard(self, on) self.__kb = on and true or false end
+function methods.SetPropagateKeyboardInput(self, on) self.__prop = on and true or false end
+function methods.GetPropagateKeyboardInput(self) return self.__prop end
+function methods.SetFocus(self) self.__focus = true end
+function methods.ClearFocus(self) self.__focus = false end
+function methods.HasFocus(self) return self.__focus and true or false end
+function methods.IsMouseOver(self) return MOUSE_OVER == self end
 function methods.SetPoint(self, point, ...) self.__point = point; return self end    -- remembered so the tests can see where a button was put
 
 -- templates that a given client may not have
@@ -182,7 +197,7 @@ SlashCmdList, UISpecialFrames = {}, {}
 function ReloadUI() RELOADED = true end
 function InCombatLockdown() return IN_COMBAT and true or false end
 function IsAltKeyDown() return false end
-function IsControlKeyDown() return false end
+function IsControlKeyDown() return CTRL_DOWN and true or false end
 function IsShiftKeyDown() return SHIFT_DOWN and true or false end
 function IsModifiedClick() return false end
 function PlaySound() end
@@ -306,8 +321,9 @@ local function loadAddonFile(rel)
 end
 local function fire(event, ...)
 	for _, f in ipairs(frames) do
-		if f.__events[event] and f.__scripts.OnEvent then
-			try("event " .. event, f.__scripts.OnEvent, f, event, ...)
+		if f.__events[event] then
+			if f.__scripts.OnEvent then try("event " .. event, f.__scripts.OnEvent, f, event, ...) end
+			for _, h in ipairs(f.__hooks.OnEvent or {}) do try("event hook " .. event, h, f, event, ...) end
 		end
 	end
 end
@@ -713,6 +729,109 @@ local function optionsWindow()
 	if not win.__shown then note("FAIL second /wid did not reopen"); fails = fails + 1 end
 end
 
+-- ---------------------------------------------------------------- the keys: toggling, and never holding the keyboard
+local function keyTests()
+	local function chk(c, m) if not c then fails = fails + 1; note("FAIL [keys] " .. m) end end
+	local win = _G.WhatItDropsFrame
+	local moroes, other, nobody = "Creature-0-0-0-0-1234-0000", "Creature-0-0-0-0-4444-0000", ""
+	unit.player, unit.name = false, "Moroes"
+	WhatItDropsDB.keyToggles = true
+	-- the loot key opens, closes, opens
+	unit.guid = moroes; win:Hide()
+	try("key", WhatItDrops_DoBinding)
+	chk(win.__shown, "the loot key did not open the window")
+	try("key again", WhatItDrops_DoBinding)
+	chk(not win.__shown, "pressing the loot key again did not close the window")
+	try("key a third time", WhatItDrops_DoBinding)
+	chk(win.__shown, "the loot key did not open the window again")
+	-- with a different target it switches instead of closing
+	unit.guid = other
+	try("key, new target", WhatItDrops_DoBinding)
+	chk(win.__shown, "the loot key closed the window although the target had changed")
+	try("key, same new target", WhatItDrops_DoBinding)
+	chk(not win.__shown, "the loot key did not close the window showing the new target")
+	-- with the option off it never closes
+	WhatItDropsDB.keyToggles = false
+	unit.guid = moroes
+	try("key, option off", WhatItDrops_DoBinding); try("key, option off, again", WhatItDrops_DoBinding)
+	chk(win.__shown, "with the option off the loot key closed the window")
+	WhatItDropsDB.keyToggles = true
+	-- no target: an open loot window closes; then the key opens the browser, and closes it again
+	unit.guid = nobody
+	try("key, no target", WhatItDrops_DoBinding)
+	chk(not win.__shown, "with no target the loot key did not close the loot window")
+	try("key, no target, browser", WhatItDrops_DoBinding)
+	local br = _G.WhatItDropsBrowserFrame
+	chk(br and br.__shown, "with no target the loot key did not open the browser")
+	try("key, no target, browser again", WhatItDrops_DoBinding)
+	chk(br and not br.__shown, "the loot key did not close the browser it had opened")
+	-- the browser key
+	try("browser key", WhatItDrops_DoBrowserBinding)
+	chk(br.__shown, "the browser key did not open the browser")
+	try("browser key again", WhatItDrops_DoBrowserBinding)
+	chk(not br.__shown, "the browser key did not close the browser")
+	WhatItDropsDB.keyToggles = false
+	try("browser key, option off", WhatItDrops_DoBrowserBinding); try("browser key, option off, again", WhatItDrops_DoBrowserBinding)
+	chk(br.__shown, "with the option off the browser key closed the browser")
+	WhatItDropsDB.keyToggles = true
+	br:Hide()
+
+	-- the loot window only takes the keyboard while the mouse is over it
+	unit.guid = moroes
+	try("open", WhatItDrops_DoBinding)
+	MOUSE_OVER = nil; press(win, "OnUpdate", 0.2)
+	chk(win.__kb == false, "the loot window took the keyboard with the mouse elsewhere")
+	MOUSE_OVER = win; press(win, "OnUpdate", 0.2)
+	chk(win.__kb == true and win.__prop == true, "with the mouse over it the window did not listen (with keys passing through)")
+	-- Ctrl+C reveals the link, swallowing only that one press
+	CTRL_DOWN = true; press(win, "OnKeyDown", "C"); CTRL_DOWN = false
+	chk(win.url.__shown and win.url.__focus and win.__prop == false, "Ctrl+C did not reveal and focus the Wowhead link")
+	runTimers(0.1)
+	chk(win.__prop == true, "pass-through was not restored after the Ctrl+C")
+	press(win, "OnKeyDown", "W")
+	chk(win.__prop == true, "an ordinary key was swallowed")
+	win.url:Hide()
+	-- stuck in combat: pass-through off and cannot be changed -> the window stops listening at once
+	win.__prop = false; IN_COMBAT = true
+	press(win, "OnUpdate", 0.2)
+	chk(win.__kb == false, "in combat with pass-through off the window kept the keyboard")
+	IN_COMBAT = false
+	fire("PLAYER_REGEN_ENABLED")
+	chk(win.__prop == true, "pass-through was not restored when combat ended")
+	press(win, "OnUpdate", 0.2)
+	chk(win.__kb == true, "the window did not listen again after combat")
+	-- moving the mouse away gives the keyboard back; hiding does too
+	MOUSE_OVER = nil; press(win, "OnUpdate", 0.2)
+	chk(win.__kb == false, "moving the mouse away did not release the keyboard")
+	MOUSE_OVER = win; press(win, "OnUpdate", 0.2); win:Hide()
+	chk(win.__kb == false, "hiding the window did not release the keyboard")
+	MOUSE_OVER = nil
+
+	-- the browser's "not a mob drop" link must not grab the keyboard by itself
+	if CLIENT == "forever" then
+		try("browse", SlashCmdList.WHATITDROPS, "browse distant"); runTimers(0.2)
+		local row
+		for _, f in ipairs(frames) do
+			if f.__kind == "Button" and f.__parent == br.content and f.__shown and rawget(f, "itemID") == 1007 then row = f end
+		end
+		chk(row, "the browser did not list the item with no droppers")
+		if row then
+			press(row, "OnClick", "LeftButton"); runTimers(0.2)
+			chk(br.url.__shown and not br.url.__focus, "the no-droppers link took the keyboard by itself")
+			press(br.url, "OnEditFocusGained")
+		end
+		br:Hide()
+	end
+	-- the option travels in a profile
+	WhatItDropsDB.keyToggles = false
+	local exported = WhatItDrops_ExportProfile()
+	WhatItDropsDB.keyToggles = true
+	local ok = WhatItDrops_ImportProfile(exported)
+	chk(ok and WhatItDropsDB.keyToggles == false, "the keybind-closes option did not survive a profile round trip")
+	WhatItDropsDB.keyToggles = true
+	try("open again", WhatItDrops_DoBinding)
+end
+
 -- ---------------------------------------------------------------- the drop-chance filter
 -- The fake creature drops 1001 at 1.8%, 1002 at 6.5%, 1003 at 22%, 1004 at 54%, 1005 at 100% and, as
 -- a world drop, 1006 at 0.5%.
@@ -1064,6 +1183,7 @@ end
 
 if WhatItDropsDB then
 	try("loot window", lootWindow)
+	try("keys", keyTests)
 	try("chance filter", chanceFilterTests)
 	try("quest button", questButtonTests)
 	try("names", nameTests)

@@ -41,6 +41,7 @@ local SCHEMA = {
     { key = "minPct",            t = "num",  min = 0, max = 100 },
     { key = "maxPct",            t = "num",  min = 0, max = 100 },
     { key = "questButton",       t = "bool" },
+    { key = "keyToggles",        t = "bool" },
     { key = "questButtonStyle",  t = "enum", values = BUTTONSTYLES },
     { key = "showWorldDrops",    t = "bool" },
     { key = "clearSearchOnOpen", t = "bool" },
