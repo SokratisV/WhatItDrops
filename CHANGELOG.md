@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-11-20
+
 - **The keybind closes the window it opened.** Press the loot key (or the item browser key) again to
   close the window; with a new target the loot key shows that target instead. On by default; switch it
   off under Settings > Keybinds ("Keybind also closes the window"). Part of exported profiles.
@@ -212,6 +214,7 @@ Initial release as **WhatItDrops**. This is the addon previously published as
 Commands: `/loot` (target lookup), `/loot config`, `/loot browse`, `/fullloot`, and
 `/whatitdrops`.
 
+[1.5.3]: https://github.com/SokratisV/WhatItDrops/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/SokratisV/WhatItDrops/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/SokratisV/WhatItDrops/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/SokratisV/WhatItDrops/compare/v1.4.0...v1.5.0

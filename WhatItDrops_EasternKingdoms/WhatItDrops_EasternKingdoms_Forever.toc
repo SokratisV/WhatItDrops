@@ -21,7 +21,7 @@
 ## Notes-zhTW: 東部王國的戰利品機率，來自 CMaNGOS 資料庫（GPLv3）。由 WhatItDrops 按需載入。
 ## Title-itIT: WhatItDrops |cff66ccffRegni Orientali Dati|r
 ## Notes-itIT: Probabilità di bottino per Regni Orientali dal database CMaNGOS (GPLv3). Caricato su richiesta da WhatItDrops.
-## Version: 1.5.2
+## Version: 1.5.3
 ## IconTexture: Interface\AddOns\WhatItDrops\icon.tga
 ## Group: WhatItDrops
 ## X-Part-Of: WhatItDrops

@@ -113,7 +113,7 @@ def main(world_sql, addons_dir):
                 "## Title: WhatItDrops |cff66ccffRetail Data|r\n"
                 "## Notes: Retail creature loot from the TrinityCore TDB (GPLv3). Loaded on demand by WhatItDrops.\n"
                 + "".join(l + "\n" for l in toc_locales.lines_for("Retail")) +
-                "## Version: 1.5.2\n"
+                "## Version: 1.5.3\n"
                 "## IconTexture: Interface\\AddOns\\WhatItDrops\\icon.tga\n"
                 "## Group: WhatItDrops\n"
                 "## X-Part-Of: WhatItDrops\n"
