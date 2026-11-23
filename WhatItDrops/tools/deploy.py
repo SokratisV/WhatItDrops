@@ -1,18 +1,14 @@
-"""Copy the addon from this repo into the game's AddOns folders for in-game testing.
+"""Copy the addon from this repo into another game install's AddOns folder for in-game testing.
 
-    python tools/deploy.py              WoW Forever and Retail
-    python tools/deploy.py --forever    only WoW Forever
+    python tools/deploy.py              Retail (and Forever, if the repo is not already there)
     python tools/deploy.py --retail     only Retail
     python tools/deploy.py --dry-run    say what would change, change nothing
 
-The repo lives outside the game folders so the CurseForge app never sees it as an installed
-addon. What the game needs is only what the release zip holds: no tools/, no logo.png, no
-.claude/ or __pycache__. Forever gets all seven folders; Retail gets the main addon and the
-Retail data pack (the classic packs mean nothing there). Only files whose content differs are
-written, and files in the game folder that the repo no longer has are removed again.
-
-Note the CurseForge app fingerprints what is installed: after a deploy it may offer to restore the
-released version of WhatItDrops, which just overwrites the test build (deploy again).
+The repo itself lives in WoW Forever's AddOns folder, so Forever already runs it as it is; a
+target that is the repo's own folder is skipped. What another game install needs is only what the
+release zip holds: no tools/, no logo.png, no .claude/ or __pycache__. Retail gets the main addon
+and the Retail data pack (the classic packs mean nothing there). Only files whose content differs
+are written, and files the repo no longer has are removed again.
 """
 import os
 import sys
@@ -53,6 +49,9 @@ def wanted(folder):
 
 def deploy(name, dry):
     dest_root, folders = TARGETS[name]
+    if os.path.normcase(os.path.abspath(dest_root)) == os.path.normcase(os.path.abspath(REPO)):
+        print("%s: this is the repo's own folder, nothing to copy" % name)
+        return
     if not os.path.isdir(dest_root):
         print("%s: %s does not exist, skipped" % (name, dest_root))
         return

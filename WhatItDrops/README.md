@@ -85,19 +85,19 @@ licenses. Credit to the **CMaNGOS** project and the **TrinityCore** project.
 
 ## Working copy and testing in game (dev)
 
-The repository is kept **outside** the game folders (it lives at `E:/Projects/WhatItDrops`) so the
-CurseForge app never sees it as an installed addon and never offers to "update" over your work. To try a
-change in game, copy it in:
+The repository lives in WoW Forever's own AddOns folder (`_forever_/Interface/AddOns`, the
+`.gitignore` there ignores every other addon), so Forever runs the code as it is in the repo. The
+CurseForge app sees WhatItDrops there as an installed addon: **do not let it update WhatItDrops**, since
+that replaces the folders with the released zip (and deletes `tools/`). To try a change on Retail,
+copy it in:
 
 ```
-python tools/deploy.py              # WoW Forever and Retail
-python tools/deploy.py --forever    # only Forever
+python tools/deploy.py              # Retail
 python tools/deploy.py --dry-run    # show what would change
 ```
 
 It copies only what the release zip holds (no `tools/`, no `logo.png`), with LF line endings, and
-removes files the repo no longer has. The CurseForge app may then offer to restore the released
-version over your test build; just deploy again.
+removes files the repo no longer has.
 
 ## Regenerating data (dev)
 
