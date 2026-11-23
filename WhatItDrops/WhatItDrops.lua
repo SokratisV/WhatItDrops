@@ -393,33 +393,30 @@ local function GetWindow()
 	-- Ctrl+C shortcut, while the mouse is over the window:
 	--   1st press -> reveal & select the Wowhead URL (same as the button).
 	--   2nd press -> the focused box copies it natively, then we close.
-	-- The window takes keyboard input ONLY while the pointer is over it, and lets every key
-	-- through except that one Ctrl+C. Players reported (rarely) that all input stopped while
-	-- the window was open; a keyboard-enabled frame whose pass-through has been switched off
-	-- does exactly that, and SetPropagateKeyboardInput cannot be called in combat to fix it.
-	-- So: moving the mouse away always gives every key back, and in combat the window stops
-	-- listening altogether whenever its keys would not pass through. EnableKeyboard is allowed
-	-- in combat (FlareUI's dialog relies on the same split); SetPropagateKeyboardInput is not.
+	-- The window takes keyboard input ONLY out of combat and while the pointer is over it, and
+	-- lets every key through except that one Ctrl+C. A player caught this window holding the
+	-- keyboard with keys not passing through in the middle of a fight (every key dead until the
+	-- fight ended); neither the pass-through nor, it seems, the keyboard itself can be changed
+	-- once the combat lockdown is on. So the keyboard is dropped as combat begins
+	-- (PLAYER_REGEN_DISABLED, before the lockdown; DialogueUI does the same), and nothing about it
+	-- is touched again until the fight is over. The Ctrl+C shortcut waits until then.
 	f:EnableKeyboard(false)
 	f.keyboardOn = false
 	local function SetKeyboard(self, on)
-		if on == self.keyboardOn then return end
+		-- compare with the frame itself, not only our note of it, so a mismatch heals itself
+		local enabled = self.IsKeyboardEnabled and self:IsKeyboardEnabled()
+		if on == self.keyboardOn and (enabled == nil or enabled == on) then return end
 		self.keyboardOn = on
 		if on and not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
 		self:EnableKeyboard(on)
-	end
-	-- Never in combat: a keyboard-enabled frame can only pass keys on if its pass-through is
-	-- right, and that cannot be checked or repaired mid-fight. DialogueUI drops its keyboard at
-	-- the start of combat for the same reason. So the Ctrl+C shortcut waits until combat ends.
-	local function WantKeyboard(self)
-		return self:IsMouseOver() and not InCombatLockdown()
 	end
 	local kbWait = 0
 	f:SetScript("OnUpdate", function(self, elapsed)
 		kbWait = kbWait + (elapsed or 0)
 		if kbWait < 0.1 then return end
 		kbWait = 0
-		SetKeyboard(self, WantKeyboard(self))
+		if InCombatLockdown() then return end      -- dropped as the fight began; left alone until it ends
+		SetKeyboard(self, self:IsMouseOver())
 	end)
 	f:HookScript("OnHide", function(self)
 		SetKeyboard(self, false)
@@ -2040,6 +2037,7 @@ local function KeyboardHolders()
 	while f do
 		local ok, holds = pcall(function()
 			if f.IsForbidden and f:IsForbidden() then return false end
+			if f:GetObjectType() == "EditBox" then return false end    -- only a focused one takes keys (listed above)
 			return f:IsVisible() and f:IsKeyboardEnabled() and not f:GetPropagateKeyboardInput()
 		end)
 		if ok and holds and f ~= focus then out[#out + 1] = FrameLabel(f) end

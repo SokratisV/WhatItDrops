@@ -130,6 +130,7 @@ function methods.IsMouseOver(self) return MOUSE_OVER == self end
 function methods.IsKeyboardEnabled(self) return self.__kb and true or false end
 function methods.IsVisible(self) return self.__shown and true or false end
 function methods.GetDebugName(self) return self.__name end
+function methods.GetObjectType(self) return self.__kind end
 function methods.RegisterEvent(self, e) self.__events[e] = true end
 function methods.UnregisterAllEvents(self) self.__events = {} end
 function methods.SetPoint(self, point, ...) self.__point = point; return self end    -- remembered so the tests can see where a button was put
@@ -835,10 +836,17 @@ local function keyTests()
 	chk(win.__kb == false, "the window took the keyboard in combat")
 	IN_COMBAT = false; fire("PLAYER_REGEN_ENABLED"); press(win, "OnUpdate", 0.2)
 	chk(win.__kb == true, "the window did not listen again after the fight")
-	-- stuck in combat: pass-through off and cannot be changed -> the window stops listening at once
-	win.__prop = false; IN_COMBAT = true
+	-- whatever state the window was left in, combat starting drops the keyboard, and in combat
+	-- the window never touches it (not even with the mouse over it)
+	win.__prop = false
+	fire("PLAYER_REGEN_DISABLED"); IN_COMBAT = true
+	chk(win.__kb == false, "combat started with the window still holding the keyboard")
+	win.keyboardOn = false; win.__kb = true          -- out of step with its own note: must not stay so
+	IN_COMBAT = false; MOUSE_OVER = nil; press(win, "OnUpdate", 0.2)
+	chk(win.__kb == false, "a keyboard left on behind the window's back was not switched off")
+	MOUSE_OVER = win; IN_COMBAT = true; win.__kb = false
 	press(win, "OnUpdate", 0.2)
-	chk(win.__kb == false, "in combat with pass-through off the window kept the keyboard")
+	chk(win.__kb == false, "the window took the keyboard in combat")
 	IN_COMBAT = false
 	fire("PLAYER_REGEN_ENABLED")
 	chk(win.__prop == true, "pass-through was not restored when combat ended")
@@ -880,6 +888,16 @@ local function keyTests()
 	mark = #chat
 	try("/loot keycheck, nothing", SlashCmdList.WHATITDROPS, "keycheck")
 	chk(not saidName(mark), "/loot keycheck named a frame that passes keys on")
+	local box = CreateFrame("EditBox", "SomeAddonTextBox", UIParent)
+	box:EnableKeyboard(true); box:SetPropagateKeyboardInput(false)
+	mark = #chat
+	try("/loot keycheck, idle box", SlashCmdList.WHATITDROPS, "keycheck")
+	local function saidBox() for i = mark + 1, #chat do if tostring(chat[i]):find("SomeAddonTextBox", 1, true) then return true end end return false end
+	chk(not saidBox(), "/loot keycheck named a text box that has no focus (it takes no keys)")
+	box:SetFocus(); mark = #chat
+	try("/loot keycheck, focused box", SlashCmdList.WHATITDROPS, "keycheck")
+	chk(saidBox(), "/loot keycheck did not name a focused text box")
+	box:ClearFocus(); box:Hide()
 	bad:SetPropagateKeyboardInput(false)
 	WhatItDropsDB.keyWatch = false
 	try("/loot keywatch on", SlashCmdList.WHATITDROPS, "keywatch")
