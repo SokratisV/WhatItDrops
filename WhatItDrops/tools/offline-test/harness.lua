@@ -34,6 +34,17 @@ end
 local clock, timers = 0, {}
 function GetTime() return clock end
 C_Timer = { After = function(d, fn) timers[#timers + 1] = { at = clock + d, fn = fn } end }
+function C_Timer.NewTicker(d, fn)
+	local ticker = { cancelled = false }
+	function ticker:Cancel() self.cancelled = true end
+	local function tick()
+		if ticker.cancelled then return end
+		fn(ticker)
+		C_Timer.After(d, tick)
+	end
+	C_Timer.After(d, tick)
+	return ticker
+end
 local function runTimers(advance)
 	clock = clock + (advance or 5)
 	for _ = 1, 20 do
@@ -116,6 +127,11 @@ function methods.SetFocus(self) self.__focus = true end
 function methods.ClearFocus(self) self.__focus = false end
 function methods.HasFocus(self) return self.__focus and true or false end
 function methods.IsMouseOver(self) return MOUSE_OVER == self end
+function methods.IsKeyboardEnabled(self) return self.__kb and true or false end
+function methods.IsVisible(self) return self.__shown and true or false end
+function methods.GetDebugName(self) return self.__name end
+function methods.RegisterEvent(self, e) self.__events[e] = true end
+function methods.UnregisterAllEvents(self) self.__events = {} end
 function methods.SetPoint(self, point, ...) self.__point = point; return self end    -- remembered so the tests can see where a button was put
 
 -- templates that a given client may not have
@@ -281,6 +297,14 @@ function SaveBindings() end
 -- units
 local unit = { guid = "Creature-0-0-0-0-1234-0000", name = "Moroes", player = false }
 function UnitExists() return true end
+function EnumerateFrames(prev)
+	local i = 0
+	if prev then for k, f in ipairs(frames) do if f == prev then i = k break end end end
+	return frames[i + 1]
+end
+function GetCurrentKeyBoardFocus()
+	for _, f in ipairs(frames) do if rawget(f, "__focus") and f.__shown then return f end end
+end
 function UnitGUID() return unit.guid end
 function UnitName() return unit.name end
 function UnitIsPlayer() return unit.player end
@@ -717,6 +741,19 @@ local function optionsWindow()
 		press(findPos(), "OnClick", "LeftButton"); runTimers(0.2)
 		if WhatItDropsDB.questButtonPos ~= nil then fails = fails + 1; note("FAIL [questbtn] Reset position did not clear the remembered position") end
 	end
+	-- a key capture left armed in the settings is dropped as combat starts
+	try("show page keybinds", WhatItDrops_ShowOptionsPage, "keybinds"); runTimers(0.2)
+	local capture
+	for _, f in ipairs(frames) do
+		if rawget(f, "stop") and f.__shown and f.__scripts.OnKeyDown then capture = f end
+	end
+	if not capture then fails = fails + 1; note("FAIL [keys] the settings' key capture button was not found")
+	else
+		press(capture, "OnClick", "LeftButton")
+		if not (rawget(capture, "listening") and capture.__kb) then fails = fails + 1; note("FAIL [keys] clicking the key button did not start a capture") end
+		fire("PLAYER_REGEN_DISABLED")
+		if rawget(capture, "listening") or capture.__kb then fails = fails + 1; note("FAIL [keys] a key capture survived into combat") end
+	end
 	-- a missing saved theme still resolves to Flare
 	local savedTheme = WhatItDropsDB.theme
 	WhatItDropsDB.theme = nil
@@ -791,6 +828,13 @@ local function keyTests()
 	press(win, "OnKeyDown", "W")
 	chk(win.__prop == true, "an ordinary key was swallowed")
 	win.url:Hide()
+	-- combat starting lets go of the keyboard at once, even with the mouse over the window
+	fire("PLAYER_REGEN_DISABLED"); IN_COMBAT = true
+	chk(win.__kb == false and win.__prop == true, "the window kept the keyboard as combat started")
+	press(win, "OnUpdate", 0.2)
+	chk(win.__kb == false, "the window took the keyboard in combat")
+	IN_COMBAT = false; fire("PLAYER_REGEN_ENABLED"); press(win, "OnUpdate", 0.2)
+	chk(win.__kb == true, "the window did not listen again after the fight")
 	-- stuck in combat: pass-through off and cannot be changed -> the window stops listening at once
 	win.__prop = false; IN_COMBAT = true
 	press(win, "OnUpdate", 0.2)
@@ -822,6 +866,39 @@ local function keyTests()
 		end
 		br:Hide()
 	end
+	-- /loot keycheck and /loot keywatch name a frame that swallows keys
+	local bad = CreateFrame("Frame", "SomeAddonKeyCatcher", UIParent)
+	bad:EnableKeyboard(true); bad:SetPropagateKeyboardInput(false)
+	local function saidName(from)
+		for i = from + 1, #chat do if tostring(chat[i]):find("SomeAddonKeyCatcher", 1, true) then return true end end
+		return false
+	end
+	local mark = #chat
+	try("/loot keycheck", SlashCmdList.WHATITDROPS, "keycheck")
+	chk(saidName(mark), "/loot keycheck did not name the frame holding the keyboard")
+	bad:SetPropagateKeyboardInput(true)
+	mark = #chat
+	try("/loot keycheck, nothing", SlashCmdList.WHATITDROPS, "keycheck")
+	chk(not saidName(mark), "/loot keycheck named a frame that passes keys on")
+	bad:SetPropagateKeyboardInput(false)
+	WhatItDropsDB.keyWatch = false
+	try("/loot keywatch on", SlashCmdList.WHATITDROPS, "keywatch")
+	chk(WhatItDropsDB.keyWatch == true, "/loot keywatch did not turn the watch on")
+	mark = #chat
+	fire("PLAYER_REGEN_DISABLED"); IN_COMBAT = true
+	runTimers(1)
+	chk(saidName(mark), "the watch did not report the frame early in the fight")
+	local count = 0
+	runTimers(2.5); runTimers(2.5)
+	for i = mark + 1, #chat do if tostring(chat[i]):find("SomeAddonKeyCatcher", 1, true) then count = count + 1 end end
+	chk(count == 1, "the watch reported the same frame " .. count .. " times in one fight")
+	IN_COMBAT = false; fire("PLAYER_REGEN_ENABLED")
+	try("/loot keywatch off", SlashCmdList.WHATITDROPS, "keywatch")
+	mark = #chat
+	fire("PLAYER_REGEN_DISABLED"); IN_COMBAT = true; runTimers(3)
+	chk(not saidName(mark), "with the watch off a fight still reported the frame")
+	IN_COMBAT = false; fire("PLAYER_REGEN_ENABLED")
+	bad:Hide()
 	-- the option travels in a profile
 	WhatItDropsDB.keyToggles = false
 	local exported = WhatItDrops_ExportProfile()

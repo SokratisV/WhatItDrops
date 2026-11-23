@@ -428,6 +428,10 @@ Build.keybind = function(f)
         btn:SetText(KeyText(f.row and f.row.binding))
     end
     btn.stop = stop
+    -- A capture still armed when combat starts would swallow every key for the whole fight
+    -- (its pass-through cannot be turned back on in combat): drop it as combat begins.
+    btn:RegisterEvent("PLAYER_REGEN_DISABLED")
+    btn:SetScript("OnEvent", function(self) if self.listening then stop() end end)
     btn:SetScript("OnClick", function(self, button)
         local binding = f.row and f.row.binding
         if not binding then return end

@@ -61,6 +61,7 @@ Screenshots: drop images into docs/ and reference them here, e.g.
 | `/loot bosses` | The bosses of the instance you are in. |
 | `/loot quest` | Items the selected quest needs, and where they drop. |
 | `/loot data` | Which loot database this client loaded (Vanilla for WoW: Forever, TBC for the TBC clients). |
+| `/loot keywatch` / `/loot keycheck` | Name the addon frame that blocks the keyboard in combat (watch every fight, or check now). |
 | `/loot names` | Non-English clients: how many item and creature names your client has given us, and whether it names the creature you are targeting. |
 | `/loot auto` | Toggle auto-show on target. |
 | `/wid` (or `/loot config`) | Open the settings window. |

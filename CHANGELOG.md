@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+- **WhatItDrops never holds the keyboard in combat.** The loot window lets go of the keyboard the moment
+  combat starts and does not take it again until the fight is over (the Ctrl+C shortcut waits until
+  then), and a key capture left armed in the settings is dropped as combat starts. Neither can now be
+  what blocks keys in a fight.
+- **`/loot keycheck` and `/loot keywatch` find what is blocking the keyboard.** A frame that listens to
+  the keyboard without passing keys on swallows every key, and in combat that cannot be undone until the
+  fight ends. `/loot keycheck` lists such frames now; `/loot keywatch` (on/off, remembered) checks at the
+  start of every fight and every two seconds during it, and names each culprit in chat once per fight.
+
 ## [1.5.3] - 2026-11-20
 
 - **The keybind closes the window it opened.** Press the loot key (or the item browser key) again to

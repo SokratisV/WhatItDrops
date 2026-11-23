@@ -408,10 +408,11 @@ local function GetWindow()
 		if on and not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
 		self:EnableKeyboard(on)
 	end
+	-- Never in combat: a keyboard-enabled frame can only pass keys on if its pass-through is
+	-- right, and that cannot be checked or repaired mid-fight. DialogueUI drops its keyboard at
+	-- the start of combat for the same reason. So the Ctrl+C shortcut waits until combat ends.
 	local function WantKeyboard(self)
-		if not self:IsMouseOver() then return false end
-		if InCombatLockdown() then return self:GetPropagateKeyboardInput() and true or false end
-		return true
+		return self:IsMouseOver() and not InCombatLockdown()
 	end
 	local kbWait = 0
 	f:SetScript("OnUpdate", function(self, elapsed)
@@ -424,10 +425,17 @@ local function GetWindow()
 		SetKeyboard(self, false)
 		if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
 	end)
-	-- A Ctrl+C whose restore was caught by combat is healed as soon as combat ends.
+	-- Combat about to start (this fires before the lockdown): let go of the keyboard and make
+	-- sure keys pass. When it ends, pass-through is put right again in case anything was missed.
+	f:RegisterEvent("PLAYER_REGEN_DISABLED")
 	f:RegisterEvent("PLAYER_REGEN_ENABLED")
 	f:HookScript("OnEvent", function(self, e)
-		if e == "PLAYER_REGEN_ENABLED" then self:SetPropagateKeyboardInput(true) end
+		if e == "PLAYER_REGEN_DISABLED" then
+			SetKeyboard(self, false)
+			if not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
+		elseif e == "PLAYER_REGEN_ENABLED" then
+			self:SetPropagateKeyboardInput(true)
+		end
 	end)
 	f:SetScript("OnKeyDown", function(self, key)
 		-- in combat propagation is left as it is (it cannot be changed); the OnUpdate above
@@ -1913,6 +1921,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		SeedDB()
 		CreateQuestLogButton()
 		CreateMinimapButton()
+		WhatItDrops_UpdateKeyWatch()
 		-- Apply the default keybind (CTRL-L) once, and only if the action is
 		-- unbound and CTRL-L isn't already taken — never clobber the user.
 		if not ApplyDefaultBind() then self:RegisterEvent("UPDATE_BINDINGS") end
@@ -2009,6 +2018,75 @@ Names.onNpcName = function()
 	end
 end
 
+----------------------------------------------------------------------
+-- Finding what holds the keyboard
+----------------------------------------------------------------------
+-- A frame that listens to the keyboard swallows every key while it is shown, unless it passes
+-- them on (SetPropagateKeyboardInput); in combat that setting is frozen, so a frame caught with it
+-- off blocks all keys until the fight is over. Which addon owns such a frame is not visible in
+-- game, so these list them: /loot keycheck once, /loot keywatch in every fight (a scan at the
+-- start of combat and every two seconds during it, each culprit reported once per fight).
+local function FrameLabel(f)
+	local ok, name = pcall(function() return (f.GetDebugName and f:GetDebugName()) or f:GetName() end)
+	if ok and type(name) == "string" and name ~= "" and not IsSecret(name) then return name end
+	return tostring(f)
+end
+
+local function KeyboardHolders()
+	local out = {}
+	local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+	if focus then out[#out + 1] = FrameLabel(focus) end
+	local f = EnumerateFrames and EnumerateFrames()
+	while f do
+		local ok, holds = pcall(function()
+			if f.IsForbidden and f:IsForbidden() then return false end
+			return f:IsVisible() and f:IsKeyboardEnabled() and not f:GetPropagateKeyboardInput()
+		end)
+		if ok and holds and f ~= focus then out[#out + 1] = FrameLabel(f) end
+		f = EnumerateFrames(f)
+	end
+	return out
+end
+WhatItDrops_KeyboardHolders = KeyboardHolders
+
+local function say(s) print("|cff66ccffWhatItDrops|r: " .. s) end
+
+local function KeyCheck()
+	local holders = KeyboardHolders()
+	if #holders == 0 then say(L["Nothing is holding the keyboard right now."]) return end
+	for _, name in ipairs(holders) do say(L["%s is holding the keyboard: keys reach it instead of the game."]:format(name)) end
+end
+
+local keyWatch = CreateFrame("Frame")
+local watchTicker, reported
+local function WatchScan()
+	if not InCombatLockdown() then return end
+	for _, name in ipairs(KeyboardHolders()) do
+		if not reported[name] then
+			reported[name] = true
+			say(L["In combat, %s is holding the keyboard: keys reach it instead of the game."]:format(name))
+		end
+	end
+end
+keyWatch:SetScript("OnEvent", function(_, event)
+	if event == "PLAYER_REGEN_DISABLED" then
+		reported = {}
+		C_Timer.After(0.5, WatchScan)
+		if not watchTicker and C_Timer.NewTicker then watchTicker = C_Timer.NewTicker(2, WatchScan) end
+	elseif watchTicker then
+		watchTicker:Cancel(); watchTicker = nil
+	end
+end)
+function WhatItDrops_UpdateKeyWatch()
+	if WhatItDropsDB and WhatItDropsDB.keyWatch then
+		keyWatch:RegisterEvent("PLAYER_REGEN_DISABLED")
+		keyWatch:RegisterEvent("PLAYER_REGEN_ENABLED")
+	else
+		keyWatch:UnregisterAllEvents()
+		if watchTicker then watchTicker:Cancel(); watchTicker = nil end
+	end
+end
+
 -- /loot names: say what the client has given us, and whether it will name a creature.
 local function ReportNames()
 	local function say(s) print("|cff66ccffWhatItDrops|r: " .. s) end
@@ -2050,6 +2128,13 @@ SlashCmdList.WHATITDROPS = function(msg)
 		WhatItDrops_ShowQuest()
 	elseif msg == "names" then
 		ReportNames()
+	elseif msg == "keycheck" then
+		KeyCheck()
+	elseif msg == "keywatch" then
+		WhatItDropsDB.keyWatch = not WhatItDropsDB.keyWatch
+		WhatItDrops_UpdateKeyWatch()
+		say(WhatItDropsDB.keyWatch and L["Watching for frames that hold the keyboard in combat: on. Turn it off with /loot keywatch."]
+			or L["Watching for frames that hold the keyboard in combat: off."])
 	elseif msg == "data" then
 		-- which loot database this client loaded (the Forever client loads the vanilla one)
 		print("|cff66ccffWhatItDrops|r: " .. L["Loot data: %s"]:format(WhatItDropsDataSource or "TrinityCore TDB"))
@@ -2067,6 +2152,7 @@ SlashCmdList.WHATITDROPS = function(msg)
 		print("  " .. L["%s — items the selected quest needs, and where they drop"]:format("|cffffd100/loot quest|r"))
 		print("  " .. L["%s — check the item and creature names in your language"]:format("|cffffd100/loot names|r"))
 		print("  " .. L["%s — show which loot database this client loaded"]:format("|cffffd100/loot data|r"))
+		print("  " .. L["%s — watch for addons that block the keyboard in combat (or check now)"]:format("|cffffd100/loot keywatch|r, |cffffd100/loot keycheck|r"))
 		print("  " .. L["%s — toggle auto-showing on target"]:format("|cffffd100/loot auto|r"))
 		print("  " .. L["%s (or %s) — open the settings window"]:format("|cffffd100/loot config|r", "|cffffd100/wid|r"))
 		print("  " .. L["%s, %s — copy your whole setup as text, or paste one back"]:format("|cffffd100/wid export|r", "|cffffd100/wid import|r"))
