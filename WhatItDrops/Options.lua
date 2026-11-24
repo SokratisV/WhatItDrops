@@ -478,6 +478,7 @@ Build.keybind = function(f)
         stop()
         Changed()          -- the key may have been taken from the other action
     end)
+    btn:EnableKeyboard(false)     -- the OnKeyDown script above switched it on (keys not passing): off until a capture starts
     Forward(btn, f)
     f.keyBtn = btn
 end

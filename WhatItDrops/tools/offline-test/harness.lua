@@ -74,7 +74,11 @@ FrameMT.__index = function(self, k)
 	if k:find("^Is") or k:find("^Has") then return function() return false end end
 	return function(s) return s end
 end
-function methods.SetScript(self, n, fn) self.__scripts[n] = fn end
+function methods.SetScript(self, n, fn)
+	self.__scripts[n] = fn
+	-- as in the client: giving a frame a key script switches its keyboard on (with no pass-through)
+	if fn and (n == "OnKeyDown" or n == "OnKeyUp") then self.__kb = true end
+end
 function methods.GetScript(self, n) return self.__scripts[n] end
 function methods.HookScript(self, n, fn) self.__hooks[n] = self.__hooks[n] or {}; table.insert(self.__hooks[n], fn) end
 function methods.RegisterEvent(self, e) self.__events[e] = true end
@@ -396,6 +400,8 @@ local function lootWindow()
 	runTimers(0.1)
 	local win = _G.WhatItDropsFrame
 	if not (win and win.__shown) then note("FAIL loot window not shown"); fails = fails + 1 end
+	-- a freshly made window must not be listening to the keyboard (its OnKeyDown script switched it on)
+	if win and win.__kb then note("FAIL [keys] the new loot window holds the keyboard as soon as it is made"); fails = fails + 1 end
 	for _, set in ipairs({ { "fxBars", false }, { "fxBorders", false }, { "fxSparkle", false }, { "fxFade", false },
 		{ "fxModel", true }, { "rowSize", "roomy" }, { "rowSize", "compact" }, { "opacity", 0.5 }, { "uiScale", 1.2 },
 		{ "accent", "blue" }, { "theme", "flare" }, { "theme", "slate" }, { "theme", "parchment" }, { "theme", "elvui" }, { "theme", "blizzard" } }) do
@@ -847,6 +853,11 @@ local function keyTests()
 	MOUSE_OVER = win; IN_COMBAT = true; win.__kb = false
 	press(win, "OnUpdate", 0.2)
 	chk(win.__kb == false, "the window took the keyboard in combat")
+	win.__kb = true                                  -- switched on behind our back in the middle of a fight
+	press(win, "OnUpdate", 0.2)
+	chk(win.__kb == false, "a keyboard switched on during a fight was left on")
+	win:Hide(); win.__kb = true; win:Show()
+	chk(win.__kb == false, "showing the window in a fight left its keyboard on")
 	IN_COMBAT = false
 	fire("PLAYER_REGEN_ENABLED")
 	chk(win.__prop == true, "pass-through was not restored when combat ended")

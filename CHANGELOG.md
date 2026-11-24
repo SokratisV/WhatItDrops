@@ -7,7 +7,11 @@ All notable changes to this project are documented here. The format is based on
 ## [Unreleased]
 
 - **Fixed: every key dead in combat while the loot window was open.** A check during one of these
-  fights showed the loot window itself holding the keyboard with keys not passing through. The loot
+  fights showed the loot window itself holding the keyboard with keys not passing through. The cause:
+  giving a frame an OnKeyDown script (the Ctrl+C shortcut) switches its keyboard on by itself, with keys
+  not passing through, so a loot window first opened during a fight swallowed every key until the fight
+  ended. It is now switched straight back off, checked again whenever the window is shown, and switched
+  off by the window itself if it is ever found on during a fight. The loot
   window now lets go of the keyboard the moment
   combat starts and does not take it again until the fight is over (the Ctrl+C shortcut waits until
   then), and a key capture left armed in the settings is dropped as combat starts. Neither can now be

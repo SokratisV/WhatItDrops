@@ -415,7 +415,11 @@ local function GetWindow()
 		kbWait = kbWait + (elapsed or 0)
 		if kbWait < 0.1 then return end
 		kbWait = 0
-		if InCombatLockdown() then return end      -- dropped as the fight began; left alone until it ends
+		if InCombatLockdown() then
+			-- never on in a fight; and if anything switched it on behind our back, off it goes
+			if self:IsKeyboardEnabled() then self.keyboardOn = false; self:EnableKeyboard(false) end
+			return
+		end
 		SetKeyboard(self, self:IsMouseOver())
 	end)
 	f:HookScript("OnHide", function(self)
@@ -448,6 +452,15 @@ local function GetWindow()
 		else
 			self:SetPropagateKeyboardInput(true)  -- let every other key through
 		end
+	end)
+	-- Giving a frame an OnKeyDown script switches its keyboard ON by itself, with keys NOT passing
+	-- through. That was the "every key dead in combat" bug: the window made (or first shown) during
+	-- a fight sat there swallowing every key until the fight ended. Switch it straight back off;
+	-- the OnUpdate above turns it on only when wanted, and never in combat.
+	f:EnableKeyboard(false)
+	f.keyboardOn = false
+	f:HookScript("OnShow", function(self)
+		if not self.keyboardOn and self:IsKeyboardEnabled() then self:EnableKeyboard(false) end
 	end)
 	-- Whenever the URL box closes (Escape or after a copy), restore pass-through as well.
 	url:HookScript("OnHide", function()
