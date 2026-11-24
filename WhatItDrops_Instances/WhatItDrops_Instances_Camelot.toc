@@ -21,7 +21,7 @@
 ## Notes-zhTW: 副本的戰利品機率，來自 CMaNGOS 資料庫（GPLv3）。由 WhatItDrops 按需載入。
 ## Title-itIT: WhatItDrops |cff66ccffIstanze Dati|r
 ## Notes-itIT: Probabilità di bottino per Istanze dal database CMaNGOS (GPLv3). Caricato su richiesta da WhatItDrops.
-## Version: 1.5.3
+## Version: 1.5.4
 ## IconTexture: Interface\AddOns\WhatItDrops\icon.tga
 ## Group: WhatItDrops
 ## X-Part-Of: WhatItDrops

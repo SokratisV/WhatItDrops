@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.4] - 2026-11-24
 
 - **Fixed: every key dead in combat while the loot window was open.** A check during one of these
   fights showed the loot window itself holding the keyboard with keys not passing through. The cause:
@@ -237,6 +237,7 @@ Initial release as **WhatItDrops**. This is the addon previously published as
 Commands: `/loot` (target lookup), `/loot config`, `/loot browse`, `/fullloot`, and
 `/whatitdrops`.
 
+[1.5.4]: https://github.com/SokratisV/WhatItDrops/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/SokratisV/WhatItDrops/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/SokratisV/WhatItDrops/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/SokratisV/WhatItDrops/compare/v1.5.0...v1.5.1
