@@ -20,7 +20,14 @@ All notable changes to this project are documented here. The format is based on
   they have focus). A frame that listens to
   the keyboard without passing keys on swallows every key, and in combat that cannot be undone until the
   fight ends. `/loot keycheck` lists such frames now; `/loot keywatch` (on/off, remembered) checks at the
-  start of every fight and every two seconds during it, and names each culprit in chat once per fight.
+  start of every fight and every ten seconds during it, and names each culprit in chat once per fight.
+- **No more periodic FPS spikes with the windows closed.** The item-data events (which arrive in storms
+  when bags open or the auction house scans), inspect replies and target changes are now only listened
+  to while something needs them: an open window, item names still being collected, or auto-show being
+  on. With everything closed WhatItDrops does no work at all. The `/loot keywatch` scan, which walks every
+  frame in the UI, no longer makes garbage for each frame it looks at (about a third of the time, and
+  none of the memory churn that set off garbage-collection stalls) and runs every ten seconds instead
+  of every two.
 
 ## [1.5.3] - 2026-11-20
 

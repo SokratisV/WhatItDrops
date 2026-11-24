@@ -735,7 +735,8 @@ local function definePages()
                 { title = L["Loot lookup"], key = "lookup", rows = {
                     Flag("auto", L["Auto-show on target"],
                         L["Open the loot window by itself whenever you target an enemy."], false,
-                        { tip = L["Other players always need the keybind."] }),
+                        { tip = L["Other players always need the keybind."],
+                          apply = function() if WhatItDrops_UpdateListeners then WhatItDrops_UpdateListeners() end end }),
                     Flag("useMouseover", L["Use mouseover first"],
                         L["When a creature is under your mouse, look that one up instead of your target."], false),
                     Flag("hideJunk", L["Hide common loot"],

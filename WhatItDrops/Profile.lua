@@ -325,6 +325,7 @@ function WhatItDrops_ImportProfile(text)
     if WhatItDrops_RestorePositions then WhatItDrops_RestorePositions() end
     if WhatItDrops_UpdateMinimapButton then WhatItDrops_UpdateMinimapButton() end
     if WhatItDrops_UpdateQuestButton then WhatItDrops_UpdateQuestButton() end
+    if WhatItDrops_UpdateListeners then WhatItDrops_UpdateListeners() end
     if WhatItDrops_Refresh then WhatItDrops_Refresh() end
     if WhatItDrops_RefreshOptions then WhatItDrops_RefreshOptions() end
 

@@ -175,7 +175,13 @@ function Names.StartItemIndex()
     have = 0
     for _, id in ipairs(order) do if t.items[id] then have = have + 1 end end
     complete = (have >= total)
+    if Names.onStart then Names.onStart() end
     if complete then Notify() else Pump() end
+end
+
+-- Still asking the client for names (so the item-data events are wanted).
+function Names.Collecting()
+    return started and not complete
 end
 
 function Names.Progress()

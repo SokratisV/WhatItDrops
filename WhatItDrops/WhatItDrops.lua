@@ -474,6 +474,8 @@ local function GetWindow()
 		end
 	end)
 
+	f:HookScript("OnShow", function() WhatItDrops_UpdateListeners() end)
+	f:HookScript("OnHide", function() WhatItDrops_UpdateListeners() end)
 	win, rows = f, {}
 	return f
 end
@@ -796,6 +798,7 @@ end
 local function StartRetailItemNames()
 	if retailNamesStarted or not WhatItDropsFull then return end
 	retailNamesStarted = true
+	WhatItDrops_UpdateListeners()            -- the names arrive as item-data events
 	local ids, seen = {}, {}
 	for _, arr in pairs(WhatItDropsFull) do
 		for k = 2, #arr, 2 do
@@ -1698,6 +1701,8 @@ local function GetBrowser()
 	url:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
 	url:Hide(); WhatItDrops_Skin.EditBox(url); f.url = url
 
+	f:HookScript("OnShow", function() WhatItDrops_UpdateListeners() end)
+	f:HookScript("OnHide", function() WhatItDrops_UpdateListeners() end)
 	bWin = f
 	return f
 end
@@ -1896,15 +1901,31 @@ end
 local renderQueued = false
 local driver = CreateFrame("Frame")
 driver:RegisterEvent("ADDON_LOADED")
+WhatItDrops_EventFrame = driver          -- for the offline tests
+
+-- The busy events (item data arrives in storms when bags open or the auction house scans, and the
+-- target changes all the time) are only listened to while something needs them: a window that is
+-- open, item names still being collected, or auto-show being on. Otherwise WhatItDrops does no work
+-- at all while you play.
+local function Listen(event, on)
+	if on then pcall(driver.RegisterEvent, driver, event) else pcall(driver.UnregisterEvent, driver, event) end
+end
+function WhatItDrops_UpdateListeners()
+	local lootOpen = win and win:IsShown() or false
+	local open = lootOpen or (bWin and bWin:IsShown()) or false
+	local collecting = retailNamesStarted or (Names.Collecting and Names.Collecting()) or false
+	Listen("GET_ITEM_INFO_RECEIVED", open or collecting)
+	Listen("ITEM_DATA_LOAD_RESULT", open or collecting)   -- what RequestLoadItemDataByID answers with (older clients lack it)
+	Listen("INSPECT_READY", lootOpen)
+	Listen("PLAYER_TARGET_CHANGED", WhatItDropsDB and WhatItDropsDB.auto or false)
+end
+Names.onStart = WhatItDrops_UpdateListeners    -- collecting names in the client's language needs the item events
 driver:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == ADDON then
 		SeedDB()
 		self:UnregisterEvent("ADDON_LOADED")
 		self:RegisterEvent("PLAYER_LOGIN")
-		self:RegisterEvent("PLAYER_TARGET_CHANGED")
-		self:RegisterEvent("GET_ITEM_INFO_RECEIVED")
-		pcall(self.RegisterEvent, self, "ITEM_DATA_LOAD_RESULT")      -- what RequestLoadItemDataByID answers with (older clients lack it)
-		self:RegisterEvent("INSPECT_READY")
+		WhatItDrops_UpdateListeners()
 		-- Journal loot streams in after EJ_SelectEncounter (the client's own spelling
 		-- of the event); only Retail has it, so don't let an unknown name raise.
 		if IS_RETAIL then pcall(self.RegisterEvent, self, "EJ_LOOT_DATA_RECIEVED") end
@@ -1929,6 +1950,7 @@ driver:SetScript("OnEvent", function(self, event, arg1)
 		-- Again, because the saved values may only have landed after ADDON_LOADED.
 		-- Must come before anything below reads or writes a setting.
 		SeedDB()
+		WhatItDrops_UpdateListeners()             -- the auto-show setting may only be known now
 		CreateQuestLogButton()
 		CreateMinimapButton()
 		WhatItDrops_UpdateKeyWatch()
@@ -2035,7 +2057,7 @@ end
 -- them on (SetPropagateKeyboardInput); in combat that setting is frozen, so a frame caught with it
 -- off blocks all keys until the fight is over. Which addon owns such a frame is not visible in
 -- game, so these list them: /loot keycheck once, /loot keywatch in every fight (a scan at the
--- start of combat and every two seconds during it, each culprit reported once per fight).
+-- start of combat and every ten seconds during it, each culprit reported once per fight).
 local function FrameLabel(f)
 	local ok, name = pcall(function() return (f.GetDebugName and f:GetDebugName()) or f:GetName() end)
 	if ok and type(name) == "string" and name ~= "" and not IsSecret(name) then return name end
@@ -2050,18 +2072,23 @@ local function Expected(f)
 	return ok and type(name) == "string" and not IsSecret(name) and name:find("^ChatFrame%d+EditBox$") ~= nil
 end
 
+-- One frame. The scan walks every frame in the UI (tens of thousands with a big addon set), so
+-- this is a plain function called through pcall (no new closure per frame, which made a scan cost
+-- megabytes of garbage) and the cheapest test comes first: almost no frame listens to the keyboard.
+local function HoldsKeyboard(f)
+	if not f:IsKeyboardEnabled() then return false end
+	if f:IsForbidden() or not f:IsVisible() or f:GetPropagateKeyboardInput() then return false end
+	if f:GetObjectType() == "EditBox" then return false end    -- only a focused one takes keys (listed apart)
+	return not Expected(f)
+end
+
 local function KeyboardHolders()
 	local out = {}
 	local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
 	if focus and not Expected(focus) then out[#out + 1] = FrameLabel(focus) end
 	local f = EnumerateFrames and EnumerateFrames()
 	while f do
-		local ok, holds = pcall(function()
-			if f.IsForbidden and f:IsForbidden() then return false end
-			if Expected(f) then return false end
-			if f:GetObjectType() == "EditBox" then return false end    -- only a focused one takes keys (listed above)
-			return f:IsVisible() and f:IsKeyboardEnabled() and not f:GetPropagateKeyboardInput()
-		end)
+		local ok, holds = pcall(HoldsKeyboard, f)
 		if ok and holds and f ~= focus then out[#out + 1] = FrameLabel(f) end
 		f = EnumerateFrames(f)
 	end
@@ -2092,7 +2119,8 @@ keyWatch:SetScript("OnEvent", function(_, event)
 	if event == "PLAYER_REGEN_DISABLED" then
 		reported = {}
 		C_Timer.After(0.5, WatchScan)
-		if not watchTicker and C_Timer.NewTicker then watchTicker = C_Timer.NewTicker(2, WatchScan) end
+		-- every ten seconds after that: a scan is a few milliseconds, too much to repeat often
+		if not watchTicker and C_Timer.NewTicker then watchTicker = C_Timer.NewTicker(10, WatchScan) end
 	elseif watchTicker then
 		watchTicker:Cancel(); watchTicker = nil
 	end
@@ -2140,6 +2168,7 @@ SlashCmdList.WHATITDROPS = function(msg)
 	msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
 	if msg == "auto" then
 		WhatItDropsDB.auto = not WhatItDropsDB.auto
+		WhatItDrops_UpdateListeners()
 	elseif msg == "config" or msg == "options" then
 		if WhatItDrops_OpenSettings then WhatItDrops_OpenSettings() end
 	elseif msg:match("^browse") then

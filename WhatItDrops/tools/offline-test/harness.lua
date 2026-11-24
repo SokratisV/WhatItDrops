@@ -382,6 +382,11 @@ fire("PLAYER_LOGIN")
 runTimers()
 local db = WhatItDropsDB
 if not db then note("FAIL WhatItDropsDB was never created"); fails = fails + 1 end
+-- with no window open and auto-show off, the busy events are not listened to at all
+local function listening(e) local d = WhatItDropsEventFrameOrNil or _G.WhatItDrops_EventFrame; return d and d.__events[e] and true or false end
+for _, e in ipairs({ "GET_ITEM_INFO_RECEIVED", "ITEM_DATA_LOAD_RESULT", "INSPECT_READY", "PLAYER_TARGET_CHANGED" }) do
+	if listening(e) then fails = fails + 1; note("FAIL [perf] listening to " .. e .. " with nothing open") end
+end
 if db and db.theme ~= "flare" then fails = fails + 1; note("FAIL [theme] a fresh install does not default to the Flare theme (" .. tostring(db.theme) .. ")") end
 if db then
 	-- an install from before the change has "blizzard" saved for everyone: moved over once, then left alone
@@ -400,6 +405,18 @@ local function lootWindow()
 	runTimers(0.1)
 	local win = _G.WhatItDropsFrame
 	if not (win and win.__shown) then note("FAIL loot window not shown"); fails = fails + 1 end
+	-- an open loot window listens for item data and inspect replies; closing it stops that
+	if not (listening("GET_ITEM_INFO_RECEIVED") and listening("INSPECT_READY")) then fails = fails + 1; note("FAIL [perf] the open loot window does not listen for item data") end
+	if win then
+		win:Hide()
+		if listening("GET_ITEM_INFO_RECEIVED") or listening("INSPECT_READY") then fails = fails + 1; note("FAIL [perf] still listening for item data after the window closed") end
+		-- auto-show needs the target event, and only while it is on
+		try("/loot auto", SlashCmdList.WHATITDROPS, "auto")
+		if not listening("PLAYER_TARGET_CHANGED") then fails = fails + 1; note("FAIL [perf] auto-show on but the target event is not listened to") end
+		try("/loot auto off", SlashCmdList.WHATITDROPS, "auto")
+		if listening("PLAYER_TARGET_CHANGED") then fails = fails + 1; note("FAIL [perf] auto-show off but the target event is still listened to") end
+		try("slash /loot (creature) again", SlashCmdList.WHATITDROPS, ""); runTimers(0.1)
+	end
 	-- a freshly made window must not be listening to the keyboard (its OnKeyDown script switched it on)
 	if win and win.__kb then note("FAIL [keys] the new loot window holds the keyboard as soon as it is made"); fails = fails + 1 end
 	for _, set in ipairs({ { "fxBars", false }, { "fxBorders", false }, { "fxSparkle", false }, { "fxFade", false },
@@ -1174,7 +1191,12 @@ local function nameTests()
 		-- session 1, nothing cached: all 300 are asked for, never more than 12 in a tick (50 a second)
 		local M1 = session("xxXX")
 		runTimers(0.1)
+		-- starting to collect tells the addon, so the item events come on even with every window closed
+		local told = 0
+		M1.onStart = function() told = told + 1; check(M1.Collecting(), "the addon was told too early: not collecting yet") end
+		check(not M1.Collecting(), "collecting before anything started it")
 		local n, busiest = drive(M1, 8)
+		check(told == 1, "starting to collect item names did not tell the addon to listen for item data")
 		check(n == 300, "a cold pass asked for " .. n .. " of 300 items")
 		check(busiest <= 12, "a cold pass made " .. busiest .. " requests in one tick (limit 12, about 50 a second)")
 		deliver(M1, 5000, 5149)                 -- the client answers for half of them
@@ -1278,6 +1300,10 @@ local function nameTests()
 	-- a localized objective cannot resolve until the client has told us the names
 	WhatItDrops_ShowQuest(); runTimers(0.1)
 	check(rowCount(lootWin, 1001) == 0 and rowCount(lootWin, 1003) == 0, "a localized quest item resolved before any name was known")
+	-- still collecting names: the item events stay on even with both windows closed
+	brWin:Hide(); lootWin:Hide()
+	check(_G.WhatItDrops_EventFrame.__events.GET_ITEM_INFO_RECEIVED, "item names are still being collected but the item events were switched off")
+	lootWin:Show(); brWin:Show()
 	-- the client delivers
 	for id in pairs(REQUESTED) do LOADED[id] = true; fire("GET_ITEM_INFO_RECEIVED", id, true) end
 	fire("ITEM_DATA_LOAD_RESULT", 1001, true)
