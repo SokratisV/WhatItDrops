@@ -2029,14 +2029,23 @@ local function FrameLabel(f)
 	return tostring(f)
 end
 
+-- Not culprits: the game world itself (Blizzard keeps WorldFrame listening, that is how keys reach
+-- the game), and a chat box you are typing in (it is where /loot keycheck itself was typed).
+local function Expected(f)
+	if f == _G.WorldFrame then return true end
+	local ok, name = pcall(f.GetName, f)
+	return ok and type(name) == "string" and not IsSecret(name) and name:find("^ChatFrame%d+EditBox$") ~= nil
+end
+
 local function KeyboardHolders()
 	local out = {}
 	local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
-	if focus then out[#out + 1] = FrameLabel(focus) end
+	if focus and not Expected(focus) then out[#out + 1] = FrameLabel(focus) end
 	local f = EnumerateFrames and EnumerateFrames()
 	while f do
 		local ok, holds = pcall(function()
 			if f.IsForbidden and f:IsForbidden() then return false end
+			if Expected(f) then return false end
 			if f:GetObjectType() == "EditBox" then return false end    -- only a focused one takes keys (listed above)
 			return f:IsVisible() and f:IsKeyboardEnabled() and not f:GetPropagateKeyboardInput()
 		end)

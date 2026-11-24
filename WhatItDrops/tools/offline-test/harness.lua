@@ -898,6 +898,20 @@ local function keyTests()
 	try("/loot keycheck, focused box", SlashCmdList.WHATITDROPS, "keycheck")
 	chk(saidBox(), "/loot keycheck did not name a focused text box")
 	box:ClearFocus(); box:Hide()
+	-- the game world and the chat box the command was typed in are never reported
+	local world = CreateFrame("Frame", "WorldFrame", UIParent)
+	world:EnableKeyboard(true); world:SetPropagateKeyboardInput(false)
+	local chatBox = CreateFrame("EditBox", "ChatFrame1EditBox", UIParent)
+	chatBox:SetFocus()
+	bad:Hide(); mark = #chat
+	try("/loot keycheck, expected", SlashCmdList.WHATITDROPS, "keycheck")
+	local noise = false
+	for i = mark + 1, #chat do
+		local m = tostring(chat[i])
+		if m:find("WorldFrame", 1, true) or m:find("ChatFrame1EditBox", 1, true) then noise = true end
+	end
+	chk(not noise, "/loot keycheck reported the game world or the chat box it was typed in")
+	chatBox:ClearFocus(); chatBox:Hide(); world:Hide(); bad:Show()
 	bad:SetPropagateKeyboardInput(false)
 	WhatItDropsDB.keyWatch = false
 	try("/loot keywatch on", SlashCmdList.WHATITDROPS, "keywatch")
